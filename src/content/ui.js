@@ -485,6 +485,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       });
     }
 
+    // Click / tap anywhere outside the card collapses it back to the pill.
+    document.addEventListener('pointerdown', e => {
+      if (!expanded || !host.isConnected) return;
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+      if (!path.includes(host)) collapse(false);
+    }, true);
+
     // detail === 0 => keyboard activation; only then move focus into the panel.
     pill.addEventListener('click', e => expand(e.detail === 0));
     shadow.addEventListener('click', e => {
