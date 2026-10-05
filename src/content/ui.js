@@ -19,8 +19,8 @@
 .root {
   --bg: #ffffff;
   --text: #0f172a;
-  --muted: #64748b;
-  --subtle: #94a3b8;
+  --muted: #475569;
+  --subtle: #64748b;
   --line: #e9eef4;
   --surface: #f6f8fb;
   /* Brand accents follow Keka's theme (--kh-* are set on the host from
@@ -112,7 +112,7 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.warn { background: #f3c48a; }
 .spark .bar:hover { background: #34b46d; }
 .spark .bar.warn:hover { background: #e08a1e; }
-.spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #b8c2cf; pointer-events: none; }
+.spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #94a3b8; pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
 .hero { padding: 6px 0 14px; }
