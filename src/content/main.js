@@ -42,6 +42,7 @@
 
   let widget = null;
   let observer = null;
+  let themeObserver = null;
   let debounceTimer = null;
   let firstPendingAt = 0;
   let intervalId = null;
@@ -226,6 +227,7 @@
   function teardown() {
     stopped = true;
     if (observer) observer.disconnect();
+    if (themeObserver) themeObserver.disconnect();
     clearTimeout(debounceTimer);
     clearInterval(intervalId);
     window.removeEventListener('hashchange', onUrlChange);
@@ -250,6 +252,10 @@
       state.overrides = next;
       refresh();
     });
+
+    // Keka switches theme by changing <html>'s class / inline CSS variables.
+    themeObserver = new MutationObserver(() => widget.applyTheme());
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
 
     observer = new MutationObserver(onMutations);
     observer.observe(document.body || document.documentElement, { childList: true, subtree: true, characterData: true });

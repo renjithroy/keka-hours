@@ -23,8 +23,13 @@
   --subtle: #94a3b8;
   --line: #e9eef4;
   --surface: #f6f8fb;
-  --brand: #1f9d6b;
-  --brand-soft: #e7f6ef;
+  /* Brand accents follow Keka's theme (--kh-* are set on the host from
+     Keka's --primary-color / --primary-color-light). Status colours below
+     (good = >= 9h, warn = < 9h) stay fixed because they carry meaning. */
+  --brand: var(--kh-primary, #1f9d6b);
+  --brand-soft: var(--kh-primary-light, #e7f6ef);
+  --brand-text: color-mix(in srgb, var(--brand) 72%, #000);
+  --brand-line: color-mix(in srgb, var(--brand) 50%, #fff);
   --good: #15803d;
   --good-soft: #e8f6ee;
   --warn: #b45309;
@@ -161,14 +166,14 @@ svg { width: 100%; height: 100%; display: block; }
 .tabs[data-tab="plan"] .tab-ind { transform: translateX(100%); }
 .tab { position: relative; z-index: 1; flex: 1; height: 31px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--muted); transition: color .2s ease; }
 .tab:hover { color: var(--text); }
-.tab[aria-selected="true"] { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--brand-text); }
 
 /* ---------- plan ---------- */
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: #14532d; }
-.today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px rgba(31,157,107,.18); }
+.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
+.today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
 .today-strip b { font-weight: 700; }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
@@ -182,8 +187,8 @@ svg { width: 100%; height: 100%; display: block; }
 .s-wfh, .s-leave { background: var(--surface); }
 .s-off, .s-holiday, .s-none, .s-absent { color: var(--subtle); }
 .s-off .cal-v, .s-holiday .cal-v, .s-absent .cal-v { color: var(--subtle); }
-.s-plan-office { border: 1.5px dashed #9ed6bc; background: #fff; }
-.s-plan-office .cal-v { color: var(--brand); font-weight: 700; }
+.s-plan-office { border: 1.5px dashed var(--brand-line); background: #fff; }
+.s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, #f4f6f9 0 4px, #fff 4px 8px); border: 1.5px solid transparent; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 .cal-cell.today::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--text); border-radius: 11px; pointer-events: none; }
@@ -193,7 +198,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px #bfe5cf; }
 .legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px #f2d3ad; }
 .legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px #e1e7ee; }
-.legend .lp { border: 1.5px dashed #9ed6bc; }
+.legend .lp { border: 1.5px dashed var(--brand-line); }
 .legend .la { background: repeating-linear-gradient(135deg, #e9edf2 0 2px, #fff 2px 4px); box-shadow: inset 0 0 0 1px #e1e7ee; }
 .legend .hint { flex-basis: 100%; color: var(--subtle); }
 
@@ -409,6 +414,22 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
+
+  /** Keka's current theme colours (from CSS variables on <html>), validated. */
+  function readKekaTheme() {
+    try {
+      const cs = getComputedStyle(document.documentElement);
+      const pick = name => {
+        const v = cs.getPropertyValue(name).trim();
+        return COLOR_RE.test(v) ? v : null;
+      };
+      return { primary: pick('--primary-color'), light: pick('--primary-color-light') };
+    } catch (_) {
+      return { primary: null, light: null };
+    }
+  }
+
   function createWidget(handlers) {
     let host = document.getElementById(HOST_ID);
     if (host && host.__kekaHours) return host.__kekaHours;
@@ -608,8 +629,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return;
       }
       host.style.setProperty('display', 'block', 'important');
+      applyTheme();
       renderPill();
       renderPanel();
+    }
+
+    /** Match Keka's theme colour (green, pink, …); falls back to green. */
+    function applyTheme() {
+      const t = readKekaTheme();
+      for (const [prop, value] of [['--kh-primary', t.primary], ['--kh-primary-light', t.light]]) {
+        if (value) host.style.setProperty(prop, value); else host.style.removeProperty(prop);
+      }
     }
 
     /** Cheap periodic refresh of the "Updated …" text only. */
@@ -621,7 +651,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, tick, mount, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, tick, mount, applyTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }
