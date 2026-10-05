@@ -188,9 +188,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; font-size: 11px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 3px; vertical-align: -1px; }
 .legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px #bfe5cf; }
+.legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px #f2d3ad; }
+.legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px #e1e7ee; }
 .legend .lp { border: 1.5px dashed #9ed6bc; }
 .legend .la { background: repeating-linear-gradient(135deg, #e9edf2 0 2px, #fff 2px 4px); box-shadow: inset 0 0 0 1px #e1e7ee; }
-.legend .hint { margin-left: auto; color: var(--subtle); }
+.legend .hint { flex-basis: 100%; color: var(--subtle); }
 
 .foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 10px 16px 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--subtle); }
 .foot span:last-child { text-align: right; }
@@ -200,7 +202,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-pulse { 50% { opacity: .35; } }
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-@media (max-width: 480px) { .hero-value { font-size: 34px; } .cal-cell { height: 40px; } .legend .hint { margin-left: 0; } }
+@media (max-width: 480px) { .hero-value { font-size: 34px; } .cal-cell { height: 40px; } }
 `;
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -369,7 +371,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       case 'absent': value = '—'; title += ' · No time'; break;
       case 'plan-office':
         value = p.status === 'needed' ? fmt.compact(p.requiredPerDay) : '•';
-        title += ' · Office (tap to mark WFH / leave)';
+        title += ' · Office (tap to mark away)';
         break;
       case 'plan-away':
         value = c.reason || 'Away';
@@ -387,6 +389,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (!p) return '<div class="waiting"><div class="msg">Open a month (or <b>30 DAYS</b>) in the Attendance Log to plan.</div></div>';
     const blanks = Array.from({ length: p.firstWeekday }, () => '<div></div>').join('');
     const editable = p.cells.some(c => c.state === 'plan-office' || c.state === 'plan-away');
+    const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     return `
       ${planHeroHtml(p)}
       ${todayHtml(p)}
@@ -395,8 +398,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         ${blanks}${p.cells.map(c => cellHtml(c, p)).join('')}
       </div>
       <div class="legend">
-        <span><i class="lw"></i>Worked</span>
-        ${editable ? '<span><i class="lp"></i>Office</span><span><i class="la"></i>Away</span><span class="hint">Tap a day to switch</span>' : ''}
+        <span><i class="lw"></i>≥ ${target}</span>
+        <span><i class="lu"></i>&lt; ${target}</span>
+        <span><i class="lx"></i>WFH / Leave</span>
+        ${editable ? `<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>
+        <span class="hint">Tap an upcoming day to switch office ↔ away (WFH / leave / off)</span>` : ''}
       </div>`;
   }
 
