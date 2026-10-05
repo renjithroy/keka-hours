@@ -513,7 +513,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function expand(viaKeyboard) {
       if (expanded) return;
       expanded = true;
-      if (closing) { closing.cancel(); closing = null; }
+      if (closing || resetClose) {
+        closing = null;
+        if (resetClose) resetClose();
+      }
       handlers.onExpand(); // verifies freshness, then calls render()
       pill.hidden = true;
       pill.setAttribute('aria-expanded', 'true');
@@ -522,26 +525,59 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (viaKeyboard) $('[data-act="collapse"]').focus({ preventScroll: true });
     }
 
+    let resetClose = null; // undoes the temporary close-animation state
+
     /**
-     * Minimize to the pill. Animated (fade + slight shrink towards the
-     * bottom-right corner, mirroring the open animation) unless `instant`.
+     * Minimize to the pill. Animated as one motion: the card shrinks into the
+     * pill's exact size and spot (both share the bottom-right corner) while
+     * its contents fade, and the pill fades in underneath as it arrives.
+     * Instant when `instant` (e.g. leaving the logs page) or reduced motion.
      */
     function collapse(viaKeyboard, instant) {
       if (!expanded) return;
       expanded = false;
       const done = () => {
-        closing = null;
+        if (resetClose) resetClose();
         panel.hidden = true;
-        pill.hidden = false; // pill re-runs its own fade-in
+        pill.hidden = false;
         pill.setAttribute('aria-expanded', 'false');
         if (viaKeyboard) pill.focus({ preventScroll: true });
       };
       if (instant || typeof panel.animate !== 'function' || reduceMotion()) { done(); return; }
-      closing = panel.animate([
-        { opacity: 1, transform: 'none' },
-        { opacity: 0, transform: 'translateY(6px) scale(.96)' },
-      ], { duration: 170, easing: 'cubic-bezier(.4,0,.2,1)' });
-      closing.finished.then(() => { if (!expanded) done(); }).catch(() => { /* cancelled by re-open */ });
+
+      const from = panel.getBoundingClientRect();
+      // Lift the card out of flow (pinned to the same corner) and show the pill beneath it.
+      panel.style.position = 'absolute';
+      panel.style.right = '0';
+      panel.style.bottom = '0';
+      pill.style.animation = 'none'; // don't replay the pill's own entrance fade
+      pill.hidden = false;
+      const to = pill.getBoundingClientRect();
+      const sx = Math.max(0.05, to.width / from.width);
+      const sy = Math.max(0.05, to.height / from.height);
+      const ease = 'cubic-bezier(.32,.72,0,1)';
+
+      const anims = [
+        panel.animate([
+          { transform: 'none', opacity: 1, offset: 0 },
+          { opacity: 1, offset: 0.55 },
+          { transform: `scale(${sx}, ${sy})`, opacity: 0, offset: 1 },
+        ], { duration: 320, easing: ease, fill: 'forwards' }), // hold the end state until hidden
+        ...[...panel.children].map(child => child.animate(
+          [{ opacity: 1 }, { opacity: 0 }], { duration: 80, easing: 'ease-out', fill: 'forwards' })),
+        pill.animate(
+          [{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }],
+          { duration: 200, delay: 160, easing: 'ease-out', fill: 'backwards' }),
+      ];
+      resetClose = () => {
+        resetClose = null;
+        anims.forEach(an => an.cancel());
+        panel.style.position = '';
+        panel.style.right = '';
+        panel.style.bottom = '';
+      };
+      closing = anims[0];
+      closing.finished.then(() => { closing = null; if (!expanded) done(); }).catch(() => { /* cancelled by re-open */ });
     }
 
     function renderPill() {
