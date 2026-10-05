@@ -151,3 +151,20 @@ test('month-to-date header range', () => {
   assert.equal(fmt.monthToDateRange('2026-10-01'), '1 Oct 2026');
   assert.equal(fmt.monthToDateRange('bad'), '');
 });
+
+test('allDays lists every day with its kind, for the daily chart', () => {
+  const s = calculateSummary([
+    d(1, 9, 30),
+    d(2, 8, 0, { isWFH: true }),
+    d(3, 0, 0, { isLeave: true }),
+    d(5, 0, 0, { isWeeklyOff: true }),
+    d(4, 0, 0, { isHoliday: true }),
+    d(6, 3, 10, { isIncomplete: true }),
+  ], 540);
+  assert.deepEqual(s.allDays.map(x => [x.date.slice(8), x.kind, x.grossMinutes]), [
+    ['01', 'included', 570], ['02', 'wfh', 480], ['03', 'leave', 0],
+    ['04', 'no-time', 0], ['05', 'no-time', 0], ['06', 'incomplete', 190],
+  ]);
+  assert.equal(s.allDays[3].isHoliday, true);
+  assert.equal(s.allDays[4].isWeeklyOff, true);
+});

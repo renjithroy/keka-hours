@@ -108,8 +108,16 @@
       workedHolidays: included.filter(d => d.isHoliday).length,
       workedWeeklyOffs: included.filter(d => d.isWeeklyOff && !d.isHoliday).length,
       halfLeaveDays: included.filter(d => d.isHalfLeave).length,
-      // Counted days in date order (whole minutes), for the daily chart.
+      // Counted days in date order (whole minutes).
       includedDays: included.map(d => ({ date: d.date, grossMinutes: d.grossMinutes })),
+      // Every day in the view, for the daily chart: kind = classify() result.
+      allDays: unique.map(d => ({
+        date: d.date,
+        kind: classify(d),
+        grossMinutes: hasTrackedTime(d) ? wholeMinutes(d.grossMinutes) : 0,
+        isHoliday: !!d.isHoliday,
+        isWeeklyOff: !!d.isWeeklyOff,
+      })),
       pendingToday,
       sourcePrecision,
     };

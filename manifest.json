@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Keka Hours",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "description": "Your average gross working hours per office day, right inside Keka. Everything stays in your browser.",
   "permissions": [
     "storage"

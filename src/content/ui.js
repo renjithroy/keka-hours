@@ -112,6 +112,13 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.warn { background: #f3c48a; }
 .spark .bar:hover { background: #34b46d; }
 .spark .bar.warn:hover { background: #e08a1e; }
+.spark.dense { gap: 2px; }
+.spark .bar.wfh { background: repeating-linear-gradient(135deg, #d5dce5 0 3px, #edf1f5 3px 6px); }
+.spark .bar.wfh:hover { background: repeating-linear-gradient(135deg, #b9c3cf 0 3px, #e3e8ee 3px 6px); }
+.spark .bar.stub { height: 5px; flex: 1 1 0; min-height: 0; border-radius: 2px; background: #e3e8ee; }
+.spark .bar.stub:hover { background: #cbd3dd; }
+.spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
+.spark .bar.live:hover { background: var(--brand-soft); }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #94a3b8; pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
@@ -283,25 +290,47 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       ${s.pendingToday ? `<div class="note">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}`;
   }
 
-  /** Bar per counted day vs the 9h line. Scale starts at 5h so differences are visible. */
+  /**
+   * One bar per day in the view vs the 9h line (scale starts at 5h so
+   * differences are visible). Counted days are green / amber; WFH days show
+   * their hours as a striped grey bar (not counted); leave, holidays,
+   * week-offs and no-time days are a short grey stub; today while clocked in
+   * is a dashed outline.
+   */
   function sparkHtml(s) {
-    const days = s.includedDays || [];
+    const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
     if (!days.length) return '';
     const lo = 5 * 60;
-    const hi = Math.max(11 * 60, ...days.map(d => d.grossMinutes));
+    const hi = Math.max(11 * 60, ...days.map(d => d.grossMinutes || 0));
     const y = min => Math.max(0, Math.min(100, ((min - lo) / (hi - lo)) * 100));
     const target = fmt.duration(s.targetMinutes).replace(' 00m', '');
     const bars = days.map(d => {
-      const warn = d.grossMinutes < s.targetMinutes;
-      const title = `${fmt.dayDate(d.date)} · ${fmt.duration(d.grossMinutes)}`;
-      return `<span class="bar${warn ? ' warn' : ''}" style="height:${Math.max(4, y(d.grossMinutes)).toFixed(1)}%" title="${esc(title)}"></span>`;
+      const label = fmt.dayDate(d.date);
+      const h = Math.max(4, y(d.grossMinutes)).toFixed(1);
+      switch (d.kind) {
+        case 'included': {
+          const warn = d.grossMinutes < s.targetMinutes;
+          return `<span class="bar${warn ? ' warn' : ''}" style="height:${h}%" title="${esc(`${label} · ${fmt.duration(d.grossMinutes)}`)}"></span>`;
+        }
+        case 'wfh':
+          return d.grossMinutes
+            ? `<span class="bar wfh" style="height:${h}%" title="${esc(`${label} · WFH ${fmt.duration(d.grossMinutes)} (not counted)`)}"></span>`
+            : `<span class="bar stub" title="${esc(`${label} · WFH`)}"></span>`;
+        case 'incomplete':
+          return `<span class="bar live" style="height:${h}%" title="${esc(`${label} · ${fmt.duration(d.grossMinutes)} so far`)}"></span>`;
+        default: {
+          const what = d.kind === 'leave' ? 'Leave' : d.isHoliday ? 'Holiday' : d.isWeeklyOff ? 'Weekly off' : 'No time';
+          return `<span class="bar stub" title="${esc(`${label} · ${what}`)}"></span>`;
+        }
+      }
     }).join('');
     const first = fmt.dayDate(days[0].date).split(', ')[1];
     const last = fmt.dayDate(days[days.length - 1].date).split(', ')[1];
+    const counted = s.trackedDays;
     return `
       <div class="section spark-section">
-        <div class="spark-head"><span>Daily hours</span><span>${days.length} day${days.length === 1 ? '' : 's'}</span></div>
-        <div class="spark" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} days at or above ${target}, ${s.daysBelowTarget} below">
+        <div class="spark-head"><span>Daily hours</span><span>${counted} counted · ${days.length} day${days.length === 1 ? '' : 's'}</span></div>
+        <div class="spark${days.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted">
           ${bars}
           <div class="line" style="bottom:${y(s.targetMinutes).toFixed(1)}%"><span>${target}</span></div>
         </div>
