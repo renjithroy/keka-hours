@@ -1,0 +1,159 @@
+/*
+ * Runs in the page's MAIN world at document_start.
+ *
+ * Keka renders the attendance log from
+ *   GET /k/attendance/api/mytime/attendance/summary/<YYYY-MM-01>
+ * whose records carry exact punch timestamps (to the second). The table only
+ * shows minute-rounded "Gross Hours", so this hook passively reads copies of
+ * that one response and forwards a *minimal* per-day record to the extension's
+ * content script on the same page.
+ *
+ * - It never makes requests of its own and never reads headers/tokens/cookies.
+ * - It ignores every other endpoint.
+ * - It drops everything except the fields needed for the calculation
+ *   (no locations, IP addresses, notes, premises, ids).
+ * - Data only travels via window.postMessage to this same page.
+ */
+(function () {
+  'use strict';
+
+  const SUMMARY_URL = /\/attendance\/api\/mytime\/attendance\/summary\b/i;
+  const CHANNEL = 'keka-hours-extension';
+  const MAX_DAYS = 400;
+
+  function toNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  function toTimestamp(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) ? value : null;
+  }
+
+  /** Reduce one Keka day-summary record to the fields the extension needs. */
+  function trimSummaryRecord(rec) {
+    if (!rec || typeof rec !== 'object') return null;
+    const date = typeof rec.attendanceDate === 'string' ? rec.attendanceDate.slice(0, 10) : null;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+
+    const entries = Array.isArray(rec.timeEntries) ? rec.timeEntries.filter(e => e && !e.isDeleted) : [];
+    const last = entries[entries.length - 1];
+    const pairs = (Array.isArray(rec.validInOutPairs) ? rec.validInOutPairs : [])
+      .map(p => [toTimestamp(p && p.inTime), toTimestamp(p && p.outTime)]);
+    const leaveStatuses = Array.isArray(rec.leaveDayStatuses) ? rec.leaveDayStatuses : [];
+    const leaveDetails = Array.isArray(rec.leaveDetails) ? rec.leaveDetails.filter(Boolean) : [];
+    // leaveDayStatus: 1 = full day, 2 / 3 = first / second half (inferred from Keka data).
+    const leaveCodes = [...leaveStatuses, ...leaveDetails.map(l => l.leaveDayStatus)].filter(v => typeof v === 'number');
+    const hasLeave = leaveStatuses.length > 0 || leaveDetails.length > 0;
+    const partialLeave = hasLeave && (
+      (leaveCodes.length > 0 && leaveCodes.every(c => c === 2 || c === 3)) ||
+      (leaveDetails.length > 0 && leaveDetails.every(l => l.isHourlyLeave === true))
+    );
+
+    return {
+      date,
+      dayType: toNumber(rec.dayType),
+      status: toNumber(rec.attendanceDayStatus),
+      remoteDay: rec.isFullyWorkedOnWorkingRemotelyDay === true,
+      leave: hasLeave,
+      partialLeave,
+      grossHours: toNumber(rec.totalGrossHours),
+      grossText: typeof rec.grossHoursInHHMM === 'string' ? rec.grossHoursInHHMM : null,
+      pairs,
+      firstLog: toTimestamp(rec.firstLogOfTheDay),
+      lastLog: toTimestamp(rec.lastLogOfTheDay),
+      lastPunch: last ? toNumber(last.punchStatus) : null,
+      entryCount: entries.length,
+    };
+  }
+
+  function trimSummaryPayload(payload) {
+    const list = payload && Array.isArray(payload.data) ? payload.data : Array.isArray(payload) ? payload : [];
+    return list.slice(0, MAX_DAYS).map(trimSummaryRecord).filter(Boolean);
+  }
+
+  if (typeof module === 'object' && module.exports) {
+    module.exports = { trimSummaryRecord, trimSummaryPayload };
+    return;
+  }
+
+  // Latest record per date; replayed when the content script asks (it may load
+  // after Keka's first request completed).
+  const cache = new Map();
+
+  function publish(records) {
+    window.postMessage({ source: CHANNEL, type: 'attendance-records', records }, window.location.origin);
+  }
+
+  function ingest(payload) {
+    try {
+      const records = trimSummaryPayload(typeof payload === 'string' ? JSON.parse(payload) : payload);
+      if (!records.length) return;
+      for (const r of records) cache.set(r.date, r);
+      if (cache.size > MAX_DAYS) {
+        const oldest = [...cache.keys()].sort().slice(0, cache.size - MAX_DAYS);
+        for (const k of oldest) cache.delete(k);
+      }
+      publish(records);
+    } catch (_) { /* not our data; ignore */ }
+  }
+
+  window.addEventListener('message', event => {
+    if (event.source !== window || !event.data || event.data.source !== CHANNEL) return;
+    if (event.data.type === 'replay-request' && cache.size) publish([...cache.values()]);
+  });
+
+  // Keka's Angular router navigates with history.pushState/replaceState, which
+  // fires neither hashchange nor popstate. Announce those URL changes so the
+  // widget can hide/show immediately. (Only a signal; no data is sent.)
+  for (const method of ['pushState', 'replaceState']) {
+    const original = history[method];
+    if (typeof original !== 'function') continue;
+    history[method] = function (...args) {
+      const result = original.apply(this, args);
+      try { window.postMessage({ source: CHANNEL, type: 'route-change' }, window.location.origin); } catch (_) {}
+      return result;
+    };
+  }
+
+  const originalFetch = window.fetch;
+  if (typeof originalFetch === 'function') {
+    window.fetch = function (...args) {
+      const result = originalFetch.apply(this, args);
+      try {
+        const input = args[0];
+        const url = typeof input === 'string' ? input : input && input.url;
+        if (url && SUMMARY_URL.test(url)) {
+          result.then(res => {
+            if (res && res.ok) res.clone().json().then(ingest).catch(() => {});
+          }).catch(() => {});
+        }
+      } catch (_) { /* never interfere with Keka */ }
+      return result;
+    };
+  }
+
+  const XHR = window.XMLHttpRequest;
+  if (XHR && XHR.prototype) {
+    const originalOpen = XHR.prototype.open;
+    const originalSend = XHR.prototype.send;
+
+    XHR.prototype.open = function (method, url, ...rest) {
+      try { this.__kekaHoursWatch = typeof url === 'string' ? SUMMARY_URL.test(url) : SUMMARY_URL.test(String(url)); } catch (_) {}
+      return originalOpen.call(this, method, url, ...rest);
+    };
+
+    XHR.prototype.send = function (...args) {
+      if (this.__kekaHoursWatch) {
+        this.addEventListener('load', function () {
+          try {
+            if (this.status < 200 || this.status >= 300) return;
+            const type = this.responseType;
+            if (type === '' || type === 'text') ingest(this.responseText);
+            else if (type === 'json') ingest(this.response);
+          } catch (_) { /* ignore */ }
+        });
+      }
+      return originalSend.apply(this, args);
+    };
+  }
+})();

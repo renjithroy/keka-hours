@@ -1,0 +1,7 @@
+{
+  "name": "keka-hours",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Chrome extension: average gross hours per office day inside Keka",
+  "scripts": { "test": "node --test tests/" }
+}

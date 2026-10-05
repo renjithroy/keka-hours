@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Keka Hours",
+  "version": "2.2.0",
+  "description": "Your average gross working hours per office day, right inside Keka. Everything stays in your browser.",
+  "permissions": [
+    "storage"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hatio.keka.com/*"
+      ],
+      "js": [
+        "src/page/network-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://hatio.keka.com/*"
+      ],
+      "js": [
+        "src/content/format.js",
+        "src/content/calculator.js",
+        "src/content/parser.js",
+        "src/content/planner.js",
+        "src/content/settings.js",
+        "src/content/ui.js",
+        "src/content/main.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
