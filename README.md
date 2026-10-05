@@ -59,8 +59,8 @@ There's no Monday–Friday logic. The attendance record decides.
 Keka's table shows minute-rounded hours. Keka's own attendance response, which the page already
 loads, includes the exact punch timestamps. The extension reads a copy of that one response and
 uses the exact durations. It does this only when they match Keka's own total for that day **and**
-the minute value currently shown in the table. Otherwise it uses the displayed value, and the
-card footer says **"Based on displayed Keka hours"**.
+the minute value currently shown in the table. Otherwise it uses the displayed (minute-rounded)
+value for that day.
 
 Rounding matches HR: each day's seconds are dropped, and the average is truncated, never rounded
 up. Rounding up would often show 1 minute more than HR reports.

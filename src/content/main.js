@@ -123,7 +123,6 @@
           render();
         } else {
           state.model.verifiedAt = verifiedAt;
-          widget.tick();
         }
         return;
       }

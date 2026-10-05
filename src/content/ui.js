@@ -96,7 +96,7 @@ svg { width: 100%; height: 100%; display: block; }
 .icon-btn { flex: none; width: 30px; height: 30px; padding: 6px; border-radius: 8px; color: var(--muted); transition: background .14s ease, color .14s ease; }
 .icon-btn:hover { background: var(--surface); color: var(--text); }
 
-.content { padding: 2px 22px 6px; }
+.content { padding: 2px 22px 22px; }
 /* Both tabs share one grid cell, so the card is always as tall as the taller
    tab and switching never makes the (bottom-anchored) card jump. */
 .panes { display: grid; }
@@ -169,6 +169,14 @@ svg { width: 100%; height: 100%; display: block; }
 .tab[aria-selected="true"] { color: var(--brand-text); }
 
 /* ---------- plan ---------- */
+.plan-stats { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 14px; border-radius: 12px; background: var(--surface); }
+.ps-cell { padding: 10px 14px; min-width: 0; }
+.ps-cell + .ps-cell { border-left: 1px solid var(--line); }
+.ps-label { font-size: 12.5px; color: var(--muted); }
+.ps-value { margin-top: 1px; font-size: 17px; font-weight: 650; letter-spacing: -.015em; white-space: nowrap; }
+.ps-value small { font-size: 12.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.ps-value.good { color: var(--good); }
+.ps-sub { font-size: 12.5px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
@@ -193,17 +201,16 @@ svg { width: 100%; height: 100%; display: block; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 .cal-cell.today::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--text); border-radius: 11px; pointer-events: none; }
 .cal-cell.overridden::before { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: #e08a1e; }
-.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; font-size: 12px; color: var(--muted); }
-.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 3px; vertical-align: -1px; }
+.legend { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 8px 22px; margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; }
+.legend i { display: inline-block; flex: none; width: 14px; height: 14px; margin-right: 7px; border-radius: 4px; }
 .legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px #bfe5cf; }
 .legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px #f2d3ad; }
 .legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px #e1e7ee; }
 .legend .lp { border: 1.5px dashed var(--brand-line); }
 .legend .la { background: repeating-linear-gradient(135deg, #e9edf2 0 2px, #fff 2px 4px); box-shadow: inset 0 0 0 1px #e1e7ee; }
-.legend .hint { flex-basis: 100%; color: var(--subtle); }
+.legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
-.foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px 22px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--subtle); }
-.foot span:last-child { text-align: right; }
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes kh-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -212,7 +219,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
   .hero-value { font-size: 38px; } .cal-cell { height: 44px; }
-  .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 6px; } .tabs { margin: 0 16px 12px; } .foot { padding: 12px 16px 14px; }
+  .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
@@ -222,14 +229,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (!summary || summary.averageMinutes == null) return '';
     return summary.deltaMinutesPerDay >= 0 ? 'good' : 'warn';
   }
-
-  function precisionText(p) {
-    if (p === 'precise') return 'Exact punch times';
-    if (p === 'mixed') return 'Partly from displayed hours';
-    if (p === 'display-rounded') return 'Based on displayed Keka hours';
-    return '';
-  }
-
 
   const WEEK_HEAD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -308,13 +307,27 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  /** Small two-up card under the plan hero: [label / value / sub] × 2. */
+  function statsCard(left, right) {
+    const cell = c => `
+      <div class="ps-cell">
+        <div class="ps-label">${c.label}</div>
+        <div class="ps-value${c.tone ? ` ${c.tone}` : ''}">${c.value}</div>
+        <div class="ps-sub">${c.sub}</div>
+      </div>`;
+    return `<div class="plan-stats">${cell(left)}${cell(right)}</div>`;
+  }
+
   function planHeroHtml(p) {
     const month = fmt.monthName(p.monthKey);
+    const mon = month.slice(0, 3);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
-    const days = n => `${n} office day${n === 1 ? '' : 's'}`;
-    const soFar = p.countedDays
-      ? `So far <b>${fmt.duration(p.currentAverage)}</b> avg over ${p.countedDays} day${p.countedDays === 1 ? '' : 's'}.`
-      : 'No office days counted yet.';
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const soFar = {
+      label: 'So far',
+      value: p.countedDays ? `${fmt.duration(p.currentAverage)} <small>avg</small>` : '—',
+      sub: p.countedDays ? `over ${plural(p.countedDays, 'office day')}` : 'no office days yet',
+    };
 
     if (p.status === 'complete') {
       const ok = p.currentAverage != null && p.currentAverage >= p.targetMinutes;
@@ -323,24 +336,26 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           <div class="eyebrow">${esc(month)} finished at</div>
           <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span>
             ${p.currentAverage == null ? '' : `<span class="chip ${ok ? 'good' : 'warn'}">${ok ? `≥ ${target}` : `${fmt.delta(p.currentAverage - p.targetMinutes)} vs ${target}`}</span>`}</div>
-          <div class="plan-sub">Over ${days(p.countedDays)}. Open <b>30 DAYS</b> to plan the current month.</div>
-        </div>`;
+        </div>
+        ${statsCard(
+          { label: 'Office days', value: p.countedDays, sub: `in ${esc(month)}` },
+          { label: 'Plan ahead', value: '30 DAYS', sub: 'tab plans this month' })}`;
     }
     if (p.status === 'no-days') {
       return `
         <div class="hero">
           <div class="eyebrow">No office days left in ${esc(month)}</div>
           <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span></div>
-          <div class="plan-sub">${soFar} Tap a day below to add an office day.</div>
-        </div>`;
+        </div>
+        ${statsCard(soFar, { label: 'Days left', value: '0', sub: 'tap a day to add one' })}`;
     }
     if (p.status === 'secured') {
       return `
         <div class="hero">
           <div class="eyebrow">To end ${esc(month)} at ${target}+ average</div>
-          <div class="hero-row"><span class="hero-value word">You're set</span><span class="chip good">${days(p.remainingDays)} left</span></div>
-          <div class="plan-sub">${soFar} Any office time on the remaining days keeps ${esc(month)} at ${target} or above.</div>
-        </div>`;
+          <div class="hero-row"><span class="hero-value word">You're set</span></div>
+        </div>
+        ${statsCard(soFar, { label: 'Days left', value: p.remainingDays, tone: 'good', sub: `any office time keeps ${target}+` })}`;
     }
     const hard = p.requiredPerDay > 12 * 60;
     const t = p.requiredPerDay <= p.targetMinutes ? 'good' : 'warn';
@@ -348,9 +363,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="hero">
         <div class="eyebrow">Sit on each remaining office day</div>
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
-          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${days(p.remainingDays)}`}</span></div>
-        <div class="plan-sub">${soFar} That's <b>${fmt.duration(p.neededMinutes)}</b> more to end ${esc(month)} at ${target}.</div>
-      </div>`;
+          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
+      </div>
+      ${statsCard(soFar, { label: 'Still needed', value: fmt.duration(p.neededMinutes), sub: `to end ${esc(mon)} at ${target}` })}`;
   }
 
   function todayHtml(p) {
@@ -413,7 +428,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <span><i class="lu"></i>&lt; ${target}</span>
         <span><i class="lx"></i>WFH / Leave</span>
         ${editable ? `<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>
-        <span class="hint">Tap an upcoming day to switch office ↔ away (WFH / leave / off)</span>` : ''}
+        <span class="hint">Tap an upcoming day to switch office / away</span>` : ''}
       </div>`;
   }
 
@@ -466,7 +481,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
             <button class="tab" type="button" role="tab" data-act="tab" data-tab="plan" aria-selected="false">Plan</button>
           </div>
           <div class="content" role="tabpanel"></div>
-          <div class="foot"><span class="updated"></span><span class="precision"></span></div>
         </section>
       </div>`;
 
@@ -614,8 +628,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       $('.month').textContent = ok && m.monthToDate && m.todayKey
         ? fmt.monthToDateRange(m.todayKey)
         : (m.label || 'Attendance');
-      $('.updated').textContent = m.verifiedAt ? `Updated ${fmt.relative(m.verifiedAt)}` : '';
-      $('.precision').textContent = ok ? precisionText(s.sourcePrecision) : '';
       tabs.hidden = !ok;
       for (const b of tabs.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === tab));
 
@@ -705,16 +717,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       }
     }
 
-    /** Cheap periodic refresh of the "Updated …" text only. */
-    function tick() {
-      if (expanded && model && model.verifiedAt) $('.updated').textContent = `Updated ${fmt.relative(model.verifiedAt)}`;
-    }
-
     function mount() {
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, tick, mount, applyTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }
