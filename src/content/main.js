@@ -106,6 +106,7 @@
             state: 'ok',
             label: view.label,
             monthToDate: !!view.monthToDate,
+            todayKey,
             monthKey: view.monthKey || null,
             summary: calculator.calculateSummary(view.days, state.targetMinutes),
             plan: view.monthKey ? planner.planMonth({

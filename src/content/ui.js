@@ -80,7 +80,7 @@ svg { width: 100%; height: 100%; display: block; }
 
 /* ---------- expanded panel ---------- */
 .panel {
-  width: 400px; max-width: calc(100vw - 24px);
+  width: 424px; max-width: calc(100vw - 24px);
   max-height: calc(100vh - 32px); overflow-y: auto; overflow-x: hidden;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -89,14 +89,14 @@ svg { width: 100%; height: 100%; display: block; }
   transform-origin: bottom right;
   animation: kh-in .19s cubic-bezier(.2,.8,.2,1);
 }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 14px 12px 16px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 18px 14px 22px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .title { font-size: 15px; font-weight: 600; letter-spacing: -.005em; }
 .month { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { flex: none; width: 30px; height: 30px; padding: 6px; border-radius: 8px; color: var(--muted); transition: background .14s ease, color .14s ease; }
 .icon-btn:hover { background: var(--surface); color: var(--text); }
 
-.content { padding: 0 16px 4px; }
+.content { padding: 2px 22px 6px; }
 /* Both tabs share one grid cell, so the card is always as tall as the taller
    tab and switching never makes the (bottom-anchored) card jump. */
 .panes { display: grid; }
@@ -115,7 +115,7 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #94a3b8; pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
-.hero { padding: 6px 0 14px; }
+.hero { padding: 6px 0 16px; }
 .eyebrow { font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .hero-value { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; }
@@ -129,7 +129,7 @@ svg { width: 100%; height: 100%; display: block; }
 .tile-value small { font-size: 13.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .tile-label { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
 .row-label { color: var(--muted); }
 .row-value { font-weight: 600; }
@@ -160,7 +160,7 @@ svg { width: 100%; height: 100%; display: block; }
 .skel.sm { height: 52px; width: 100%; margin-top: 12px; }
 
 /* ---------- tabs ---------- */
-.tabs { position: relative; display: flex; margin: 0 16px 12px; padding: 3px; background: var(--surface); border-radius: 10px; }
+.tabs { position: relative; display: flex; margin: 0 22px 14px; padding: 3px; background: var(--surface); border-radius: 10px; }
 /* White highlight that glides under the selected tab. */
 .tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
 .tabs[data-tab="plan"] .tab-ind { transform: translateX(100%); }
@@ -172,10 +172,10 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
+.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
 .today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
 .today-strip b { font-weight: 700; }
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
 .cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
 .cal-d { font-size: 13.5px; font-weight: 600; line-height: 1; }
@@ -202,7 +202,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .la { background: repeating-linear-gradient(135deg, #e9edf2 0 2px, #fff 2px 4px); box-shadow: inset 0 0 0 1px #e1e7ee; }
 .legend .hint { flex-basis: 100%; color: var(--subtle); }
 
-.foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; padding: 10px 16px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--subtle); }
+.foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px 22px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--subtle); }
 .foot span:last-child { text-align: right; }
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -210,7 +210,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-pulse { 50% { opacity: .35; } }
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-@media (max-width: 480px) { .hero-value { font-size: 38px; } .cal-cell { height: 44px; } }
+@media (max-width: 480px) {
+  .hero-value { font-size: 38px; } .cal-cell { height: 44px; }
+  .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 6px; } .tabs { margin: 0 16px 12px; } .foot { padding: 12px 16px 14px; }
+}
 `;
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -557,7 +560,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const m = model;
       const s = m.summary;
       const ok = m.state === 'ok' && s;
-      $('.month').textContent = (m.label || 'Attendance') + (ok && m.monthToDate ? ' · month to date' : '');
+      $('.month').textContent = ok && m.monthToDate && m.todayKey
+        ? fmt.monthToDateRange(m.todayKey)
+        : (m.label || 'Attendance');
       $('.updated').textContent = m.verifiedAt ? `Updated ${fmt.relative(m.verifiedAt)}` : '';
       $('.precision').textContent = ok ? precisionText(s.sourcePrecision) : '';
       tabs.hidden = !ok;

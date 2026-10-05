@@ -143,3 +143,11 @@ test('HR rounding: seconds dropped per day, average truncated (never rounded up)
   assert.equal(below.daysBelowTarget, 1);
   assert.equal(below.deltaMinutesPerDay, -1);
 });
+
+test('month-to-date header range', () => {
+  const fmt = require('../src/content/format.js');
+  assert.equal(fmt.monthToDateRange('2026-10-05'), '1 Oct – 5 Oct 2026');
+  assert.equal(fmt.monthToDateRange('2026-10-28'), '1 Oct – 28 Oct 2026');
+  assert.equal(fmt.monthToDateRange('2026-10-01'), '1 Oct 2026');
+  assert.equal(fmt.monthToDateRange('bad'), '');
+});

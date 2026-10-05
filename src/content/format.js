@@ -53,6 +53,15 @@
     return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
   }
 
+  /** Month-to-date range: ('2026-10-05') -> "1 Oct – 5 Oct 2026" ("1 Oct 2026" on the 1st). */
+  function monthToDateRange(todayKey) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(todayKey || ''));
+    if (!m) return '';
+    const mon = MONTHS_SHORT[Number(m[2]) - 1];
+    const day = Number(m[3]);
+    return day === 1 ? `1 ${mon} ${m[1]}` : `1 ${mon} – ${day} ${mon} ${m[1]}`;
+  }
+
   /** "September 2026" -> "Sep 2026"; other labels unchanged. */
   function shortLabel(label) {
     const m = /^([A-Za-z]{3})[a-z]*\s+(\d{4})$/.exec(String(label || '').trim());
@@ -69,7 +78,7 @@
     return `at ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  const api = { duration, delta, compact, timeOfDay, monthName, dayDate, shortLabel, relative };
+  const api = { duration, delta, compact, timeOfDay, monthName, monthToDateRange, dayDate, shortLabel, relative };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).format = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
