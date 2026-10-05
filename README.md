@@ -17,6 +17,11 @@ Everything runs locally in your browser. Nothing is sent anywhere.
   </tr>
 </table>
 
+<p align="center">
+  <img src="docs/in-keka.png" alt="Keka Hours card open on Keka's Attendance Log page" width="760">
+  <br><sub>Sits bottom-right on Keka's Attendance Log, following Keka's theme colour.</sub>
+</p>
+
 ## Install (unpacked)
 
 1. Download/unzip this folder.
