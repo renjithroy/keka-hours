@@ -6,6 +6,17 @@ whether you're keeping up the daily minimum.
 
 Everything runs locally in your browser. Nothing is sent anywhere.
 
+<table>
+  <tr>
+    <th>Overview</th>
+    <th>Plan</th>
+  </tr>
+  <tr>
+    <td><img src="docs/overview.png" alt="Overview tab: average gross hours per day, totals, longest/shortest day and daily-hours chart" width="360"></td>
+    <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="360"></td>
+  </tr>
+</table>
+
 ## Install (unpacked)
 
 1. Download/unzip this folder.
