@@ -34,6 +34,9 @@ The card appears only on the Attendance Log page and is removed as soon as you n
 A compact card appears bottom-right. Click it for details. The daily target is fixed at the
 company standard of **9h 00m**.
 
+Use the moon/sun button in the card's header to switch between light and dark mode. Your choice is
+remembered across visits (and shared between Keka tabs); until you pick one it follows your OS setting.
+
 - **Overview**: average, total, tracked days, longest/shortest, days ≥ / < 9h, WFH / leave.
 - **Plan**: a month calendar showing how long to sit on each remaining office day to end the
   month at a 9h+ average. Weekdays count as office days by default, and weekends and
@@ -81,7 +84,7 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 ## Privacy
 
-- Permission: `storage` only (to remember which upcoming days you marked away/office in Plan). No `tabs`, `cookies`, `webRequest`, or host permissions.
+- Permission: `storage` only (to remember which upcoming days you marked away/office in Plan, and your light/dark theme choice). No `tabs`, `cookies`, `webRequest`, or host permissions.
 - Runs only on `https://hatio.keka.com/*`.
 - Never makes network requests. It doesn't read credentials, tokens, or cookies.
 - It reads only `/attendance/api/mytime/attendance/summary/*`. It keeps only dates, status flags,
@@ -106,7 +109,7 @@ src/content/parser.js        DOM snapshot + pure normalisation/merge → Attenda
 src/content/calculator.js    pure calculateSummary(days, targetMinutes)
 src/content/format.js        display formatting
 src/content/planner.js       pure planMonth(): required minutes per remaining office day
-src/content/settings.js      chrome.storage.local (planner day overrides only)
+src/content/settings.js      chrome.storage.local (planner day overrides + theme)
 src/content/ui.js            Shadow-DOM widget (minimised pill + expanded card)
 src/content/main.js          controller: events, debouncing, signatures, freshness
 tests/                       node --test unit tests
