@@ -12,6 +12,8 @@
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICON_MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
   const CSS = `
 :host { all: initial; }
@@ -24,10 +26,11 @@
   --line: #e9eef4;
   --surface: #f6f8fb;
   /* Brand accents follow Keka's theme (--kh-* are set on the host from
-     Keka's --primary-color / --primary-color-light). Status colours below
+     Keka's --primary-color; the soft tint is mixed from it rather than read
+     from Keka's own light colour, which can be dark). Status colours below
      (good = >= 9h, warn = < 9h) stay fixed because they carry meaning. */
   --brand: var(--kh-primary, #1f9d6b);
-  --brand-soft: var(--kh-primary-light, #e7f6ef);
+  --brand-soft: color-mix(in srgb, var(--brand) 12%, var(--bg));
   --brand-text: color-mix(in srgb, var(--brand) 72%, #000);
   --brand-line: color-mix(in srgb, var(--brand) 50%, #fff);
   --good: #15803d;
@@ -35,6 +38,36 @@
   --warn: #b45309;
   --warn-soft: #fdf3e6;
   --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 10px 30px -6px rgba(15, 23, 42, .18);
+  --shadow-hover: 0 2px 4px rgba(15,23,42,.06), 0 14px 34px -8px rgba(15,23,42,.24);
+  --shadow-panel: 0 2px 6px rgba(15,23,42,.06), 0 24px 60px -12px rgba(15,23,42,.28);
+  --line-hover: #dbe3ec;
+  --dot-good: #22a05b;
+  --dot-warn: #e08a1e;
+  --bar: #9fd9b9;
+  --bar-warn: #f3c48a;
+  --bar-hover: #34b46d;
+  --bar-warn-hover: #e08a1e;
+  --wfh-a: #d5dce5;
+  --wfh-b: #edf1f5;
+  --wfh-hover-a: #b9c3cf;
+  --wfh-hover-b: #e3e8ee;
+  --stub: #e3e8ee;
+  --stub-hover: #cbd3dd;
+  --guide: #94a3b8;
+  --skel-a: #eef2f6;
+  --skel-b: #f7f9fb;
+  --tab-ind: #fff;
+  --tab-ind-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04);
+  --meter-on: #34b46d;
+  --meter-off: #e6ebf1;
+  --plan-bg: #fff;
+  --away-a: #f4f6f9;
+  --away-b: #fff;
+  --legend-good: #bfe5cf;
+  --legend-warn: #f2d3ad;
+  --legend-neutral: #e1e7ee;
+  --legend-away-a: #e9edf2;
+  --legend-away-b: #fff;
   font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14.5px;
   line-height: 1.4;
@@ -42,6 +75,53 @@
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
   text-align: left;
+}
+.root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161b22;
+  --text: #e6edf3;
+  --muted: #a7b1bd;
+  --subtle: #8793a1;
+  --line: #2a323c;
+  --surface: #1f262f;
+  --brand-soft: color-mix(in srgb, var(--brand) 18%, var(--bg));
+  --brand-text: color-mix(in srgb, var(--brand) 60%, #fff);
+  --brand-line: color-mix(in srgb, var(--brand) 55%, #000);
+  --good: #4ade80;
+  --good-soft: #14301f;
+  --warn: #fbbf24;
+  --warn-soft: #382a12;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -6px rgba(0, 0, 0, .6);
+  --shadow-hover: 0 2px 4px rgba(0,0,0,.4), 0 14px 34px -8px rgba(0,0,0,.7);
+  --shadow-panel: 0 2px 6px rgba(0,0,0,.4), 0 24px 60px -12px rgba(0,0,0,.75);
+  --line-hover: #3a4552;
+  --dot-good: #3fb97a;
+  --dot-warn: #e6a23c;
+  --bar: #2f7a54;
+  --bar-warn: #9a6a2e;
+  --bar-hover: #4ade80;
+  --bar-warn-hover: #fbbf24;
+  --wfh-a: #38424f;
+  --wfh-b: #232a33;
+  --wfh-hover-a: #4b5766;
+  --wfh-hover-b: #2c353f;
+  --stub: #2f3944;
+  --stub-hover: #43505e;
+  --guide: #6b7785;
+  --skel-a: #1f262f;
+  --skel-b: #2a323c;
+  --tab-ind: #2e3743;
+  --tab-ind-shadow: 0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
+  --meter-on: #3fb97a;
+  --meter-off: #2f3944;
+  --plan-bg: var(--bg);
+  --away-a: #232a33;
+  --away-b: #161b22;
+  --legend-good: #276846;
+  --legend-warn: #7a5524;
+  --legend-neutral: #38424f;
+  --legend-away-a: #38424f;
+  --legend-away-b: #161b22;
 }
 button { font: inherit; color: inherit; background: none; border: 0; margin: 0; padding: 0; cursor: pointer; }
 svg { width: 100%; height: 100%; display: block; }
@@ -60,7 +140,7 @@ svg { width: 100%; height: 100%; display: block; }
   transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s ease, border-color .16s ease;
   animation: kh-fade .18s cubic-bezier(.2,.8,.2,1);
 }
-.pill:hover { transform: translateY(-1px); border-color: #dbe3ec; box-shadow: 0 2px 4px rgba(15,23,42,.06), 0 14px 34px -8px rgba(15,23,42,.24); }
+.pill:hover { transform: translateY(-1px); border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
 .pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .badge-icon {
   flex: none; width: 30px; height: 30px; padding: 6px;
@@ -74,8 +154,8 @@ svg { width: 100%; height: 100%; display: block; }
 .chev { flex: none; width: 16px; height: 16px; color: var(--subtle); transition: transform .16s ease, color .16s ease; }
 .pill:hover .chev { color: var(--muted); transform: translateX(1px); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--subtle); flex: none; }
-.dot.good { background: #22a05b; }
-.dot.warn { background: #e08a1e; }
+.dot.good { background: var(--dot-good); }
+.dot.warn { background: var(--dot-warn); }
 .dot.pulse { animation: kh-pulse 1.2s ease-in-out infinite; }
 
 /* ---------- expanded panel ---------- */
@@ -85,7 +165,7 @@ svg { width: 100%; height: 100%; display: block; }
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 2px 6px rgba(15,23,42,.06), 0 24px 60px -12px rgba(15,23,42,.28);
+  box-shadow: var(--shadow-panel);
   transform-origin: bottom right;
   animation: kh-in .19s cubic-bezier(.2,.8,.2,1);
 }
@@ -95,6 +175,7 @@ svg { width: 100%; height: 100%; display: block; }
 .month { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { flex: none; width: 30px; height: 30px; padding: 6px; border-radius: 8px; color: var(--muted); transition: background .14s ease, color .14s ease; }
 .icon-btn:hover { background: var(--surface); color: var(--text); }
+.head-actions { display: flex; align-items: center; gap: 2px; flex: none; }
 
 .content { padding: 2px 22px 22px; }
 /* Both tabs share one grid cell, so the card is always as tall as the taller
@@ -108,18 +189,18 @@ svg { width: 100%; height: 100%; display: block; }
 .spark-section { flex: 1; display: flex; flex-direction: column; }
 .spark-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
 .spark { position: relative; flex: 1; min-height: 64px; max-height: 96px; margin-top: 8px; padding-right: 24px; display: flex; align-items: flex-end; gap: 3px; }
-.spark .bar { flex: 1 1 0; max-width: 18px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: #9fd9b9; transition: background .14s ease; }
-.spark .bar.warn { background: #f3c48a; }
-.spark .bar:hover { background: #34b46d; }
-.spark .bar.warn:hover { background: #e08a1e; }
+.spark .bar { flex: 1 1 0; max-width: 18px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
+.spark .bar.warn { background: var(--bar-warn); }
+.spark .bar:hover { background: var(--bar-hover); }
+.spark .bar.warn:hover { background: var(--bar-warn-hover); }
 .spark.dense { gap: 2px; }
-.spark .bar.wfh { background: repeating-linear-gradient(135deg, #d5dce5 0 3px, #edf1f5 3px 6px); }
-.spark .bar.wfh:hover { background: repeating-linear-gradient(135deg, #b9c3cf 0 3px, #e3e8ee 3px 6px); }
-.spark .bar.stub { height: 5px; flex: 1 1 0; min-height: 0; border-radius: 2px; background: #e3e8ee; }
-.spark .bar.stub:hover { background: #cbd3dd; }
+.spark .bar.wfh { background: repeating-linear-gradient(135deg, var(--wfh-a) 0 3px, var(--wfh-b) 3px 6px); }
+.spark .bar.wfh:hover { background: repeating-linear-gradient(135deg, var(--wfh-hover-a) 0 3px, var(--wfh-hover-b) 3px 6px); }
+.spark .bar.stub { height: 5px; flex: 1 1 0; min-height: 0; border-radius: 2px; background: var(--stub); }
+.spark .bar.stub:hover { background: var(--stub-hover); }
 .spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
 .spark .bar.live:hover { background: var(--brand-soft); }
-.spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #94a3b8; pointer-events: none; }
+.spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--guide); pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
 .hero { padding: 6px 0 16px; }
@@ -154,8 +235,8 @@ svg { width: 100%; height: 100%; display: block; }
 .meter-head b { color: var(--text); font-weight: 650; margin-left: 4px; }
 .meter { display: flex; gap: 3px; height: 6px; margin-top: 7px; }
 .meter span { border-radius: 999px; min-width: 6px; }
-.meter .above { background: #34b46d; }
-.meter .below { background: #e6ebf1; }
+.meter .above { background: var(--meter-on); }
+.meter .below { background: var(--meter-off); }
 
 .tags { display: flex; gap: 6px; }
 .tag { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: var(--muted); }
@@ -166,13 +247,13 @@ svg { width: 100%; height: 100%; display: block; }
 
 .waiting { padding: 6px 0 14px; }
 .waiting .msg { margin-top: 10px; font-size: 13.5px; color: var(--muted); }
-.skel { height: 40px; width: 150px; border-radius: 10px; background: linear-gradient(90deg, #eef2f6 0%, #f7f9fb 50%, #eef2f6 100%); background-size: 200% 100%; animation: kh-shimmer 1.3s linear infinite; }
+.skel { height: 40px; width: 150px; border-radius: 10px; background: linear-gradient(90deg, var(--skel-a) 0%, var(--skel-b) 50%, var(--skel-a) 100%); background-size: 200% 100%; animation: kh-shimmer 1.3s linear infinite; }
 .skel.sm { height: 52px; width: 100%; margin-top: 12px; }
 
 /* ---------- tabs ---------- */
 .tabs { position: relative; display: flex; margin: 0 22px 14px; padding: 3px; background: var(--surface); border-radius: 10px; }
-/* White highlight that glides under the selected tab. */
-.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
+/* Highlight that glides under the selected tab. */
+.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
 .tabs[data-tab="plan"] .tab-ind { transform: translateX(100%); }
 .tab { position: relative; z-index: 1; flex: 1; height: 31px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--muted); transition: color .2s ease; }
 .tab:hover { color: var(--text); }
@@ -204,20 +285,20 @@ svg { width: 100%; height: 100%; display: block; }
 .s-wfh, .s-leave { background: var(--surface); }
 .s-off, .s-holiday, .s-none, .s-absent { color: var(--subtle); }
 .s-off .cal-v, .s-holiday .cal-v, .s-absent .cal-v { color: var(--subtle); }
-.s-plan-office { border: 1.5px dashed var(--brand-line); background: #fff; }
+.s-plan-office { border: 1.5px dashed var(--brand-line); background: var(--plan-bg); }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
-.s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, #f4f6f9 0 4px, #fff 4px 8px); border: 1.5px solid transparent; }
+.s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 .cal-cell.today::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--text); border-radius: 11px; pointer-events: none; }
-.cal-cell.overridden::before { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: #e08a1e; }
+.cal-cell.overridden::before { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-warn); }
 .legend { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 8px 22px; margin-top: 14px; font-size: 13.5px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; }
 .legend i { display: inline-block; flex: none; width: 14px; height: 14px; margin-right: 7px; border-radius: 4px; }
-.legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px #bfe5cf; }
-.legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px #f2d3ad; }
-.legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px #e1e7ee; }
+.legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px var(--legend-good); }
+.legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px var(--legend-warn); }
+.legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
 .legend .lp { border: 1.5px dashed var(--brand-line); }
-.legend .la { background: repeating-linear-gradient(135deg, #e9edf2 0 2px, #fff 2px 4px); box-shadow: inset 0 0 0 1px #e1e7ee; }
+.legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
 
@@ -472,9 +553,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         const v = cs.getPropertyValue(name).trim();
         return COLOR_RE.test(v) ? v : null;
       };
-      return { primary: pick('--primary-color'), light: pick('--primary-color-light') };
+      return { primary: pick('--primary-color') };
     } catch (_) {
-      return { primary: null, light: null };
+      return { primary: null };
     }
   }
 
@@ -503,7 +584,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
               <span class="badge-icon">${ICON_CLOCK}</span>
               <div style="min-width:0"><div class="title">Keka Hours</div><div class="month"></div></div>
             </div>
-            <button class="icon-btn" type="button" data-act="collapse" aria-label="Minimize" title="Minimize">${ICON_MIN}</button>
+            <div class="head-actions">
+              <button class="icon-btn" type="button" data-act="theme" aria-pressed="false"></button>
+              <button class="icon-btn" type="button" data-act="collapse" aria-label="Minimize" title="Minimize">${ICON_MIN}</button>
+            </div>
           </div>
           <div class="tabs" role="tablist" data-tab="overview" hidden>
             <span class="tab-ind" aria-hidden="true"></span>
@@ -515,6 +599,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
 
     const $ = sel => shadow.querySelector(sel);
+    const rootEl = $('.root');
+    const themeBtn = $('[data-act="theme"]');
     const pill = $('.pill');
     const panel = $('.panel');
     const content = $('.content');
@@ -524,6 +610,22 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let expanded = false;
     let closing = null; // running close animation, if any
     let tab = 'overview';
+    let theme = 'light';
+
+    /** Apply 'light' | 'dark'; null (never chosen) follows the OS preference. */
+    function setTheme(value) {
+      theme = value === 'dark' || value === 'light' ? value : (systemPrefersDark() ? 'dark' : 'light');
+      const dark = theme === 'dark';
+      rootEl.setAttribute('data-theme', theme);
+      themeBtn.innerHTML = dark ? ICON_SUN : ICON_MOON;
+      themeBtn.setAttribute('aria-pressed', String(dark));
+      themeBtn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+      themeBtn.setAttribute('title', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    }
+    const systemPrefersDark = () => {
+      try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (_) { return false; }
+    };
+    setTheme(null);
 
     // Keep Keka's global keyboard shortcuts away from our widget.
     for (const type of ['keydown', 'keyup', 'keypress']) {
@@ -552,6 +654,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         if (next !== tab) { const prev = tab; tab = next; showTab(prev); }
       }
       else if (act === 'toggle') handlers.onToggleDay(el.getAttribute('data-date'));
+      else if (act === 'theme') {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+        handlers.onThemeChange(theme);
+      }
     });
 
     function expand(viaKeyboard) {
@@ -742,16 +848,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     /** Match Keka's theme colour (green, pink, …); falls back to green. */
     function applyTheme() {
       const t = readKekaTheme();
-      for (const [prop, value] of [['--kh-primary', t.primary], ['--kh-primary-light', t.light]]) {
-        if (value) host.style.setProperty(prop, value); else host.style.removeProperty(prop);
-      }
+      if (t.primary) host.style.setProperty('--kh-primary', t.primary); else host.style.removeProperty('--kh-primary');
     }
 
     function mount() {
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }

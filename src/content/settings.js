@@ -2,11 +2,13 @@
  * Local-only planner preferences (chrome.storage.local): which upcoming days
  * the user marked as away (WFH / leave) or as an extra office day.
  * Shape: { planOverrides: { 'YYYY-MM': { 'YYYY-MM-DD': 'office' | 'away' } } }
+ * Also stores the widget's colour theme: { theme: 'light' | 'dark' }
  */
 (function (root) {
   'use strict';
 
   const KEY = 'planOverrides';
+  const THEME_KEY = 'theme';
   const KEEP_MONTHS = 3;
 
   function storage() {
@@ -44,5 +46,35 @@
     } catch (_) { /* storage unavailable */ }
   }
 
-  root.KekaHours.settings = { loadOverrides, saveOverrides, onChange };
+  const validTheme = t => (t === 'light' || t === 'dark' ? t : null);
+
+  /** Saved theme ('light' | 'dark'), or null if the user never chose one. */
+  async function loadTheme() {
+    const s = storage();
+    if (!s) return null;
+    try {
+      const got = await s.get({ [THEME_KEY]: null });
+      return validTheme(got[THEME_KEY]);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function saveTheme(theme) {
+    const value = validTheme(theme);
+    const s = storage();
+    if (!s || !value) return;
+    try { await s.set({ [THEME_KEY]: value }); } catch (_) { /* extension reloaded; keep in memory */ }
+  }
+
+  /** Calls back when the theme changes (e.g. toggled in another Keka tab). */
+  function onThemeChange(callback) {
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes[THEME_KEY]) callback(validTheme(changes[THEME_KEY].newValue));
+      });
+    } catch (_) { /* storage unavailable */ }
+  }
+
+  root.KekaHours.settings = { loadOverrides, saveOverrides, onChange, loadTheme, saveTheme, onThemeChange };
 })(globalThis);

@@ -240,18 +240,23 @@
   }
 
   async function start() {
-    state.overrides = await settings.loadOverrides();
+    const [overrides, savedTheme] = await Promise.all([settings.loadOverrides(), settings.loadTheme()]);
+    state.overrides = overrides;
     if (stopped) return;
 
     widget = ui.createWidget({
       onExpand: refresh,
       onToggleDay: toggleDay,
+      onThemeChange: settings.saveTheme,
     });
+    // Before the first render, so the widget never flashes the wrong theme.
+    widget.setTheme(savedTheme);
 
     settings.onChange(next => {
       state.overrides = next;
       refresh();
     });
+    settings.onThemeChange(next => widget.setTheme(next));
 
     // Keka switches theme by changing <html>'s class / inline CSS variables.
     themeObserver = new MutationObserver(() => widget.applyTheme());
