@@ -35,6 +35,7 @@
     apiRecords: new Map(),
     apiVersion: 0,
     overrides: {}, // planner: { 'YYYY-MM': { date: 'office' | 'away' } }
+    includeToday: false, // Overview only: today is left out of every figure unless switched on
     signature: null,
     model: { visible: false, state: 'loading', label: null, summary: null, verifiedAt: 0, targetMinutes: calculator.DEFAULT_TARGET },
     loadingSince: 0,
@@ -94,13 +95,16 @@
       });
       const todayKey = parser.localDateKey(now);
       const monthOverrides = (view.monthKey && state.overrides[view.monthKey]) || {};
-      const sig = `${parser.signature(view)}#${todayKey}#${state.apiVersion}#${JSON.stringify(monthOverrides)}`;
+      const sig = `${parser.signature(view)}#${todayKey}#${state.apiVersion}#${JSON.stringify(monthOverrides)}#${state.includeToday}`;
       const verifiedAt = Date.now();
 
       if (view.status === 'ok') {
         state.loadingSince = 0;
         if (sig !== state.signature || !state.model.visible) {
           state.signature = sig;
+          const todayInView = view.days.some(d => d.date === todayKey);
+          // The switch only affects the Overview (and the pill, which mirrors it); Plan always sees today.
+          const overviewDays = state.includeToday ? view.days : view.days.filter(d => d.date !== todayKey);
           state.model = {
             visible: true,
             state: 'ok',
@@ -108,7 +112,9 @@
             monthToDate: !!view.monthToDate,
             todayKey,
             monthKey: view.monthKey || null,
-            summary: calculator.calculateSummary(view.days, state.targetMinutes),
+            summary: calculator.calculateSummary(overviewDays, state.targetMinutes),
+            todayInView,
+            includeToday: state.includeToday,
             plan: view.monthKey ? planner.planMonth({
               monthKey: view.monthKey,
               todayKey,
@@ -170,6 +176,12 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
+  function setIncludeToday(value) {
+    state.includeToday = value === true;
+    refresh();
+    settings.saveIncludeToday(state.includeToday);
+  }
+
   /** Trailing debounce with a max wait so constant DOM churn can't starve updates. */
   function schedule(delay = DEBOUNCE_MS) {
     if (stopped) return;
@@ -217,7 +229,28 @@
       state.apiRecords.set(r.date, r);
       changed = true;
     }
-    if (changed) { state.apiVersion += 1; schedule(50); }
+    if (changed) { state.apiVersion += 1; schedule(50); reportToday(); }
+  }
+
+  /**
+   * Hand today's and yesterday's records (a late clock-in can run past
+   * midnight) to the background worker for WFH clock-out reminders. Runs on
+   * every Keka page, not just the logs route.
+   */
+  let lastReported = null;
+  function reportToday() {
+    if (!alive()) return;
+    const now = new Date();
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const records = [parser.localDateKey(now), parser.localDateKey(yesterday)]
+      .map(k => state.apiRecords.get(k))
+      .filter(Boolean);
+    const sig = JSON.stringify(records);
+    if (!records.length || sig === lastReported) return;
+    lastReported = sig;
+    try {
+      chrome.runtime.sendMessage({ type: 'attendance-today', records }).catch(() => { lastReported = null; });
+    } catch (_) { lastReported = null; }
   }
 
   function onVisible() {
@@ -240,14 +273,18 @@
   }
 
   async function start() {
-    const [overrides, savedTheme] = await Promise.all([settings.loadOverrides(), settings.loadTheme()]);
+    const [overrides, savedTheme, includeToday] = await Promise.all([
+      settings.loadOverrides(), settings.loadTheme(), settings.loadIncludeToday(),
+    ]);
     state.overrides = overrides;
+    state.includeToday = includeToday;
     if (stopped) return;
 
     widget = ui.createWidget({
       onExpand: refresh,
       onToggleDay: toggleDay,
       onThemeChange: settings.saveTheme,
+      onIncludeTodayChange: setIncludeToday,
     });
     // Before the first render, so the widget never flashes the wrong theme.
     widget.setTheme(savedTheme);
@@ -257,6 +294,11 @@
       refresh();
     });
     settings.onThemeChange(next => widget.setTheme(next));
+    settings.onIncludeTodayChange(next => {
+      if (next === state.includeToday) return;
+      state.includeToday = next;
+      refresh();
+    });
 
     // Keka switches theme by changing <html>'s class / inline CSS variables.
     themeObserver = new MutationObserver(() => widget.applyTheme());

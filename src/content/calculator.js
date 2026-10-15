@@ -117,6 +117,7 @@
         grossMinutes: hasTrackedTime(d) ? wholeMinutes(d.grossMinutes) : 0,
         isHoliday: !!d.isHoliday,
         isWeeklyOff: !!d.isWeeklyOff,
+        isHalfLeave: !!d.isHalfLeave,
       })),
       pendingToday,
       sourcePrecision,
