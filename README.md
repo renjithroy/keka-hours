@@ -44,6 +44,24 @@ remembered across visits (and shared between Keka tabs); until you pick one it f
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
 
+### WFH clock-out reminders
+
+Keka hides the clock-out button 12 hours after you clock in and marks a missed clock-out. On a
+**WFH day**, once you're clocked in, the extension sends system notifications. These appear whichever
+tab or app you're in, even with Keka closed:
+
+- from **9h** after clock-in, every 30 min,
+- from **11h**, every 15 min,
+- from **11h 30m**, a notification that stays on screen until you act on it, with the last ones at 11h 50m and 11h 55m.
+
+Each one shows your clock-in time and the deadline. **Open Keka** takes you to the attendance page.
+**I've clocked out** silences reminders for the day (they start again if Keka later shows you clocked
+back in). They also stop as soon as Keka's data shows you clocked out.
+
+The extension only learns your clock-in from Keka's attendance data, so open Keka's Attendance page
+once after clocking in. Chrome must be running, and notifications must be allowed for Chrome in
+your OS settings.
+
 In the **30 DAYS** tab the card shows the current month to date (1st → today), not the rolling
 30 days.
 
@@ -84,12 +102,13 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 ## Privacy
 
-- Permission: `storage` only (to remember which upcoming days you marked away/office in Plan, and your light/dark theme choice). No `tabs`, `cookies`, `webRequest`, or host permissions.
+- Permissions: `storage` (which upcoming days you marked away/office in Plan, your light/dark theme choice, and today's WFH clock-in time for reminders), `alarms` and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host permissions.
 - Runs only on `https://hatio.keka.com/*`.
 - Never makes network requests. It doesn't read credentials, tokens, or cookies.
 - It reads only `/attendance/api/mytime/attendance/summary/*`. It keeps only dates, status flags,
-  durations, and punch times, and drops locations, IPs, and notes. Nothing is stored. The data
-  lives only in memory on that page.
+  durations, and punch times, and drops locations, IPs, and notes. The data lives only in memory on
+  that page. The one exception is the clock-in time of an open WFH day, which is stored locally so reminders
+  still fire after the tab is closed.
 
 ## How it stays current
 
@@ -112,6 +131,8 @@ src/content/planner.js       pure planMonth(): required minutes per remaining of
 src/content/settings.js      chrome.storage.local (planner day overrides + theme)
 src/content/ui.js            Shadow-DOM widget (minimised pill + expanded card)
 src/content/main.js          controller: events, debouncing, signatures, freshness
+src/background/reminder.js   pure WFH clock-out reminder schedule
+src/background/service-worker.js  alarms + system notifications for clock-out reminders
 tests/                       node --test unit tests
 ```
 

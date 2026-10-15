@@ -217,7 +217,28 @@
       state.apiRecords.set(r.date, r);
       changed = true;
     }
-    if (changed) { state.apiVersion += 1; schedule(50); }
+    if (changed) { state.apiVersion += 1; schedule(50); reportToday(); }
+  }
+
+  /**
+   * Hand today's and yesterday's records (a late clock-in can run past
+   * midnight) to the background worker for WFH clock-out reminders. Runs on
+   * every Keka page, not just the logs route.
+   */
+  let lastReported = null;
+  function reportToday() {
+    if (!alive()) return;
+    const now = new Date();
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const records = [parser.localDateKey(now), parser.localDateKey(yesterday)]
+      .map(k => state.apiRecords.get(k))
+      .filter(Boolean);
+    const sig = JSON.stringify(records);
+    if (!records.length || sig === lastReported) return;
+    lastReported = sig;
+    try {
+      chrome.runtime.sendMessage({ type: 'attendance-today', records }).catch(() => { lastReported = null; });
+    } catch (_) { lastReported = null; }
   }
 
   function onVisible() {
