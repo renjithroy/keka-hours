@@ -141,7 +141,7 @@ svg { width: 100%; height: 100%; display: block; }
   animation: kh-fade .18s cubic-bezier(.2,.8,.2,1);
 }
 .pill:hover { transform: translateY(-1px); border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
-.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .has-tip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .badge-icon {
   flex: none; width: 30px; height: 30px; padding: 6px;
   border-radius: 9px; color: var(--brand); background: var(--brand-soft);
@@ -204,6 +204,58 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
 .hero { padding: 6px 0 16px; }
+.hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Hover tooltips: the average (the days behind it) and the Include today switch. */
+.has-tip { position: relative; display: inline-flex; border-radius: 8px; }
+.calc { cursor: help; }
+.tip {
+  position: absolute; top: calc(100% + 4px); left: -2px; z-index: 5;
+  width: 290px; padding: 12px 14px; text-align: left; white-space: normal;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-panel);
+  font-size: 13px; color: var(--muted); cursor: default; pointer-events: none;
+  opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity .16s ease, transform .16s cubic-bezier(.2,.8,.2,1), visibility 0s linear .16s;
+}
+.tip::before { content: ""; position: absolute; top: -6px; left: 22px; width: 10px; height: 10px; background: var(--bg); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); }
+.tip.end { left: auto; right: -2px; width: 250px; }
+.tip.end::before { left: auto; right: 22px; }
+.has-tip:hover .tip, .has-tip:focus-visible .tip, .has-tip:has(:focus-visible) .tip {
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity .16s ease .12s, transform .16s cubic-bezier(.2,.8,.2,1) .12s, visibility 0s linear .12s;
+}
+.tip-title { margin-bottom: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--subtle); }
+/* Day-by-day log under the average. Stays open while hovered so the list can scroll. */
+.tip.days { width: 310px; padding: 12px 6px 10px 14px; pointer-events: auto; }
+.tip.days::after { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; } /* hover bridge */
+.tip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; padding-right: 8px; }
+.tip-head .tip-title { margin: 0; }
+.tip-head span { font-size: 12px; color: var(--subtle); white-space: nowrap; }
+.day-list { max-height: 224px; overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; scrollbar-width: thin; scrollbar-color: var(--line-hover) transparent; }
+.day-row { display: grid; grid-template-columns: 7px 88px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--text); }
+.day-row + .day-row { border-top: 1px solid var(--line); }
+.day-row .dot.off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--stub-hover); }
+.day-date { font-weight: 600; white-space: nowrap; }
+.day-type { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-hrs { font-weight: 650; text-align: right; white-space: nowrap; }
+.day-hrs.good { color: var(--good); }
+.day-hrs.warn { color: var(--warn); }
+.day-row.off .day-date, .day-row.off .day-type, .day-row.off .day-hrs { color: var(--subtle); font-weight: 500; }
+.day-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.day-sum b { color: var(--brand-text); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.tip-foot { margin: 6px 8px 0 0; font-size: 12px; color: var(--subtle); }
+.checks { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.checks li { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; color: var(--text); }
+.checks i { flex: none; width: 16px; height: 16px; margin-top: 1px; padding: 3px; border-radius: 50%; color: var(--brand-text); background: var(--brand-soft); }
+
+/* "Include today" switch: a soft brand-tinted capsule when on. */
+.switch { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: background .22s ease, color .22s ease; }
+.switch:hover { color: var(--text); }
+.switch[aria-checked="true"] { background: var(--brand-soft); color: var(--brand-text); }
+.switch .track { position: relative; flex: none; width: 30px; height: 18px; border-radius: 999px; background: var(--meter-off); transition: background .22s ease; }
+.switch[aria-checked="true"] .track { background: var(--brand); }
+.switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .25); transition: transform .22s cubic-bezier(.3,.9,.3,1); }
+.switch[aria-checked="true"] .thumb { transform: translateX(12px); }
 .eyebrow { font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .hero-value { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; }
@@ -322,7 +374,65 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   const WEEK_HEAD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  function overviewHtml(s) {
+  const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function includeSwitchHtml(on) {
+    return `
+      <div class="has-tip">
+        <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip">
+          <span>Include today</span><span class="track"><span class="thumb"></span></span>
+        </button>
+        <div class="tip end" role="tooltip" id="include-tip">
+          <div class="tip-title">Before you include today</div>
+          <ul class="checks">
+            <li><i>${ICON_CHECK}</i><span>You've completed today's hours</span></li>
+            <li><i>${ICON_CHECK}</i><span>You've clocked out</span></li>
+            <li><i>${ICON_CHECK}</i><span>Today's hours show in the attendance table</span></li>
+          </ul>
+        </div>
+      </div>`;
+  }
+
+  /** What kind of day this was, as shown in the average's day log. */
+  function dayTypeLabel(d) {
+    switch (d.kind) {
+      case 'included':
+        if (d.isHoliday) return 'Holiday · worked';
+        if (d.isWeeklyOff) return 'Week-off · worked';
+        return d.isHalfLeave ? 'Office · half-day leave' : 'Office';
+      case 'wfh': return 'WFH · not counted';
+      case 'leave': return 'Leave';
+      case 'incomplete': return 'Today · still clocked in';
+      default: return d.isHoliday ? 'Holiday' : d.isWeeklyOff ? 'Week-off' : 'No time';
+    }
+  }
+
+  /** Tooltip under the average: every day in the view with its type and hours, then the sum. */
+  function calcTipHtml(s, m) {
+    const days = s.allDays || [];
+    const rows = days.map(d => {
+      const counted = d.kind === 'included';
+      const hrsTone = counted ? (d.grossMinutes >= s.targetMinutes ? ' good' : ' warn') : '';
+      return `
+        <div class="day-row${counted ? '' : ' off'}">
+          <span class="dot${hrsTone || ' off'}"></span>
+          <span class="day-date">${esc(fmt.dayDate(d.date))}</span>
+          <span class="day-type">${esc(dayTypeLabel(d))}</span>
+          <span class="day-hrs${hrsTone}">${d.grossMinutes ? fmt.duration(d.grossMinutes) : '—'}</span>
+        </div>`;
+    }).join('');
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+    return `
+      <div class="tip days" role="tooltip" id="calc-tip">
+        <div class="tip-head"><div class="tip-title">How you got here</div><span>${s.trackedDays} of ${plural(days.length, 'day')} counted</span></div>
+        <div class="day-list">${rows}</div>
+        <div class="day-sum"><span>${fmt.duration(s.totalMinutes)} ÷ ${plural(s.trackedDays, 'day')}</span><b>= ${fmt.duration(s.averageMinutes)}</b></div>
+        ${m.todayInView && !m.includeToday ? '<div class="tip-foot">Today isn\'t listed: Include today is off.</div>' : ''}
+      </div>`;
+  }
+
+  function overviewHtml(s, m) {
     const t = tone(s);
     const worked = [];
     if (s.workedHolidays) worked.push(`${s.workedHolidays} holiday${s.workedHolidays > 1 ? 's' : ''}`);
@@ -336,9 +446,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     return `
       <div class="hero">
-        <div class="eyebrow">Average gross hours / day</div>
+        <div class="hero-top">
+          <div class="eyebrow">Average gross hours / day</div>
+          ${m.todayInView ? includeSwitchHtml(!!m.includeToday) : ''}
+        </div>
         <div class="hero-row">
+          ${s.trackedDays ? `<span class="has-tip calc" tabindex="0" aria-describedby="calc-tip">` : ''}
           <span class="hero-value">${fmt.duration(s.averageMinutes)}</span>
+          ${s.trackedDays ? `${calcTipHtml(s, m)}</span>` : ''}
           ${d == null ? '' : `<span class="chip ${t}">${d === 0 ? `On ${target}` : `${fmt.delta(d)} vs ${target}`}</span>`}
         </div>
       </div>
@@ -654,6 +769,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         if (next !== tab) { const prev = tab; tab = next; showTab(prev); }
       }
       else if (act === 'toggle') handlers.onToggleDay(el.getAttribute('data-date'));
+      else if (act === 'include-today') {
+        const on = el.getAttribute('aria-checked') !== 'true';
+        const viaKeyboard = e.detail === 0;
+        // Let the switch slide first; the re-render replaces it with the same state.
+        el.setAttribute('aria-checked', String(on));
+        setTimeout(() => {
+          handlers.onIncludeTodayChange(on);
+          const next = $('[data-act="include-today"]');
+          if (viaKeyboard && next) next.focus({ preventScroll: true });
+        }, reduceMotion() ? 0 : 180);
+      }
       else if (act === 'theme') {
         setTheme(theme === 'dark' ? 'light' : 'dark');
         handlers.onThemeChange(theme);
@@ -780,7 +906,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       }
       content.innerHTML = `
         <div class="panes">
-          <div class="pane" data-pane="overview">${overviewHtml(s)}</div>
+          <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
           <div class="pane" data-pane="plan">${planHtml(m.plan)}</div>
         </div>`;
       showTab();

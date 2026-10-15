@@ -38,6 +38,11 @@ Use the moon/sun button in the card's header to switch between light and dark mo
 remembered across visits (and shared between Keka tabs); until you pick one it follows your OS setting.
 
 - **Overview**: average, total, tracked days, longest/shortest, days ≥ / < 9h, WFH / leave.
+  Hover the average to see every day behind it: date, type (office / WFH / leave / week-off…) and
+  hours, with counted days highlighted, then total ÷ counted days. The list scrolls for long months.
+  Today is left out of every Overview figure, the chart, and the minimised pill unless you turn on
+  **Include today** (off by default). Only turn it on once you've clocked out and today's hours show in
+  the attendance table (hover the switch for the checklist). The Plan tab always uses today. The setting is remembered.
 - **Plan**: a month calendar showing how long to sit on each remaining office day to end the
   month at a 9h+ average. Weekdays count as office days by default, and weekends and
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
