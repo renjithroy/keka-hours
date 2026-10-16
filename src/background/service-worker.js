@@ -142,7 +142,7 @@ async function step(change) {
   if (plan.due && !autoBusy) {
     // Clear first so the OS pops it up again rather than silently updating it.
     await chrome.notifications.clear(N_REMINDER);
-    await notify(N_REMINDER, W.reminder(plan, now), true);
+    await notify(N_REMINDER, W.reminder(plan), true);
     day = { ...day, lastShownAt: now, announcedFor: plan.remindAt };
     plan = W.plan(day, settings, now);
   } else if (W.shouldAnnounce(day, plan, now)) {

@@ -230,11 +230,13 @@ test('"reminder set" announced once per distinct time, never for one already due
   assert.match(W.announcement(W.plan(day([p('08:15', true)]), { everyDay: '21:00' }, at('09:00'))).message, /11h after your 8:15 AM/);
 });
 
-test('reminder text: deadline wording and last-30-min urgency', () => {
-  assert.equal(W.reminder(W.plan(day(REAL), DEFAULTS, at('18:30')), at('18:30')).title, 'Time to clock out');
-  const last = W.reminder(W.plan(day(REAL), DEFAULTS, at('21:40')), at('21:40'));
-  assert.equal(last.title, 'Clock out now: 20m left');
-  assert.match(W.reminder(W.plan(day([p('08:15', true)]), DEFAULTS, at('19:00')), at('19:00')).message, /missed clock-out at 8:15 PM/);
+test('reminder text: start time and a plain nudge, no limit wording', () => {
+  const r = W.reminder(W.plan(day(REAL), DEFAULTS, at('18:30')));
+  assert.deepEqual(r, { title: 'Time to clock out', message: 'You clocked in at 10:25 AM. Don\'t forget to clock out in Keka.' });
+  // Same wording late in the day and for an early starter.
+  assert.equal(W.reminder(W.plan(day(REAL), DEFAULTS, at('21:40'))).title, 'Time to clock out');
+  assert.doesNotMatch(W.reminder(W.plan(day([p('08:15', true)]), DEFAULTS, at('19:00'))).message, /limit|missed|10:00/);
+  assert.equal(W.reminder(W.plan(W.applyDom(W.emptyDay(DATE), 'in', at('11:00')), DEFAULTS, at('19:00'))).message, 'Don\'t forget to clock out in Keka.');
 });
 
 test('badge: countdown, amber while snoozed, red OUT once due, hidden when out', () => {

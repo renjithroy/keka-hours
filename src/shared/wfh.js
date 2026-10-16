@@ -356,14 +356,10 @@
     return { title: `WFH clock-out reminder set for ${at}`, message };
   }
 
-  function reminder(p, now) {
-    const left = p.end - now;
-    const title = left <= 30 * MIN ? `Clock out now: ${shortLeft(left)} left` : 'Time to clock out';
-    const since = p.firstIn != null ? `WFH since ${timeLabel(p.firstIn)}. ` : '';
-    const limit = p.endReason === 'cutoff'
-      ? `Keka marks a missed clock-out at ${timeLabel(p.end)}.`
-      : `Clock out before the ${timeLabel(p.end)} limit.`;
-    return { title, message: since + limit };
+  /** The reminder itself: when you started, and a nudge to clock out. */
+  function reminder(p) {
+    const since = p.firstIn != null ? `You clocked in at ${timeLabel(p.firstIn)}. ` : '';
+    return { title: 'Time to clock out', message: `${since}Don't forget to clock out in Keka.` };
   }
 
   /**
