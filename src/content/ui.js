@@ -402,6 +402,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .day-track-hours span.start::before { left: 0; }
 .day-track-hours span.end { transform: translateX(-100%); }
 .day-track-hours span.end::before { left: auto; right: 0; }
+.day-track-hours span.minor { padding: 0; }
+.day-track-hours span.minor::before { height: 3px; opacity: .6; }
 .wfh-snooze { display: flex; gap: 8px; margin-top: 12px; }
 
 /* Changing the time: 12-hour pickers, scope, and an explicit Update. */
@@ -778,24 +780,27 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   }
 
   /**
-   * Clock-in → now → reminder → limit, as a bar, with 12-hour labels every
-   * 2–3 h counted back from the limit (so the last one marks it).
+   * Clock-in → now → reminder → limit, as a bar: a tick every hour, labelled
+   * (12-hour) every 2 h, counted back from the limit so the last one marks it.
    */
   function trackHtml(p, now, markAt, warn) {
     const span = p.end - p.firstIn;
     if (!(span > 0)) return '';
     const pos = ms => Math.max(0, Math.min(100, ((ms - p.firstIn) / span) * 100)).toFixed(1);
     const HOUR = 3600000;
-    const step = (span <= 6 * HOUR ? 1 : span <= 9 * HOUR ? 2 : 3) * HOUR;
+    const every = span <= 6 * HOUR ? 1 : 2; // label every Nth hour
     const top = new Date(p.end);
     top.setMinutes(0, 0, 0);
-    const ticks = [];
-    for (let at = top.getTime(); at >= p.firstIn + 20 * 60000; at -= step) ticks.unshift(at);
-    const hours = ticks.map(at => {
+    const hours = [];
+    for (let at = top.getTime(), i = 0; at > p.firstIn; at -= HOUR, i++) {
       const x = Number(pos(at));
-      const edge = x < 7 ? ' class="start"' : x > 93 ? ' class="end"' : '';
-      return `<span${edge} style="left:${x}%">${hourLabel(at)}</span>`;
-    }).join('');
+      if (i % every || at < p.firstIn + 20 * 60000) {
+        hours.unshift(`<span class="minor" style="left:${x}%"></span>`);
+        continue;
+      }
+      const edge = x < 7 ? ' start' : x > 93 ? ' end' : '';
+      hours.unshift(`<span class="${edge.trim()}" style="left:${x}%">${hourLabel(at)}</span>`);
+    }
     return `
       <div class="day-track" aria-hidden="true">
         <div class="day-track-bar">
@@ -803,7 +808,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${markAt != null ? `<span class="day-track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
           <span class="day-track-now" style="left:${pos(now)}%"></span>
         </div>
-        <div class="day-track-hours">${hours}</div>
+        <div class="day-track-hours">${hours.join('')}</div>
       </div>`;
   }
 
