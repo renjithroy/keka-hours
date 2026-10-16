@@ -901,7 +901,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <section aria-label="How it works">
           <h4 class="wfh-h">How it works</h4>
           <ul class="how">
-            <li>At <b>${set}</b> a notification pops up and stays until you act on it.</li>
+            <li>At <b>${set}</b> a Chrome notification reminds you to clock out, and stays until you act on it.</li>
             <li>Snooze it 30 min or stop it for today from the notification. Clocking out stops it too.</li>
             <li><b>${W.hhmmLabel(W.LATEST_TIME)}</b> is the hard limit: reminders can't go past it.</li>
           </ul>
