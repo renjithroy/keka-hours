@@ -1004,8 +1004,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${extra}
         </section>
 
-        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now))}
-
         <section class="wfh-form" aria-label="Change reminder time" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
           <h4 class="wfh-h">Change reminder time</h4>
           ${timePickerHtml(v, 'wfh-ap')}
@@ -1015,6 +1013,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           </div>
           ${msg}
         </section>
+
+        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now))}
 
         <section aria-label="How it works">
           <h4 class="wfh-h">How it works</h4>
