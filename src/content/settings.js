@@ -54,7 +54,7 @@
 
   const validTheme = t => (t === 'light' || t === 'dark' ? t : null);
 
-  /** Saved theme ('light' | 'dark'), or null if the user never chose one. */
+  /** Saved theme override ('light' | 'dark'), or null to follow Keka's display mode. */
   async function loadTheme() {
     const s = storage();
     if (!s) return null;
@@ -66,11 +66,15 @@
     }
   }
 
+  /** Save an override; null clears it (follow Keka's display mode). */
   async function saveTheme(theme) {
     const value = validTheme(theme);
     const s = storage();
-    if (!s || !value) return;
-    try { await s.set({ [THEME_KEY]: value }); } catch (_) { /* extension reloaded; keep in memory */ }
+    if (!s) return;
+    try {
+      if (value) await s.set({ [THEME_KEY]: value });
+      else await s.remove(THEME_KEY);
+    } catch (_) { /* extension reloaded; keep in memory */ }
   }
 
   /** Calls back when the theme changes (e.g. toggled in another Keka tab). */

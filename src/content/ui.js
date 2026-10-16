@@ -14,6 +14,8 @@
   const ICON_CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.9" r="1.15" fill="currentColor"/></svg>';
+  const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
   const CSS = `
@@ -142,7 +144,7 @@ svg { width: 100%; height: 100%; display: block; }
   animation: kh-fade .18s cubic-bezier(.2,.8,.2,1);
 }
 .pill:hover { transform: translateY(-1px); border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
-.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .has-tip:focus-visible, .seg button:focus-visible, .btn-sm:focus-visible, .wfh-time:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .info-btn:focus-visible, .seg button:focus-visible, .btn-sm:focus-visible, .wfh-time:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .badge-icon {
   flex: none; width: 30px; height: 30px; padding: 6px;
   border-radius: 9px; color: var(--brand); background: var(--brand-soft);
@@ -207,9 +209,8 @@ svg { width: 100%; height: 100%; display: block; }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-/* Hover tooltips: the average (the days behind it) and the Include today switch. */
+/* Hover tooltip (Include today switch). */
 .has-tip { position: relative; display: inline-flex; border-radius: 8px; }
-.calc { cursor: help; }
 .tip {
   position: absolute; top: calc(100% + 4px); left: -2px; z-index: 5;
   width: 290px; padding: 12px 14px; text-align: left; white-space: normal;
@@ -219,21 +220,30 @@ svg { width: 100%; height: 100%; display: block; }
   transition: opacity .16s ease, transform .16s cubic-bezier(.2,.8,.2,1), visibility 0s linear .16s;
 }
 .tip::before { content: ""; position: absolute; top: -6px; left: 22px; width: 10px; height: 10px; background: var(--bg); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); }
-.tip.end { left: auto; right: -2px; width: 250px; }
+.tip.end { left: auto; right: -2px; width: max-content; padding: 7px 11px; border-radius: 9px; font-size: 12.5px; color: var(--text); white-space: nowrap; }
 .tip.end::before { left: auto; right: 22px; }
 .has-tip:hover .tip, .has-tip:focus-visible .tip, .has-tip:has(:focus-visible) .tip {
   opacity: 1; visibility: visible; transform: none;
   transition: opacity .16s ease .12s, transform .16s cubic-bezier(.2,.8,.2,1) .12s, visibility 0s linear .12s;
 }
-.tip-title { margin-bottom: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--subtle); }
-/* Day-by-day log under the average. Stays open while hovered so the list can scroll. */
-.tip.days { width: 310px; padding: 12px 6px 10px 14px; pointer-events: auto; }
-.tip.days::after { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; } /* hover bridge */
-.tip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; padding-right: 8px; }
-.tip-head .tip-title { margin: 0; }
-.tip-head span { font-size: 12px; color: var(--subtle); white-space: nowrap; }
-.day-list { max-height: 224px; overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; scrollbar-width: thin; scrollbar-color: var(--line-hover) transparent; }
-.day-row { display: grid; grid-template-columns: 7px 88px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--text); }
+/* ---------- average info button + day-by-day modal (centred on the page) ---------- */
+.eyebrow-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.info-btn { flex: none; width: 20px; height: 20px; padding: 2px; border-radius: 50%; color: var(--subtle); transition: color .14s ease, background .14s ease; }
+.info-btn:hover { color: var(--brand-text); background: var(--brand-soft); }
+.modal { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .38); backdrop-filter: blur(2px); animation: kh-fade-in .18s ease; }
+.root[data-theme="dark"] .modal-backdrop { background: rgba(0, 0, 0, .55); }
+.modal-card { position: relative; display: flex; flex-direction: column; width: min(460px, 100%); max-height: min(640px, calc(100vh - 48px)); background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-panel); animation: kh-pop .2s cubic-bezier(.2,.8,.2,1); }
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 16px 12px 22px; }
+.modal-title { font-size: 15.5px; font-weight: 650; letter-spacing: -.005em; }
+.modal-sub { font-size: 12.5px; color: var(--muted); }
+.modal-sum { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 22px 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13.5px; }
+.modal-sum b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text); white-space: nowrap; }
+.modal-sum b.good { color: var(--good); }
+.modal-sum b.warn { color: var(--warn); }
+.modal-foot { padding: 10px 22px 16px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--subtle); }
+.day-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: 6px; padding: 0 12px 6px 22px; scrollbar-width: thin; scrollbar-color: var(--line-hover) transparent; }
+.day-row { display: grid; grid-template-columns: 7px 104px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 32px; font-size: 13.5px; color: var(--text); }
 .day-row + .day-row { border-top: 1px solid var(--line); }
 .day-row .dot.off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--stub-hover); }
 .day-date { font-weight: 600; white-space: nowrap; }
@@ -242,12 +252,6 @@ svg { width: 100%; height: 100%; display: block; }
 .day-hrs.good { color: var(--good); }
 .day-hrs.warn { color: var(--warn); }
 .day-row.off .day-date, .day-row.off .day-type, .day-row.off .day-hrs { color: var(--subtle); font-weight: 500; }
-.day-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.day-sum b { color: var(--brand-text); font-size: 14px; font-weight: 700; white-space: nowrap; }
-.tip-foot { margin: 6px 8px 0 0; font-size: 12px; color: var(--subtle); }
-.checks { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
-.checks li { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; color: var(--text); }
-.checks i { flex: none; width: 16px; height: 16px; margin-top: 1px; padding: 3px; border-radius: 50%; color: var(--brand-text); background: var(--brand-soft); }
 
 /* "Include today" switch: a soft brand-tinted capsule when on. */
 .switch { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: background .22s ease, color .22s ease; }
@@ -393,6 +397,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes kh-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes kh-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kh-pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes kh-pulse { 50% { opacity: .35; } }
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -411,22 +417,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   const WEEK_HEAD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
   function includeSwitchHtml(on) {
     return `
       <div class="has-tip">
         <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip">
           <span>Include today</span><span class="track"><span class="thumb"></span></span>
         </button>
-        <div class="tip end" role="tooltip" id="include-tip">
-          <div class="tip-title">Before you include today</div>
-          <ul class="checks">
-            <li><i>${ICON_CHECK}</i><span>You've completed today's hours</span></li>
-            <li><i>${ICON_CHECK}</i><span>You've clocked out</span></li>
-            <li><i>${ICON_CHECK}</i><span>Today's hours show in the attendance table</span></li>
-          </ul>
-        </div>
+        <div class="tip end" role="tooltip" id="include-tip">Use after clock-out, once today shows in the table</div>
       </div>`;
   }
 
@@ -444,8 +441,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     }
   }
 
-  /** Tooltip under the average: every day in the view with its type and hours, then the sum. */
-  function calcTipHtml(s, m) {
+  /** Modal behind the average's ⓘ: every day in the view with its type and hours, and the sum. */
+  function dayLogHtml(s, m) {
     const days = s.allDays || [];
     const rows = days.map(d => {
       const counted = d.kind === 'included';
@@ -459,14 +456,18 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
     }).join('');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey) : (m.label || '');
+    const notes = ['Counted: days with office time. WFH, leave, holidays and week-offs without work aren\'t counted.'];
+    if (m.todayInView && !m.includeToday) notes.push('Today isn\'t listed: Include today is off.');
 
     return `
-      <div class="tip days" role="tooltip" id="calc-tip">
-        <div class="tip-head"><div class="tip-title">How you got here</div><span>${s.trackedDays} of ${plural(days.length, 'day')} counted</span></div>
-        <div class="day-list">${rows}</div>
-        <div class="day-sum"><span>${fmt.duration(s.totalMinutes)} ÷ ${plural(s.trackedDays, 'day')}</span><b>= ${fmt.duration(s.averageMinutes)}</b></div>
-        ${m.todayInView && !m.includeToday ? '<div class="tip-foot">Today isn\'t listed: Include today is off.</div>' : ''}
-      </div>`;
+      <div class="modal-head">
+        <div><div class="modal-title" id="kh-modal-title">How you got this average</div><div class="modal-sub">${esc(period)} · ${s.trackedDays} of ${plural(days.length, 'day')} counted</div></div>
+        <button class="icon-btn" type="button" data-act="modal-close" aria-label="Close" title="Close">${ICON_CLOSE}</button>
+      </div>
+      <div class="modal-sum"><span>${fmt.duration(s.totalMinutes)} ÷ ${plural(s.trackedDays, 'day')}</span><b class="${tone(s)}">${fmt.duration(s.averageMinutes)}</b></div>
+      <div class="day-list">${rows}</div>
+      <div class="modal-foot">${notes.map(esc).join('<br>')}</div>`;
   }
 
   function overviewHtml(s, m) {
@@ -484,13 +485,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `
       <div class="hero">
         <div class="hero-top">
-          <div class="eyebrow">Average gross hours / day</div>
+          <div class="eyebrow-wrap">
+            <div class="eyebrow">Average gross hours / day</div>
+            ${s.trackedDays ? `<button class="info-btn" type="button" data-act="avg-info" aria-haspopup="dialog" aria-label="See the days behind this average" title="See the days behind this average">${ICON_INFO}</button>` : ''}
+          </div>
           ${m.todayInView ? includeSwitchHtml(!!m.includeToday) : ''}
         </div>
         <div class="hero-row">
-          ${s.trackedDays ? `<span class="has-tip calc" tabindex="0" aria-describedby="calc-tip">` : ''}
           <span class="hero-value">${fmt.duration(s.averageMinutes)}</span>
-          ${s.trackedDays ? `${calcTipHtml(s, m)}</span>` : ''}
           ${d == null ? '' : `<span class="chip ${t}">${d === 0 ? `On ${target}` : `${fmt.delta(d)} vs ${target}`}</span>`}
         </div>
       </div>
@@ -784,6 +786,37 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
 
+  /** '#fff' / '#ffffff' / 'rgb(…)' -> [r, g, b], or null (unknown / fully transparent). */
+  function parseRgb(value) {
+    const v = String(value || '').trim();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+    if (m) {
+      const hex = m[1].length === 3 ? m[1].replace(/./g, c => c + c) : m[1];
+      return [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    }
+    m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:[\s,/]+([\d.]+)(%?))?\s*\)$/i.exec(v);
+    if (m && !(m[4] != null && parseFloat(m[4]) === 0)) return [m[1], m[2], m[3]].map(Number);
+    return null;
+  }
+
+  /**
+   * Keka's display mode: 'dark' | 'light' | null (unknown). A "dark" class on
+   * <html>/<body> wins; otherwise the page background Keka sets as a CSS
+   * variable on <html> decides.
+   */
+  function readKekaMode() {
+    try {
+      const classes = `${document.documentElement.className} ${document.body ? document.body.className : ''}`;
+      if (/(^|[\s_-])dark([\s_-]|$)/i.test(classes)) return 'dark';
+      const rgb = parseRgb(getComputedStyle(document.documentElement).getPropertyValue('--primary-background-color')) ||
+        (document.body ? parseRgb(getComputedStyle(document.body).backgroundColor) : null);
+      if (!rgb) return null;
+      return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 < 0.45 ? 'dark' : 'light';
+    } catch (_) {
+      return null;
+    }
+  }
+
   /** Keka's current theme colours (from CSS variables on <html>), validated. */
   function readKekaTheme() {
     try {
@@ -836,6 +869,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           </div>
           <div class="content" role="tabpanel"></div>
         </section>
+        <div class="modal" hidden>
+          <div class="modal-backdrop" data-act="modal-close"></div>
+          <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="kh-modal-title"></div>
+        </div>
       </div>`;
 
     const $ = sel => shadow.querySelector(sel);
@@ -854,10 +891,18 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let wfhTestMsg = null; // result of the last "Send test reminder"
     let wfhPending = false; // a re-render waiting for the time input to lose focus
     let theme = 'light';
+    // The user's own pick, kept only while it differs from Keka's display mode.
+    let themeOverride = null;
+    let kekaMode = readKekaMode();
 
-    /** Apply 'light' | 'dark'; null (never chosen) follows the OS preference. */
+    /** Apply 'light' | 'dark' as an override; null follows Keka's display mode (then the OS). */
     function setTheme(value) {
-      theme = value === 'dark' || value === 'light' ? value : (systemPrefersDark() ? 'dark' : 'light');
+      themeOverride = value === 'dark' || value === 'light' ? value : null;
+      paintTheme();
+    }
+
+    function paintTheme() {
+      theme = themeOverride || kekaMode || (systemPrefersDark() ? 'dark' : 'light');
       const dark = theme === 'dark';
       rootEl.setAttribute('data-theme', theme);
       themeBtn.innerHTML = dark ? ICON_SUN : ICON_MOON;
@@ -873,9 +918,44 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     // Keep Keka's global keyboard shortcuts away from our widget.
     for (const type of ['keydown', 'keyup', 'keypress']) {
       host.addEventListener(type, e => {
-        if (type === 'keydown' && e.key === 'Escape' && expanded) collapse(true);
+        if (type === 'keydown' && e.key === 'Escape') {
+          if (modalOpen) closeModal(true);
+          else if (expanded) collapse(true);
+        }
         e.stopPropagation();
       });
+    }
+
+    const modal = $('.modal');
+    const modalCard = $('.modal-card');
+    let modalOpen = false;
+
+    /** Fill the day-log modal from the current model (keeps the list's scroll position). */
+    function renderModal() {
+      if (!modalOpen) return;
+      const s = model && model.summary;
+      if (!model || model.state !== 'ok' || !s || !s.trackedDays) { closeModal(false); return; }
+      const prev = modalCard.querySelector('.day-list');
+      const top = prev ? prev.scrollTop : 0;
+      modalCard.innerHTML = dayLogHtml(s, model);
+      const list = modalCard.querySelector('.day-list');
+      if (list) list.scrollTop = top;
+    }
+
+    function openModal() {
+      modalOpen = true;
+      modal.hidden = false;
+      renderModal();
+      const close = modalCard.querySelector('[data-act="modal-close"]');
+      if (close) close.focus({ preventScroll: true });
+    }
+
+    function closeModal(restoreFocus) {
+      if (!modalOpen) return;
+      modalOpen = false;
+      modal.hidden = true;
+      const info = restoreFocus && content.querySelector('[data-act="avg-info"]');
+      if (info) info.focus({ preventScroll: true });
     }
 
     // Click / tap anywhere outside the card collapses it back to the pill.
@@ -924,9 +1004,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           if (viaKeyboard && next) next.focus({ preventScroll: true });
         }, reduceMotion() ? 0 : 180);
       }
+      else if (act === 'avg-info') openModal();
+      else if (act === 'modal-close') closeModal(e.detail === 0);
       else if (act === 'theme') {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
-        handlers.onThemeChange(theme);
+        const next = theme === 'dark' ? 'light' : 'dark';
+        // Picking Keka's own mode means "follow Keka" again.
+        themeOverride = next === kekaMode ? null : next;
+        paintTheme();
+        handlers.onThemeChange(themeOverride);
       }
     });
 
@@ -956,6 +1041,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function collapse(viaKeyboard, instant) {
       if (!expanded) return;
       expanded = false;
+      closeModal(false);
       const done = () => {
         if (resetClose) resetClose();
         panel.hidden = true;
@@ -1160,6 +1246,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       model = next;
       if (!next.visible) {
         // Leaving the logs page: close and remove the widget entirely.
+        closeModal(false);
         collapse(false, true);
         host.remove();
         return;
@@ -1168,12 +1255,26 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       applyTheme();
       renderPill();
       renderPanel();
+      renderModal();
     }
 
-    /** Match Keka's theme colour (green, pink, …); falls back to green. */
+    /**
+     * Match Keka's theme colour (green, pink, …; falls back to green) and its
+     * display mode. Switching Keka's mode drops any override, so both stay in sync.
+     */
     function applyTheme() {
       const t = readKekaTheme();
       if (t.primary) host.style.setProperty('--kh-primary', t.primary); else host.style.removeProperty('--kh-primary');
+      const mode = readKekaMode();
+      if (mode && mode !== kekaMode) {
+        const switched = kekaMode != null; // not just the first read
+        kekaMode = mode;
+        if (switched && themeOverride) {
+          themeOverride = null;
+          handlers.onThemeChange(null);
+        }
+        paintTheme();
+      }
     }
 
     function mount() {
