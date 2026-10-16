@@ -172,6 +172,25 @@ test('snooze never passes the last call (5 min before the end)', () => {
   assert.equal(W.plan(late, DEFAULTS, at('21:58')).nextAt, null);
 });
 
+test('"Stop for today" silences reminders and the badge; "Turn back on" resumes', () => {
+  let d = { ...day(REAL), lastShownAt: at('18:30'), snoozeUntil: at('19:00') };
+  d = W.stop(d, at('18:35'));
+  let pl = W.plan(d, DEFAULTS, at('19:30'));
+  assert.equal(pl.stopped, true);
+  assert.equal(pl.nextAt, null);
+  assert.equal(pl.due, false);
+  assert.equal(d.snoozeUntil, null);
+  assert.equal(W.badge(pl, at('19:30')), null);
+  assert.equal(W.shouldAnnounce(d, W.plan(d, { everyDay: '21:00' }, at('19:30')), at('19:30')), false);
+  // Still off after a break and back in: it was stopped for the day.
+  const back = W.applyObservation(d, { records: [{ date: DATE, punches: [...REAL, p('19:40', false), p('19:50', true)] }] }, at('19:50'));
+  assert.equal(W.plan(back, DEFAULTS, at('19:51')).nextAt, null);
+  // Turned back on: the overdue reminder comes right away.
+  pl = W.plan(W.resume(d), DEFAULTS, at('19:30'));
+  assert.equal(pl.stopped, false);
+  assert.equal(pl.due, true);
+});
+
 // ---------- DOM fallback ----------
 
 test('DOM fallback arms without a clock-in time; Keka data replaces it', () => {

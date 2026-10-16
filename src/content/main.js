@@ -307,7 +307,7 @@
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
       onWfhSaveTime: saveWfhTime,
-      onWfhSnooze: action => toWorker({ type: action === 'cancel' ? 'wfh-snooze-cancel' : 'wfh-snooze-more' }),
+      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
     });
     widget.setWfh(state.wfh);

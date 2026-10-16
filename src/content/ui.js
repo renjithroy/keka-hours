@@ -161,6 +161,13 @@ svg { width: 100%; height: 100%; display: block; }
 .dot.warn { background: var(--dot-warn); }
 .dot.pulse { animation: kh-pulse 1.2s ease-in-out infinite; }
 
+/* ---------- scrollbars: a thin rounded thumb that fades into the card ---------- */
+.panel::-webkit-scrollbar, .day-list::-webkit-scrollbar { width: 10px; }
+.panel::-webkit-scrollbar-track, .day-list::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
+.panel::-webkit-scrollbar-thumb, .day-list::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: var(--line-hover) padding-box; }
+.panel::-webkit-scrollbar-thumb:hover, .day-list::-webkit-scrollbar-thumb:hover { background: var(--subtle) padding-box; }
+.panel::-webkit-scrollbar-button, .day-list::-webkit-scrollbar-button { display: none; }
+
 /* ---------- expanded panel ---------- */
 .panel {
   width: 424px; max-width: calc(100vw - 24px);
@@ -243,7 +250,7 @@ svg { width: 100%; height: 100%; display: block; }
 .modal-sum b.good { color: var(--good); }
 .modal-sum b.warn { color: var(--warn); }
 .modal-foot { padding: 10px 22px 16px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--subtle); }
-.day-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: 6px; padding: 0 12px 6px 22px; scrollbar-width: thin; scrollbar-color: var(--line-hover) transparent; }
+.day-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: 6px; padding: 0 12px 6px 22px; }
 .day-row { display: grid; grid-template-columns: 7px 104px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 32px; font-size: 13.5px; color: var(--text); }
 .day-row + .day-row { border-top: 1px solid var(--line); }
 .day-row .dot.off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--stub-hover); }
@@ -361,7 +368,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
 /* ---------- WFH clock-out reminder ---------- */
-.wfh { flex: 1; display: flex; flex-direction: column; gap: 16px; padding-top: 2px; }
+.wfh { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-top: 2px; }
 .wfh-intro h3 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
 .wfh-intro p { margin: 3px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
@@ -374,7 +381,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .live-dot.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--dot-good); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
 .wfh-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
 .wfh-big { margin-top: 2px; }
-.wfh-big { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wfh-big { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wfh-time-big { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; color: var(--brand-text); }
 .wfh-time-big.word { font-size: 34px; }
 .wfh-time-big.warn { color: var(--warn); }
@@ -423,6 +430,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .btn-sm { height: 30px; padding: 0 11px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-hover); font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; transition: box-shadow .14s ease; }
 .btn-sm:hover { box-shadow: inset 0 0 0 1px var(--brand); }
 .btn-sm:disabled { opacity: .55; cursor: default; box-shadow: inset 0 0 0 1px var(--line); }
+.btn-sm.quiet { margin-left: auto; background: transparent; box-shadow: none; color: var(--muted); }
+.btn-sm.quiet:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-hover); }
 
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -760,7 +769,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${markAt != null ? `<span class="track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
           <span class="track-now" style="left:${pos(now)}%"></span>
         </div>
-        <div class="track-ends"><span>Clocked in ${W.timeLabel(p.firstIn)}</span><span>Stops ${W.timeLabel(p.end)}</span></div>
+        <div class="track-ends"><span>Clocked in ${W.timeLabel(p.firstIn)}</span><span>Limit ${W.timeLabel(p.end)}</span></div>
       </div>`;
   }
 
@@ -801,33 +810,40 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     } else if (p.remindAt == null) {
       label = 'Today\'s reminder';
       big = '<span class="wfh-time-big word off">None</span>';
-      sub = `You clocked in too late to be reminded before ${t(p.end)}.`;
+      sub = `You clocked in too late to be reminded before the ${t(p.end)} limit.`;
+    } else if (p.stopped) {
+      label = 'Today\'s reminder';
+      big = '<span class="wfh-time-big word off">Off</span>';
+      sub = 'You stopped it for today.';
+      right = '<button class="btn-sm" type="button" data-act="wfh-resume">Turn back on</button>';
     } else if (p.snoozed) {
       label = 'Snoozed until';
       big = `<span class="wfh-time-big warn">${t(p.nextAt)}</span>`;
-      right = inLabel(p.nextAt - now);
+      right = `<span class="wfh-in">${inLabel(p.nextAt - now)}</span>`;
       markAt = p.nextAt;
       warn = true;
       const atCap = p.nextAt >= p.end - 5 * 60000;
       extra = `
         <div class="wfh-snooze">
           <button class="btn-sm" type="button" data-act="wfh-snooze-cancel">Cancel snooze</button>
-          <button class="btn-sm" type="button" data-act="wfh-snooze-more"${atCap ? ' disabled title="Can\'t snooze past the last reminder"' : ''}>+15 min</button>
+          <button class="btn-sm" type="button" data-act="wfh-snooze-more"${atCap ? ' disabled title="Can\'t snooze past the limit"' : ''}>+15 min</button>
+          <button class="btn-sm quiet" type="button" data-act="wfh-stop">Stop for today</button>
         </div>`;
     } else if (p.reminding || p.due) {
       label = 'Past your reminder';
-      big = '<span class="wfh-time-big word warn">Clock out now</span>';
+      big = '<span class="wfh-time-big word warn">Clock out</span>';
       sub = p.nextAt != null
-        ? `Next reminder at <b>${t(p.nextAt)}</b>, then every 15 min until ${t(p.end)}.`
-        : `Reminders stopped at ${t(p.end)}.`;
+        ? `Next at <b>${t(p.nextAt)}</b>, then every 15 min until ${t(p.end)}.`
+        : `Reminders ended at the ${t(p.end)} limit.`;
       markAt = p.remindAt;
       warn = true;
+      if (p.nextAt != null) right = '<button class="btn-sm" type="button" data-act="wfh-stop">Stop for today</button>';
     } else {
       label = 'Reminder at';
       big = `<span class="wfh-time-big">${t(p.remindAt)}</span>`;
-      right = inLabel(p.remindAt - now);
+      right = `<span class="wfh-in">${inLabel(p.remindAt - now)}</span>`;
       markAt = p.remindAt;
-      if (p.reason === 'safety') sub = `Earlier than your ${set} setting: that's 11h after your ${t(p.firstIn)} clock-in.`;
+      if (p.reason === 'safety') sub = `11h after your ${t(p.firstIn)} clock-in, earlier than ${set}.`;
       else if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
     }
     if (p.state === 'in' && p.firstIn == null) sub = 'Couldn\'t read your clock-in time yet. Reload this page to load it.';
@@ -844,23 +860,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const seg = (act, value, label, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${label}</button>`;
     const msg = form.msg ? `<div class="form-msg${form.msg.error ? ' err' : ''}" role="status">${esc(form.msg.text)}</div>` : '';
 
-    // ---- the rules, in plain words (with the user's own times). The 11h
-    // rule only reads sensibly for a morning clock-in.
-    const earlyAt = p.configured - W.SAFETY_MS;
-    const early = new Date(earlyAt).getHours() >= 5 ? t(earlyAt) : null;
 
     const synced = p.updatedAt ? `Synced with Keka ${fmt.relative(p.updatedAt, now)}.` : 'Not synced with Keka yet today.';
 
     return `
       <div class="wfh">
-        <div class="wfh-intro">
-          <h3>Clock-out reminder</h3>
-          <p>Reminds you to clock out on WFH days.</p>
-        </div>
+        <div class="wfh-intro"><h3>WFH clock-out reminder</h3></div>
 
         <section class="wfh-today" aria-label="Today">
           <div class="wfh-top"><span class="wfh-label">${label}</span><span class="wfh-state">${state}</span></div>
-          <div class="wfh-big">${big}${right ? `<span class="wfh-in">${right}</span>` : ''}</div>
+          <div class="wfh-big">${big}${right}</div>
           ${sub ? `<div class="wfh-sub">${sub}</div>` : ''}
           ${track}
           ${extra}
@@ -884,9 +893,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <section aria-label="How it works">
           <h4 class="wfh-h">How it works</h4>
           <ul class="how">
-            <li>Repeats every 15 min until you clock out, or until <b>10:00 PM</b>. Snooze it from the notification.</li>
-            ${early ? `<li>Clocked in before ${early}? Then it's 11h after clock-in.</li>` : ''}
-            <li>Needs Chrome running. Do Not Disturb hides it.</li>
+            <li>At <b>${set}</b> a notification pops up and stays until you act on it.</li>
+            <li>Snooze it 30 min or stop it for today from the notification. Clocking out stops it too.</li>
+            <li><b>${W.hhmmLabel(W.LATEST_TIME)}</b> is the hard limit: reminders can't go past it.</li>
           </ul>
         </section>
 
@@ -1097,8 +1106,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         syncWfhForm();
       }
       else if (act === 'wfh-update') saveWfhForm();
-      else if (act === 'wfh-snooze-cancel') handlers.onWfhSnooze('cancel');
-      else if (act === 'wfh-snooze-more') handlers.onWfhSnooze('more');
+      else if (act === 'wfh-snooze-cancel' || act === 'wfh-snooze-more' || act === 'wfh-stop' || act === 'wfh-resume') handlers.onWfhAction(act);
       else if (act === 'wfh-test') {
         el.disabled = true;
         el.textContent = 'Sending…';

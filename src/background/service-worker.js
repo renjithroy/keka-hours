@@ -20,7 +20,8 @@ const N_ARMED = 'wfh-armed';
 const N_TEST = 'wfh-test';
 const KEKA_URL = 'https://hatio.keka.com/#/me/attendance/logs';
 const ICON = 'icons/icon128.png';
-const REMINDER_BUTTONS = [{ title: 'Snooze 30 min' }, { title: 'Open Keka' }];
+// Clicking the notification itself opens Keka.
+const REMINDER_BUTTONS = [{ title: 'Snooze 30 min' }, { title: 'Stop for today' }];
 
 async function load(now) {
   const got = await chrome.storage.local.get({ [DAY_KEY]: null, [SETTINGS_KEY]: null });
@@ -78,7 +79,7 @@ async function step(change) {
     await notify(N_ARMED, W.announcement(plan), false);
     day = { ...day, announcedFor: plan.remindAt };
   }
-  if (plan.state !== 'in') await chrome.notifications.clear(N_REMINDER);
+  if (plan.state !== 'in' || plan.stopped) await chrome.notifications.clear(N_REMINDER);
 
   // The WFH tab re-renders on changes, so only write real ones.
   if (JSON.stringify(day) !== before) await chrome.storage.local.set({ [DAY_KEY]: day });
@@ -115,6 +116,12 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-snooze-cancel':
       run((day, s, now) => W.cancelSnooze(day, now));
       return false;
+    case 'wfh-stop':
+      run((day, s, now) => W.stop(day, now));
+      return false;
+    case 'wfh-resume':
+      run(day => W.resume(day));
+      return false;
     case 'wfh-test':
       testReminder().then(reply, () => reply({ permission: 'unknown' }));
       return true; // async reply
@@ -139,8 +146,9 @@ function openKeka() {
 chrome.notifications.onButtonClicked.addListener((id, index) => {
   if (id !== N_REMINDER && id !== N_TEST) return;
   chrome.notifications.clear(id);
-  if (index === 1) openKeka();
-  else if (id === N_REMINDER) run((day, s, now) => W.snooze(day, s, now));
+  if (id !== N_REMINDER) return; // the test reminder's buttons do nothing
+  if (index === 0) run((day, s, now) => W.snooze(day, s, now));
+  else run((day, s, now) => W.stop(day, now));
 });
 
 chrome.notifications.onClicked.addListener(id => {

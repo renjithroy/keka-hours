@@ -12,13 +12,14 @@
  *  - Clocked in (or back in from a break) after the reminder time: remind
  *    30 min after that clock-in.
  *  - Ignored reminders repeat every 15 min. Snooze: 30 min from the
- *    notification, +15 min per click in the tab.
+ *    notification, +15 min per click in the tab. "Stop for today" turns it
+ *    off until the next day (the tab can turn it back on).
  *  - Everything stops quietly at the day's end: 10 PM, or Keka's 12h cutoff
  *    if that's earlier. Clocking out stops it at once.
  *
  * Day state (persisted by the worker, one day at a time):
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
- *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor }
+ *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt }
  * Settings: { everyDay: 'HH:MM', today: { date, time } | null }
  */
 (function (root) {
@@ -99,7 +100,7 @@
   }
 
   function emptyDay(date) {
-    return { date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null };
+    return { date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null };
   }
 
   /** Punches -> { state: 'none' | 'in' | 'out', firstIn, lastIn, lastOut } (epoch ms). */
@@ -153,8 +154,9 @@
       reason = 'too-late';
     }
 
+    const stopped = day.stoppedAt != null;
     let nextAt = null;
-    if (ps.state === 'in' && remindAt != null) {
+    if (ps.state === 'in' && remindAt != null && !stopped) {
       nextAt = remindAt;
       if (day.lastShownAt != null && day.lastShownAt >= remindAt) nextAt = day.lastShownAt + REPEAT_MS;
       if (day.snoozeUntil != null && day.snoozeUntil > (day.lastShownAt || 0)) nextAt = day.snoozeUntil;
@@ -172,6 +174,7 @@
       end,
       endReason,
       nextAt,
+      stopped,
       due: nextAt != null && nextAt <= now,
       snoozed: ps.state === 'in' && day.snoozeUntil != null && day.snoozeUntil > now && nextAt === day.snoozeUntil,
       reminding: ps.state === 'in' && remindAt != null && day.lastShownAt != null && day.lastShownAt >= remindAt,
@@ -227,9 +230,19 @@
     return day.snoozeUntil != null && day.snoozeUntil > now ? { ...day, snoozeUntil: now } : day;
   }
 
+  /** "Stop for today" (notification or tab). */
+  function stop(day, now) {
+    return { ...day, stoppedAt: now, snoozeUntil: null };
+  }
+
+  /** Tab "Turn back on": reminders resume from the schedule (repeats if already past). */
+  function resume(day) {
+    return { ...day, stoppedAt: null };
+  }
+
   /** Should we post "reminder set for …"? Once per distinct reminder time, never for one already due. */
   function shouldAnnounce(day, p, now) {
-    return p.state === 'in' && p.remindAt != null && p.remindAt > now && day.announcedFor !== p.remindAt;
+    return p.state === 'in' && !p.stopped && p.remindAt != null && p.remindAt > now && day.announcedFor !== p.remindAt;
   }
 
   function announcement(p) {
@@ -253,7 +266,7 @@
     const since = p.firstIn != null ? `WFH since ${timeLabel(p.firstIn)}. ` : '';
     const limit = p.endReason === 'cutoff'
       ? `Keka marks a missed clock-out at ${timeLabel(p.end)}.`
-      : `Reminders stop at ${timeLabel(p.end)}.`;
+      : `Clock out before the ${timeLabel(p.end)} limit.`;
     return { title, message: since + limit };
   }
 
@@ -262,7 +275,7 @@
    * once due — until clocked out or the day's end.
    */
   function badge(p, now) {
-    if (p.state !== 'in' || p.remindAt == null || now >= p.end) return null;
+    if (p.state !== 'in' || p.stopped || p.remindAt == null || now >= p.end) return null;
     if (p.snoozed) return { text: shortLeft(p.nextAt - now), color: '#d97706' };
     if (p.reminding || p.due) return { text: 'OUT', color: '#dc2626' };
     return { text: shortLeft(p.remindAt - now), color: '#1f9d6b' };
@@ -272,7 +285,7 @@
     DEFAULT_TIME, LATEST_TIME, SAFETY_MS, CUTOFF_MS, REPEAT_MS, SNOOZE_MS, SNOOZE_STEP_MS,
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, emptyDay, punchState, plan,
-    applyObservation, applyDom, snooze, extendSnooze, cancelSnooze,
+    applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

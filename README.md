@@ -51,8 +51,8 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
-- **WFH**: your clock-out reminder (below): today's status, the reminder time, snooze controls and a
-  test button.
+- **WFH**: your clock-out reminder (below): today's reminder and status, a 12-hour time picker with
+  **Update reminder**, snooze / stop controls and a test button.
 
 ### WFH clock-out reminders
 
@@ -68,11 +68,11 @@ request is approved yet.
   reminded then instead.
 - **Late clock-in:** if you clock in (or back in from a break) after the reminder time, you're
   reminded 30 min later.
-- **Repeats:** the reminder stays on screen and repeats every 15 min until you clock out. **Snooze
-  30 min** on the notification; in the WFH tab, **+15 min** extends a snooze and **Cancel snooze**
-  reminds you now.
-- **Stops:** as soon as you clock out. Otherwise it stops quietly at 10:00 PM, or at Keka's 12h
-  cutoff if that's earlier.
+- **Repeats:** the reminder stays on screen and repeats every 15 min until you clock out. Click it
+  to open Keka. Its buttons: **Snooze 30 min** and **Stop for today**. In the WFH tab, **+15 min**
+  extends a snooze, **Cancel snooze** reminds you now, and **Turn back on** undoes a stop.
+- **Hard limit:** 10:00 PM. Reminders can't be set or snoozed past it, and they stop quietly there
+  (or at Keka's 12h cutoff if that's earlier). Clocking out stops them at once.
 - **Toolbar badge:** the extension icon counts down to the reminder. It turns amber while snoozed
   and red **OUT** once it's time.
 
