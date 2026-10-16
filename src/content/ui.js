@@ -374,7 +374,12 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .wfh-intro p { margin: 3px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
 /* Today: status, the reminder time (the one big thing), and the day so far. */
-.wfh-today { padding: 12px 16px 12px; border-radius: 14px; background: var(--surface); }
+.rem { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+.rem-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rem-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; }
+.rem .wfh-today { margin: 0 -14px; padding: 10px 14px 12px; background: var(--surface); }
+.rem .wfh-form, .rem .how { padding-top: 12px; border-top: 1px solid var(--line); }
+.rem .wfh-form { border-top: 0; padding-top: 0; }
 .wfh-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wfh-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .live-dot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--subtle); }
@@ -446,7 +451,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .seg button[aria-checked="true"] { background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); color: var(--brand-text); }
 .time-row .seg { margin-left: 6px; }
 .form-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.form-row .seg { flex: 1; }
+.form-row .seg { flex: 1; min-width: 0; }
 .btn-primary { flex: none; height: 36px; padding: 0 16px; border-radius: 10px; background: var(--brand); color: #fff; font-size: 13.5px; font-weight: 650; white-space: nowrap; transition: filter .14s ease, background .14s ease; }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:disabled { background: var(--meter-off); color: var(--subtle); cursor: default; filter: none; }
@@ -1005,32 +1010,30 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     return `
       <div class="wfh">
-        <div class="wfh-intro"><h3>WFH clock-out reminder</h3></div>
-
         ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now), !!(raw && raw.date === today && W.autoResettable(raw)))}
 
-        <section class="wfh-today" aria-label="Today">
-          <div class="wfh-top"><span class="wfh-label">${label}</span><span class="wfh-state">${state}</span></div>
-          <div class="wfh-big">${big}${right}</div>
-          ${sub ? `<div class="wfh-sub">${sub}</div>` : ''}
-          ${track}
-          ${extra}
-        </section>
+        <section class="rem" aria-labelledby="kh-rem-title">
+          <div class="rem-head"><h3 id="kh-rem-title">Clock-out reminder</h3><span class="wfh-state">${state}</span></div>
 
-        <section class="wfh-form" aria-label="Change reminder time" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
-          <h4 class="wfh-h">Change reminder time</h4>
-          ${timePickerHtml(v, 'wfh-ap')}
-          <div class="form-row">
-            <div class="seg" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
-            <button class="btn-primary" type="button" data-act="wfh-update"${dirty ? '' : ' disabled'}>Update reminder</button>
+          <div class="wfh-today">
+            <div class="wfh-label">${label}</div>
+            <div class="wfh-big">${big}${right}</div>
+            ${sub ? `<div class="wfh-sub">${sub}</div>` : ''}
+            ${track}
+            ${extra}
           </div>
-          ${msg}
-        </section>
 
+          <div class="wfh-form" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
+            <h4 class="wfh-h">Change reminder time</h4>
+            ${timePickerHtml(v, 'wfh-ap')}
+            <div class="form-row">
+              <div class="seg" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
+              <button class="btn-primary" type="button" data-act="wfh-update" aria-label="Update reminder"${dirty ? '' : ' disabled'}>Update</button>
+            </div>
+            ${msg}
+          </div>
 
-        <section aria-label="How it works">
-          <h4 class="wfh-h">How it works</h4>
-          <ul class="how">
+          <ul class="how" aria-label="How the reminder works">
             <li>At <b>${set}</b> a Chrome notification reminds you to clock out, and stays until you act on it.</li>
             <li><b>${W.hhmmLabel(W.LATEST_TIME)}</b> is the hard limit: reminders can't go past it.</li>
           </ul>
