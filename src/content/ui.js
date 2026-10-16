@@ -850,8 +850,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** The tab's auto clock-out row: what will happen today, and Set up / Edit. */
-  function autoRowHtml(ap) {
+  /** The tab's auto clock-out row: what will happen today, Set up / Edit, and Reset for today's state. */
+  function autoRowHtml(ap, resettable) {
     const t = W.timeLabel;
     let text;
     let tone = '';
@@ -870,6 +870,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="auto-row${ap.on ? ' on' : ''}">
         <span class="auto-ic">${ICON_AUTO}</span>
         <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${esc(text)}</div></div>
+        ${resettable && ap.on ? '<button class="btn-sm quiet" type="button" data-act="wfh-auto-reset" title="Clear today\'s skip, delay or result so it runs again at its time">Reset</button>' : ''}
         <button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">${ap.on ? 'Edit' : 'Set up'}</button>
       </div>`;
   }
@@ -1014,7 +1015,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${msg}
         </section>
 
-        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now))}
+        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now), !!(raw && raw.date === today && W.autoResettable(raw)))}
 
         <section aria-label="How it works">
           <h4 class="wfh-h">How it works</h4>
@@ -1271,7 +1272,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         syncWfhForm();
       }
       else if (act === 'wfh-update') saveWfhForm();
-      else if (act === 'wfh-snooze-cancel' || act === 'wfh-snooze-more' || act === 'wfh-stop' || act === 'wfh-resume') handlers.onWfhAction(act);
+      else if (act === 'wfh-snooze-cancel' || act === 'wfh-snooze-more' || act === 'wfh-stop' || act === 'wfh-resume' || act === 'wfh-auto-reset') handlers.onWfhAction(act);
       else if (act === 'wfh-test') {
         el.disabled = true;
         el.textContent = 'Sending…';

@@ -81,7 +81,10 @@ request is approved yet.
 Off by default. Set it up from the **Auto clock-out** row in the WFH tab: a time (default 30 min
 after your reminder, up to 10:00 PM), for **Today only** or **Every WFH day**.
 
-- 5 min before, a notification lets you **Skip today** or add **+15 min**.
+- 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
+  heads-up: if the time has already passed (your laptop was asleep, or you pressed Reset), it warns
+  you first and runs 5 min later.
+- **Reset** on the Auto clock-out row clears today's skip, +15 min or result, so it runs again.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
   extension never builds one or reads your login.

@@ -333,7 +333,7 @@
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
       onWfhSaveTime: saveWfhTime,
-      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume
+      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
     });

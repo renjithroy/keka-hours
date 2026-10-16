@@ -77,7 +77,16 @@ async function stepAuto(day, settings, now) {
   if (ap.status === 'running') {
     const ok = W.autoClockedOut(day);
     if (ok || now - day.autoStartedAt > W.AUTO_TIMEOUT_MS) day = await finishAuto(day, ok, now);
-  } else if (ap.status === 'heads-up' && day.autoHeadsUpFor !== ap.at) {
+    return day;
+  }
+  // Never clock out without a heads-up: if it's due but none was shown for
+  // this time (Reset after the time, laptop asleep through it), warn now and
+  // run 5 min later.
+  if (ap.status === 'due' && day.autoHeadsUpFor !== ap.at) {
+    const deferred = W.autoDeferForHeadsUp(day, settings, now);
+    if (deferred !== day) { day = deferred; ap = W.autoPlan(day, settings, now); }
+  }
+  if ((ap.status === 'heads-up' || ap.status === 'due') && day.autoHeadsUpFor !== ap.at && ap.at > now) {
     await chrome.notifications.clear(N_AUTO_SOON);
     await notify(N_AUTO_SOON, W.autoHeadsUp(ap), true, AUTO_SOON_BUTTONS);
     day = { ...day, autoHeadsUpFor: ap.at };
@@ -200,6 +209,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       return false;
     case 'wfh-resume':
       run(day => W.resume(day));
+      return false;
+    case 'wfh-auto-reset':
+      chrome.notifications.clear(N_AUTO_SOON);
+      chrome.notifications.clear(N_AUTO_FAILED);
+      run(day => W.autoReset(day));
       return false;
     case 'wfh-test':
       testReminder().then(reply, () => reply({ permission: 'unknown' }));

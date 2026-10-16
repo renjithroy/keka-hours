@@ -283,9 +283,11 @@
   function autoPlan(day, settings, now) {
     const a = autoFor(settings, day.date);
     const p = plan(day, settings, now);
-    let at = atTime(day.date, a.time) + (day.autoDelay || 0);
+    let at = atTime(day.date, a.time);
     let reason = 'time';
     if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
+    // +15 min / heads-up delays apply on top, but never past the last call before the end.
+    at += day.autoDelay || 0;
     if (at > p.end - LAST_CALL_MS) at = p.end - LAST_CALL_MS;
     const base = { on: a.on, time: a.time, scope: a.scope, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
     let status;
@@ -312,6 +314,31 @@
 
   function autoSkipToday(day) {
     return { ...day, autoSkip: true };
+  }
+
+  /**
+   * Due without a heads-up for this time yet (after a Reset, or waking from
+   * sleep past it): move it 5 min from now so the heads-up comes first.
+   * Returns `day` unchanged when there's no room left before the end.
+   */
+  function autoDeferForHeadsUp(day, settings, now) {
+    const ap = autoPlan(day, settings, now);
+    if (ap.status !== 'due' || day.autoHeadsUpFor === ap.at) return day;
+    const target = Math.min(now + AUTO_HEADS_UP_MS, ap.end - LAST_CALL_MS);
+    if (target <= now) return day;
+    return { ...day, autoDelay: (day.autoDelay || 0) + (target - ap.at) };
+  }
+
+  /** Is there anything of today's auto clock-out to reset (skip, +15, done, failed)? Not while running. */
+  function autoResettable(day) {
+    return day.autoStatus !== 'running' &&
+      (day.autoSkip === true || (day.autoDelay || 0) > 0 || day.autoStatus === 'done' || day.autoStatus === 'failed');
+  }
+
+  /** Tab "Reset": forget today's skip / delay / result, so it runs again at its set time. */
+  function autoReset(day) {
+    if (day.autoStatus === 'running') return day;
+    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null };
   }
 
   function autoStart(day, now) {
@@ -379,7 +406,7 @@
     normalizeSettings, timeFor, emptyDay, punchState, plan,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

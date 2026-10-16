@@ -327,3 +327,41 @@ test('auto clock-out: running → done when Keka shows the clock-out; at most on
   assert.equal(W.autoPlan(d, AUTO_ON, at('20:00')).status, 'done');
   assert.equal(W.autoPlan(W.autoFinish(W.autoStart(day(REAL), at('19:00')), false, at('19:02')), AUTO_ON, at('19:03')).status, 'failed');
 });
+
+test('auto clock-out: Reset clears today\'s skip / +15 / result, not while running', () => {
+  const skipped = W.autoSkipToday(day(REAL));
+  assert.equal(W.autoResettable(skipped), true);
+  assert.equal(W.autoPlan(W.autoReset(skipped), AUTO_ON, at('18:00')).status, 'scheduled');
+  const delayed = W.autoPostpone(day(REAL), AUTO_ON, at('18:55'));
+  assert.equal(W.autoResettable(delayed), true);
+  assert.equal(W.autoPlan(W.autoReset(delayed), AUTO_ON, at('18:00')).at, at('19:00'));
+  const failed = W.autoFinish(W.autoStart(day(REAL), at('19:00')), false, at('19:02'));
+  assert.equal(W.autoResettable(failed), true);
+  assert.equal(W.autoPlan(W.autoReset(failed), AUTO_ON, at('19:03')).status, 'due', 'runs again when reset after its time');
+  const running = W.autoStart(day(REAL), at('19:00'));
+  assert.equal(W.autoResettable(running), false);
+  assert.equal(W.autoReset(running), running);
+  assert.equal(W.autoResettable(day(REAL)), false, 'nothing to reset');
+});
+
+test('auto clock-out: never without a heads-up (after Reset, or waking past the time)', () => {
+  // Reset at 7:02 PM after a skip: due again, but no heads-up was shown for it.
+  const reset = W.autoReset(W.autoSkipToday(day(REAL)));
+  assert.equal(W.autoPlan(reset, AUTO_ON, at('19:02')).status, 'due');
+  const d = W.autoDeferForHeadsUp(reset, AUTO_ON, at('19:02'));
+  const ap = W.autoPlan(d, AUTO_ON, at('19:02'));
+  assert.equal(ap.at, at('19:07'));
+  assert.equal(ap.status, 'heads-up');
+  // Normal path: the heads-up was shown for this time, so it runs on time.
+  const warned = { ...day(REAL), autoHeadsUpFor: at('19:00') };
+  assert.equal(W.autoDeferForHeadsUp(warned, AUTO_ON, at('19:00')), warned);
+  // Early starter past the 11h point: the delay still applies on top of the safety time.
+  const early = day([p('08:00', true)]);
+  const s = { everyDay: '18:30', auto: { every: { on: true, time: '21:00' } } };
+  const e = W.autoPlan(W.autoDeferForHeadsUp(early, s, at('19:30')), s, at('19:30'));
+  assert.equal(e.at, at('19:35'));
+  assert.equal(e.status, 'heads-up');
+  // No room left before the end: run now rather than miss it.
+  const last = day([p('11:00', true)]);
+  assert.equal(W.autoDeferForHeadsUp(last, AUTO_ON, at('21:58')), last);
+});
