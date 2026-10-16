@@ -456,6 +456,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:disabled { background: var(--meter-off); color: var(--subtle); cursor: default; filter: none; }
 .form-msg { margin-top: 8px; font-size: 12.5px; color: var(--good); }
+/* Reminder form: the time reads as one field, Update sits beside it, scope spans below. */
+.time-line { display: flex; gap: 8px; }
+.time-field { flex: 1; min-width: 0; display: flex; align-items: center; height: 40px; padding: 0 4px 0 2px; border: 1px solid var(--line-hover); border-radius: 10px; background: var(--bg); transition: border-color .14s ease; }
+.time-field:hover { border-color: var(--brand-line); }
+.time-field:focus-within { border-color: var(--brand); }
+.time-field .time-sel { height: 38px; padding: 0 24px 0 11px; border: 0; background-color: transparent; background-position: right 5px center; }
+.time-field .seg { margin-left: auto; padding: 2px; border-radius: 8px; }
+.time-field .seg button { height: 30px; padding: 0 11px; border-radius: 6px; }
+.time-line .btn-primary { height: 40px; padding: 0 18px; border-radius: 10px; }
+.seg.scope { margin-top: 8px; border-radius: 10px; }
+.seg.scope button { height: 32px; }
 .form-msg.err { color: var(--warn); }
 
 /* The rules, in plain words. */
@@ -843,20 +854,26 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** Hour / minute selects + AM-PM for a 12-hour time; `act` names the AM-PM buttons. */
-  function timePickerHtml(v, act) {
+  /** Hour : minute selects and the AM / PM buttons (named by `act`) for a 12-hour time. */
+  function timePartsHtml(v, act) {
     const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
     if (!minutes.includes(v.minute)) minutes.push(v.minute);
     minutes.sort((a, b) => a - b);
     const opt = (value, label, on) => `<option value="${value}"${on ? ' selected' : ''}>${label}</option>`;
     const seg = (value, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${value}</button>`;
-    return `
-      <div class="time-row">
+    return {
+      selects: `
         <select class="time-sel" data-field="hour" aria-label="Hour">${Array.from({ length: 12 }, (_, i) => i + 1).map(h => opt(h, h, h === v.hour)).join('')}</select>
         <span class="time-colon">:</span>
-        <select class="time-sel" data-field="minute" aria-label="Minute">${minutes.map(m => opt(m, pad2(m), m === v.minute)).join('')}</select>
-        <div class="seg" role="radiogroup" aria-label="AM or PM">${seg('AM', v.ap === 'AM')}${seg('PM', v.ap === 'PM')}</div>
-      </div>`;
+        <select class="time-sel" data-field="minute" aria-label="Minute">${minutes.map(m => opt(m, pad2(m), m === v.minute)).join('')}</select>`,
+      ampm: `<div class="seg" role="radiogroup" aria-label="AM or PM">${seg('AM', v.ap === 'AM')}${seg('PM', v.ap === 'PM')}</div>`,
+    };
+  }
+
+  /** Separate selects + AM-PM (the auto clock-out pop-up). */
+  function timePickerHtml(v, act) {
+    const t = timePartsHtml(v, act);
+    return `<div class="time-row">${t.selects}${t.ampm}</div>`;
   }
 
   /** The tab's auto clock-out card: what will happen today, Set up / Edit, and Reset for today's state. */
@@ -1003,6 +1020,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const v = form.draft || saved;
     const dirty = !!form.draft && (to24(form.draft) !== p.time || form.draft.scope !== p.scope);
     const seg = (act, value, label, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${label}</button>`;
+    const tp = timePartsHtml(v, 'wfh-ap');
     const msg = form.msg ? `<div class="form-msg${form.msg.error ? ' err' : ''}" role="status">${esc(form.msg.text)}</div>` : '';
 
 
@@ -1025,11 +1043,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
           <div class="wfh-form" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
             <h4 class="wfh-h">Change reminder time</h4>
-            ${timePickerHtml(v, 'wfh-ap')}
-            <div class="form-row">
-              <div class="seg" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
+            <div class="time-line">
+              <div class="time-field">${tp.selects}${tp.ampm}</div>
               <button class="btn-primary" type="button" data-act="wfh-update" aria-label="Update reminder"${dirty ? '' : ' disabled'}>Update</button>
             </div>
+            <div class="seg scope" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
             ${msg}
           </div>
 
