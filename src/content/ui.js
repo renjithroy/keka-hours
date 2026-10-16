@@ -895,7 +895,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>
       <div class="modal-body auto-form">
         <div class="auto-switch">
-          <div><b>Auto clock-out</b><small>${v.on ? 'On: Keka Hours clocks you out at this time' : 'Off'}</small></div>
+          <div><b>Clock me out automatically</b><small>${v.on ? 'On, at the time below' : 'Off'}</small></div>
           <button class="switch bare" type="button" role="switch" data-act="auto-toggle" aria-checked="${v.on}" aria-label="Auto clock-out"><span class="track"><span class="thumb"></span></span></button>
         </div>
         <div class="auto-fields${v.on ? '' : ' off'}">
@@ -1251,8 +1251,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         renderModal(true);
         return;
       }
+      // The Auto clock-out card shows the result; no separate message.
       handlers.onAutoSave({ on: autoDraft.on, time, scope: autoDraft.scope });
-      wfhForm.msg = { text: autoDraft.on ? `Auto clock-out on: ${W.hhmmLabel(time)}, ${autoDraft.scope === 'today' ? 'today only' : 'every WFH day'}.` : 'Auto clock-out turned off.' };
       closeModal(true);
       renderWfh();
     }
