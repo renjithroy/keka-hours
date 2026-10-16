@@ -883,8 +883,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let tone = '';
     switch (ap.status) {
       case 'off': text = 'Let Keka Hours clock you out at a set time on WFH days.'; break;
-      case 'waiting': case 'scheduled': case 'heads-up':
+      case 'scheduled': case 'heads-up':
         text = `Clocks you out at <b>${t(ap.at)}</b>${ap.scope === 'today' ? ' today' : ' on WFH days'}.`; break;
+      case 'waiting': text = `On at <b>${t(ap.at)}</b>, once you clock in.`; break;
+      case 'standby': text = 'Paused: you\'re clocked out.'; break;
       case 'due': case 'running': text = 'Clocking you out…'; break;
       case 'done': text = `Clocked you out at ${t(ap.doneAt || ap.at)}.`; tone = 'good'; break;
       case 'failed': text = 'Didn\'t work today. Clock out yourself.'; tone = 'warn'; break;

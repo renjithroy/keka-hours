@@ -275,7 +275,8 @@
 
   /**
    * Auto clock-out for `day` at `now`.
-   * status: 'off' | 'waiting' (not clocked in yet) | 'scheduled' | 'heads-up' | 'due' |
+   * status: 'off' | 'waiting' (not clocked in yet) | 'standby' (clocked out before the time;
+   *   runs only if you clock back in) | 'scheduled' | 'heads-up' | 'due' |
    *   'running' | 'done' | 'failed' | 'skipped' | 'late-start' (clocked in after the time) |
    *   'missed' (not clocked in at the time) | 'ended' (past the day's end)
    * at: when it runs; headsUpAt: when the 5-min warning shows.
@@ -298,7 +299,7 @@
     else if (p.lastIn != null && p.lastIn >= at) status = 'late-start';
     else if (now >= p.end) status = 'ended';
     else if (now >= at) status = p.state === 'in' ? 'due' : 'missed';
-    else if (p.state !== 'in') status = 'scheduled';
+    else if (p.state !== 'in') status = 'standby';
     else if (now >= at - AUTO_HEADS_UP_MS) status = 'heads-up';
     else status = 'scheduled';
     return { ...base, status };

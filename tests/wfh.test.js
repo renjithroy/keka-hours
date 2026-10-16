@@ -304,6 +304,10 @@ test('auto clock-out: never runs on someone who clocked in after its time', () =
   assert.equal(W.autoPlan(brk, AUTO_ON, at('19:30')).status, 'late-start');
   // On a break at the time and still out: nothing to clock out.
   assert.equal(W.autoPlan(day([p('10:00', true), p('18:50', false)]), AUTO_ON, at('19:05')).status, 'missed');
+  // Clocked out before the time: paused; back in before it: scheduled again.
+  const out = day([p('10:00', true), p('18:00', false)]);
+  assert.equal(W.autoPlan(out, AUTO_ON, at('18:30')).status, 'standby');
+  assert.equal(W.autoPlan(day([p('10:00', true), p('18:00', false), p('18:20', true)]), AUTO_ON, at('18:30')).status, 'scheduled');
   // Not clocked in at all: waits (no WFH day yet).
   assert.equal(W.autoPlan(W.emptyDay(DATE), AUTO_ON, at('19:05')).status, 'waiting');
 });
