@@ -257,3 +257,12 @@ test('open punch today exposes the clock-in time (for "clock out after")', () =>
   assert.equal(afterBreak.openSince, null); // breaks make the exact clock-out time ambiguous
   assert.equal(P.normalizeApiRecord({ ...rec, date: '2026-10-04' }, ctx).openSince, null);
 });
+
+test('Actions card labels -> WFH clock state (from the saved Keka pages)', () => {
+  // Clocked in (approved or pending approval): a "WFH Clock-out" button.
+  assert.equal(P.clockStateFromLabels(['WFH Clock-out', 'Work From Home', 'Partial Day Request', 'Attendance Policy']), 'in');
+  // Clocked out: only the "WFH Clock-In" link.
+  assert.equal(P.clockStateFromLabels(['WFH Clock-In', 'Work From Home', 'Partial Day Request', 'Attendance Policy']), 'out');
+  assert.equal(P.clockStateFromLabels(['Work From Home', 'Attendance Policy']), null);
+  assert.equal(P.clockStateFromLabels([]), null);
+});

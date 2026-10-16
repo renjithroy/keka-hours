@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Keka Hours",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Your average gross working hours per office day, right inside Keka. Everything stays in your browser.",
   "permissions": [
     "storage",
@@ -10,6 +10,9 @@
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_title": "Keka Hours: open Keka attendance"
   },
   "icons": {
     "16": "icons/icon16.png",
@@ -39,7 +42,9 @@
         "src/content/parser.js",
         "src/content/planner.js",
         "src/content/settings.js",
+        "src/shared/wfh.js",
         "src/content/ui.js",
+        "src/content/autoclock.js",
         "src/content/main.js"
       ],
       "run_at": "document_idle",

@@ -10,6 +10,10 @@
  *   expand click                   -> synchronous refresh before rendering
  *   60s timer (visible tab only)   -> safety net (midnight, missed events)
  *
+ * WFH clock-out reminders: captured WFH punches (any Keka page) and the
+ * Actions card's clock state go to the background worker, which owns the
+ * reminders; the WFH tab shows its state and edits the reminder time.
+ *
  * Every refresh re-parses the (small) attendance table and compares a
  * signature; the UI only re-renders when the data actually changed.
  */
@@ -20,7 +24,7 @@
   if (!K || K.__started) return;
   K.__started = true;
 
-  const { parser, calculator, planner, settings, ui } = K;
+  const { parser, calculator, planner, settings, ui, wfh, autoclock } = K;
   const CHANNEL = 'keka-hours-extension';
   // Shown only on Me → Attendance → Attendance Log.
   const ROUTE_RE = /^#\/me\/attendance\/logs\/?(\?.*)?$/i;
@@ -36,6 +40,8 @@
     apiVersion: 0,
     overrides: {}, // planner: { 'YYYY-MM': { date: 'office' | 'away' } }
     includeToday: false, // Overview only: today is left out of every figure unless switched on
+    wfh: { settings: null, day: null }, // WFH tab: reminder time + today's state from the worker
+    clockState: null, // last Actions-card state sent to the worker
     signature: null,
     model: { visible: false, state: 'loading', label: null, summary: null, verifiedAt: 0, targetMinutes: calculator.DEFAULT_TARGET },
     loadingSince: 0,
@@ -69,6 +75,20 @@
     widget.render(state.model);
   }
 
+  /** Message the background worker; resolves to its reply (or null if unavailable). */
+  function toWorker(msg) {
+    if (!alive()) return Promise.resolve(null);
+    try { return chrome.runtime.sendMessage(msg).catch(() => null); } catch (_) { return Promise.resolve(null); }
+  }
+
+  /** DOM fallback: tell the worker when the Actions card's clock button flips. */
+  function reportClockState() {
+    const next = parser.readClockState(document);
+    if (!next || next === state.clockState) return;
+    state.clockState = next;
+    toWorker({ type: 'wfh-dom', state: next });
+  }
+
   /** Re-read Keka and recompute if anything relevant changed. Never throws. */
   function refresh() {
     clearTimeout(debounceTimer);
@@ -88,6 +108,7 @@
         return;
       }
 
+      reportClockState();
       const now = new Date();
       const view = parser.buildView(parser.snapshot(document), state.apiRecords, {
         today: now,
@@ -176,6 +197,45 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
+  /** WFH tab: save the reminder time for today only or every WFH day. */
+  function saveWfhTime({ time, scope }) {
+    if (!wfh.validTime(time)) return;
+    const today = wfh.dateKeyOf(Date.now());
+    const current = wfh.normalizeSettings(state.wfh.settings, today);
+    const next = scope === 'today'
+      ? { ...current, today: { date: today, time } }
+      : { ...current, everyDay: time, today: null };
+    state.wfh = { ...state.wfh, settings: next };
+    if (widget) widget.setWfh(state.wfh);
+    settings.saveWfhSettings(next);
+  }
+
+  /** Auto clock-out pop-up: save on/off + time for today only or every WFH day. */
+  function saveAutoClockOut({ on, time, scope }) {
+    if (!wfh.validTime(time)) return;
+    const today = wfh.dateKeyOf(Date.now());
+    const current = wfh.normalizeSettings(state.wfh.settings, today);
+    const auto = scope === 'today'
+      ? { every: current.auto.every, today: { date: today, on: !!on, time } }
+      : { every: { on: !!on, time }, today: null };
+    const next = { ...current, auto };
+    state.wfh = { ...state.wfh, settings: next };
+    if (widget) widget.setWfh(state.wfh);
+    settings.saveWfhSettings(next);
+  }
+
+  /**
+   * In the background tab the worker opened for auto clock-out: click WFH
+   * Clock-out → Clock-out on Keka's Actions card and report how it went.
+   */
+  async function runAutoClockOutIfAsked() {
+    const res = await toWorker({ type: 'wfh-auto-tab' });
+    if (!res || !res.run) return;
+    const report = r => toWorker({ type: 'wfh-auto-result', ...r });
+    const out = await autoclock.clockOut(autoclock.kekaDom(document), { report });
+    report(out);
+  }
+
   function setIncludeToday(value) {
     state.includeToday = value === true;
     refresh();
@@ -222,6 +282,13 @@
   function onMessage(event) {
     if (event.source !== window || !event.data || event.data.source !== CHANNEL) return;
     if (event.data.type === 'route-change') { onUrlChange(); return; }
+    if (event.data.type === 'wfh-punches') {
+      // Any Keka page: the worker decides what it means for today.
+      if (Array.isArray(event.data.records)) {
+        toWorker({ type: 'wfh-punches', records: event.data.records.slice(0, 31), complete: event.data.complete === true });
+      }
+      return;
+    }
     if (event.data.type !== 'attendance-records' || !Array.isArray(event.data.records)) return;
     let changed = false;
     for (const r of event.data.records) {
@@ -229,28 +296,7 @@
       state.apiRecords.set(r.date, r);
       changed = true;
     }
-    if (changed) { state.apiVersion += 1; schedule(50); reportToday(); }
-  }
-
-  /**
-   * Hand today's and yesterday's records (a late clock-in can run past
-   * midnight) to the background worker for WFH clock-out reminders. Runs on
-   * every Keka page, not just the logs route.
-   */
-  let lastReported = null;
-  function reportToday() {
-    if (!alive()) return;
-    const now = new Date();
-    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    const records = [parser.localDateKey(now), parser.localDateKey(yesterday)]
-      .map(k => state.apiRecords.get(k))
-      .filter(Boolean);
-    const sig = JSON.stringify(records);
-    if (!records.length || sig === lastReported) return;
-    lastReported = sig;
-    try {
-      chrome.runtime.sendMessage({ type: 'attendance-today', records }).catch(() => { lastReported = null; });
-    } catch (_) { lastReported = null; }
+    if (changed) { state.apiVersion += 1; schedule(50); }
   }
 
   function onVisible() {
@@ -273,11 +319,12 @@
   }
 
   async function start() {
-    const [overrides, savedTheme, includeToday] = await Promise.all([
-      settings.loadOverrides(), settings.loadTheme(), settings.loadIncludeToday(),
+    const [overrides, savedTheme, includeToday, wfhState] = await Promise.all([
+      settings.loadOverrides(), settings.loadTheme(), settings.loadIncludeToday(), settings.loadWfh(),
     ]);
     state.overrides = overrides;
     state.includeToday = includeToday;
+    state.wfh = wfhState;
     if (stopped) return;
 
     widget = ui.createWidget({
@@ -285,7 +332,12 @@
       onToggleDay: toggleDay,
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
+      onWfhSaveTime: saveWfhTime,
+      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-reset
+      onWfhTest: () => toWorker({ type: 'wfh-test' }),
+      onAutoSave: saveAutoClockOut,
     });
+    widget.setWfh(state.wfh);
     // Before the first render, so the widget never flashes the wrong theme.
     widget.setTheme(savedTheme);
 
@@ -294,6 +346,10 @@
       refresh();
     });
     settings.onThemeChange(next => widget.setTheme(next));
+    settings.onWfhChange(next => {
+      state.wfh = { ...state.wfh, ...next };
+      widget.setWfh(state.wfh);
+    });
     settings.onIncludeTodayChange(next => {
       if (next === state.includeToday) return;
       state.includeToday = next;
@@ -314,7 +370,9 @@
     document.addEventListener('visibilitychange', onVisible);
 
     intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible' && onRoute()) refresh();
+      if (document.visibilityState !== 'visible' || !onRoute()) return;
+      refresh();
+      widget.renderWfh(); // "updated 3 min ago", snooze countdown
     }, SAFETY_INTERVAL_MS);
 
     refresh();
@@ -326,4 +384,5 @@
   window.postMessage({ source: CHANNEL, type: 'replay-request' }, location.origin);
 
   start().catch(() => { /* never surface errors into Keka */ });
+  runAutoClockOutIfAsked().catch(() => { /* the worker times out and alerts */ });
 })(globalThis);

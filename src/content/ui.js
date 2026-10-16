@@ -7,12 +7,16 @@
   'use strict';
 
   const fmt = root.KekaHours.format;
+  const W = root.KekaHours.wfh;
   const HOST_ID = 'keka-hours-extension';
 
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.9" r="1.15" fill="currentColor"/></svg>';
+  const ICON_AUTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9.5V13l2.3 1.6M10 3.5h4M12 3.5v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.8 6.2l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
   const CSS = `
@@ -141,7 +145,7 @@ svg { width: 100%; height: 100%; display: block; }
   animation: kh-fade .18s cubic-bezier(.2,.8,.2,1);
 }
 .pill:hover { transform: translateY(-1px); border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
-.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .has-tip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .info-btn:focus-visible, .seg button:focus-visible, .btn-sm:focus-visible, .btn-primary:focus-visible, .time-sel:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .badge-icon {
   flex: none; width: 30px; height: 30px; padding: 6px;
   border-radius: 9px; color: var(--brand); background: var(--brand-soft);
@@ -157,6 +161,13 @@ svg { width: 100%; height: 100%; display: block; }
 .dot.good { background: var(--dot-good); }
 .dot.warn { background: var(--dot-warn); }
 .dot.pulse { animation: kh-pulse 1.2s ease-in-out infinite; }
+
+/* ---------- scrollbars: a thin rounded thumb that fades into the card ---------- */
+.panel::-webkit-scrollbar, .day-list::-webkit-scrollbar { width: 10px; }
+.panel::-webkit-scrollbar-track, .day-list::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
+.panel::-webkit-scrollbar-thumb, .day-list::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: var(--line-hover) padding-box; }
+.panel::-webkit-scrollbar-thumb:hover, .day-list::-webkit-scrollbar-thumb:hover { background: var(--subtle) padding-box; }
+.panel::-webkit-scrollbar-button, .day-list::-webkit-scrollbar-button { display: none; }
 
 /* ---------- expanded panel ---------- */
 .panel {
@@ -184,6 +195,7 @@ svg { width: 100%; height: 100%; display: block; }
 .pane { grid-area: 1 / 1; min-width: 0; }
 .pane.off { visibility: hidden; pointer-events: none; }
 .pane[data-pane="overview"] { display: flex; flex-direction: column; }
+.pane[data-pane="wfh"] { display: flex; flex-direction: column; }
 
 /* ---------- daily chart (fills the space left by the taller Plan tab) ---------- */
 .spark-section { flex: 1; display: flex; flex-direction: column; }
@@ -206,9 +218,8 @@ svg { width: 100%; height: 100%; display: block; }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-/* Hover tooltips: the average (the days behind it) and the Include today switch. */
+/* Hover tooltip (Include today switch). */
 .has-tip { position: relative; display: inline-flex; border-radius: 8px; }
-.calc { cursor: help; }
 .tip {
   position: absolute; top: calc(100% + 4px); left: -2px; z-index: 5;
   width: 290px; padding: 12px 14px; text-align: left; white-space: normal;
@@ -218,21 +229,30 @@ svg { width: 100%; height: 100%; display: block; }
   transition: opacity .16s ease, transform .16s cubic-bezier(.2,.8,.2,1), visibility 0s linear .16s;
 }
 .tip::before { content: ""; position: absolute; top: -6px; left: 22px; width: 10px; height: 10px; background: var(--bg); border-left: 1px solid var(--line); border-top: 1px solid var(--line); transform: rotate(45deg); }
-.tip.end { left: auto; right: -2px; width: 250px; }
+.tip.end { left: auto; right: -2px; width: max-content; padding: 7px 11px; border-radius: 9px; font-size: 12.5px; color: var(--text); white-space: nowrap; }
 .tip.end::before { left: auto; right: 22px; }
 .has-tip:hover .tip, .has-tip:focus-visible .tip, .has-tip:has(:focus-visible) .tip {
   opacity: 1; visibility: visible; transform: none;
   transition: opacity .16s ease .12s, transform .16s cubic-bezier(.2,.8,.2,1) .12s, visibility 0s linear .12s;
 }
-.tip-title { margin-bottom: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--subtle); }
-/* Day-by-day log under the average. Stays open while hovered so the list can scroll. */
-.tip.days { width: 310px; padding: 12px 6px 10px 14px; pointer-events: auto; }
-.tip.days::after { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; } /* hover bridge */
-.tip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; padding-right: 8px; }
-.tip-head .tip-title { margin: 0; }
-.tip-head span { font-size: 12px; color: var(--subtle); white-space: nowrap; }
-.day-list { max-height: 224px; overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; scrollbar-width: thin; scrollbar-color: var(--line-hover) transparent; }
-.day-row { display: grid; grid-template-columns: 7px 88px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; color: var(--text); }
+/* ---------- average info button + day-by-day modal (centred on the page) ---------- */
+.eyebrow-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.info-btn { flex: none; width: 20px; height: 20px; padding: 2px; border-radius: 50%; color: var(--subtle); transition: color .14s ease, background .14s ease; }
+.info-btn:hover { color: var(--brand-text); background: var(--brand-soft); }
+.modal { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .38); backdrop-filter: blur(2px); animation: kh-fade-in .18s ease; }
+.root[data-theme="dark"] .modal-backdrop { background: rgba(0, 0, 0, .55); }
+.modal-card { position: relative; display: flex; flex-direction: column; width: min(460px, 100%); max-height: min(640px, calc(100vh - 48px)); background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-panel); animation: kh-pop .2s cubic-bezier(.2,.8,.2,1); }
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 16px 12px 22px; }
+.modal-title { font-size: 15.5px; font-weight: 650; letter-spacing: -.005em; }
+.modal-sub { font-size: 12.5px; color: var(--muted); }
+.modal-sum { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 22px 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13.5px; }
+.modal-sum b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--text); white-space: nowrap; }
+.modal-sum b.good { color: var(--good); }
+.modal-sum b.warn { color: var(--warn); }
+.modal-foot { padding: 10px 22px 16px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--subtle); }
+.day-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: 6px; padding: 0 12px 6px 22px; }
+.day-row { display: grid; grid-template-columns: 7px 104px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 32px; font-size: 13.5px; color: var(--text); }
 .day-row + .day-row { border-top: 1px solid var(--line); }
 .day-row .dot.off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--stub-hover); }
 .day-date { font-weight: 600; white-space: nowrap; }
@@ -241,12 +261,6 @@ svg { width: 100%; height: 100%; display: block; }
 .day-hrs.good { color: var(--good); }
 .day-hrs.warn { color: var(--warn); }
 .day-row.off .day-date, .day-row.off .day-type, .day-row.off .day-hrs { color: var(--subtle); font-weight: 500; }
-.day-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 8px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.day-sum b { color: var(--brand-text); font-size: 14px; font-weight: 700; white-space: nowrap; }
-.tip-foot { margin: 6px 8px 0 0; font-size: 12px; color: var(--subtle); }
-.checks { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
-.checks li { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; color: var(--text); }
-.checks i { flex: none; width: 16px; height: 16px; margin-top: 1px; padding: 3px; border-radius: 50%; color: var(--brand-text); background: var(--brand-soft); }
 
 /* "Include today" switch: a soft brand-tinted capsule when on. */
 .switch { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: background .22s ease, color .22s ease; }
@@ -305,8 +319,9 @@ svg { width: 100%; height: 100%; display: block; }
 /* ---------- tabs ---------- */
 .tabs { position: relative; display: flex; margin: 0 22px 14px; padding: 3px; background: var(--surface); border-radius: 10px; }
 /* Highlight that glides under the selected tab. */
-.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
+.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: 8px; background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
 .tabs[data-tab="plan"] .tab-ind { transform: translateX(100%); }
+.tabs[data-tab="wfh"] .tab-ind { transform: translateX(200%); }
 .tab { position: relative; z-index: 1; flex: 1; height: 31px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--muted); transition: color .2s ease; }
 .tab:hover { color: var(--text); }
 .tab[aria-selected="true"] { color: var(--brand-text); }
@@ -353,10 +368,128 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
+/* ---------- WFH clock-out reminder ---------- */
+.wfh { flex: 1; display: flex; flex-direction: column; gap: 12px; padding-top: 0; }
+.wfh-intro h3 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.wfh-intro p { margin: 3px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* Today: status, the reminder time (the one big thing), and the day so far. */
+.rem { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+.rem-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rem-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; }
+.rem .wfh-today { margin: 0 -14px; padding: 10px 14px 12px; background: var(--surface); }
+.rem .wfh-form, .rem .how { padding-top: 12px; border-top: 1px solid var(--line); }
+.rem .wfh-form { border-top: 0; padding-top: 0; }
+.wfh-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wfh-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.live-dot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--subtle); }
+.live-dot.on { background: var(--dot-good); }
+.live-dot.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--dot-good); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
+.wfh-label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.wfh-big { margin-top: 2px; }
+.wfh-big { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wfh-time-big { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; color: var(--brand-text); }
+.wfh-time-big.word { font-size: 34px; }
+.wfh-time-big.warn { color: var(--warn); }
+.wfh-time-big.off { color: var(--subtle); }
+.wfh-in { font-size: 13.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.wfh-sub { margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.wfh-sub b { color: var(--text); font-weight: 600; }
+.day-track { margin-top: 16px; }
+.day-track-bar { position: relative; height: 6px; border-radius: 999px; background: var(--meter-off); }
+.day-track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--brand) 55%, transparent); }
+.day-track-mark { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
+.day-track-mark.warn { background: var(--warn); }
+.day-track-now { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2.5px var(--brand); }
+.day-track-hours { position: relative; height: 22px; margin-top: 4px; }
+.day-track-hours span { position: absolute; top: 0; transform: translateX(-50%); padding-top: 6px; font-size: 11.5px; color: var(--subtle); white-space: nowrap; }
+.day-track-hours span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 4px; background: var(--guide); }
+.day-track-hours span.start { transform: none; }
+.day-track-hours span.start::before { left: 0; }
+.day-track-hours span.end { transform: translateX(-100%); }
+.day-track-hours span.end::before { left: auto; right: 0; }
+.day-track-hours span.minor { padding: 0; }
+.day-track-hours span.minor::before { height: 3px; opacity: .6; }
+.wfh-snooze { display: flex; gap: 6px; flex: none; }
+
+/* Auto clock-out: a highlighted card in the tab; set up in a pop-up. */
+.auto-card { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 14px; border: 1.5px dashed var(--brand-line); background: var(--bg); }
+.auto-card.on { border: 1.5px solid transparent; background: var(--brand-soft); }
+.auto-ic { flex: none; width: 36px; height: 36px; padding: 7px; border-radius: 11px; color: var(--brand-text); background: var(--brand-soft); }
+.auto-card.on .auto-ic { color: #fff; background: var(--brand); }
+.auto-text { flex: 1; min-width: 0; }
+.auto-title { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; }
+.auto-status { margin-top: 1px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.auto-status b { color: var(--brand-text); font-weight: 700; }
+.auto-status.good { color: var(--good); }
+.auto-status.warn { color: var(--warn); }
+.auto-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.auto-card .btn-primary { height: 34px; padding: 0 14px; }
+.modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 22px 6px; }
+.modal-body .wfh-h { margin-top: 16px; }
+.auto-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface); }
+.auto-switch b { font-size: 14px; font-weight: 600; }
+.auto-switch small { display: block; font-size: 12.5px; color: var(--muted); }
+.auto-fields.off { opacity: .5; }
+.switch.bare { padding: 0 4px; height: 26px; }
+.how b { white-space: nowrap; }
+.modal-note { margin-top: 12px; font-size: 12.5px; line-height: 1.45; color: var(--subtle); }
+.modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 22px 16px; border-top: 1px solid var(--line); }
+.modal-actions .btn-sm { height: 36px; padding: 0 14px; }
+
+/* Changing the time: 12-hour pickers, scope, and an explicit Update. */
+.wfh-h { margin: 0 0 9px; font-size: 13.5px; font-weight: 600; }
+.time-row { display: flex; align-items: center; gap: 6px; }
+.time-sel { height: 38px; padding: 0 30px 0 13px; border: 1px solid var(--line-hover); border-radius: 10px; color: var(--text); font: inherit; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; appearance: none; -webkit-appearance: none;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5' fill='none' stroke='%238793a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center / 15px; }
+.time-sel:hover { border-color: var(--brand-line); }
+.time-sel:focus { outline: none; border-color: var(--brand); }
+.time-colon { font-size: 18px; font-weight: 700; color: var(--subtle); }
+.seg { display: flex; padding: 3px; border-radius: 10px; background: var(--surface); }
+.seg button { flex: 1; height: 30px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-checked="true"] { background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); color: var(--brand-text); }
+.time-row .seg { margin-left: 6px; }
+.form-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.form-row .seg { flex: 1; min-width: 0; }
+.btn-primary { flex: none; height: 36px; padding: 0 16px; border-radius: 10px; background: var(--brand); color: #fff; font-size: 13.5px; font-weight: 650; white-space: nowrap; transition: filter .14s ease, background .14s ease; }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-primary:disabled { background: var(--meter-off); color: var(--subtle); cursor: default; filter: none; }
+.form-msg { margin-top: 8px; font-size: 12.5px; color: var(--good); }
+/* Reminder form: the time reads as one field, Update sits beside it, scope spans below. */
+.time-line { display: flex; gap: 8px; }
+.time-field { flex: 1; min-width: 0; display: flex; align-items: center; height: 40px; padding: 0 4px 0 2px; border: 1px solid var(--line-hover); border-radius: 10px; background: var(--bg); transition: border-color .14s ease; }
+.time-field:hover { border-color: var(--brand-line); }
+.time-field:focus-within { border-color: var(--brand); }
+.time-field .time-sel { height: 38px; padding: 0 24px 0 11px; border: 0; background-color: transparent; background-position: right 5px center; }
+.time-field .seg { margin-left: auto; padding: 2px; border-radius: 8px; }
+.time-field .seg button { height: 30px; padding: 0 11px; border-radius: 6px; }
+.time-line .btn-primary { height: 40px; padding: 0 18px; border-radius: 10px; }
+.seg.scope { margin-top: 8px; border-radius: 10px; }
+.seg.scope button { height: 32px; }
+.form-msg.err { color: var(--warn); }
+
+/* The rules, in plain words. */
+.how { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.how li { position: relative; padding-left: 15px; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.how li::before { content: ""; position: absolute; left: 2px; top: .58em; width: 5px; height: 5px; border-radius: 50%; background: var(--brand-line); }
+.how b { color: var(--text); font-weight: 600; }
+
+.wfh-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.wfh-foot-note { flex: 1; min-width: 0; font-size: 12px; line-height: 1.45; color: var(--subtle); }
+.btn-sm { height: 30px; padding: 0 11px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-hover); font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; transition: box-shadow .14s ease; }
+.btn-sm:hover { box-shadow: inset 0 0 0 1px var(--brand); }
+.btn-sm:disabled { opacity: .55; cursor: default; box-shadow: inset 0 0 0 1px var(--line); }
+.btn-sm.quiet { margin-left: auto; background: transparent; box-shadow: none; color: var(--muted); }
+.btn-sm.quiet:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-hover); }
+
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes kh-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes kh-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kh-pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes kh-pulse { 50% { opacity: .35; } }
+@keyframes kh-ping { 0% { transform: scale(1); opacity: .6; } 75%, 100% { transform: scale(2.8); opacity: 0; } }
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
@@ -374,22 +507,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   const WEEK_HEAD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  const ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
   function includeSwitchHtml(on) {
     return `
       <div class="has-tip">
         <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip">
           <span>Include today</span><span class="track"><span class="thumb"></span></span>
         </button>
-        <div class="tip end" role="tooltip" id="include-tip">
-          <div class="tip-title">Before you include today</div>
-          <ul class="checks">
-            <li><i>${ICON_CHECK}</i><span>You've completed today's hours</span></li>
-            <li><i>${ICON_CHECK}</i><span>You've clocked out</span></li>
-            <li><i>${ICON_CHECK}</i><span>Today's hours show in the attendance table</span></li>
-          </ul>
-        </div>
+        <div class="tip end" role="tooltip" id="include-tip">Use after clock-out, once today shows in the table</div>
       </div>`;
   }
 
@@ -407,8 +531,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     }
   }
 
-  /** Tooltip under the average: every day in the view with its type and hours, then the sum. */
-  function calcTipHtml(s, m) {
+  /** Modal behind the average's ⓘ: every day in the view with its type and hours, and the sum. */
+  function dayLogHtml(s, m) {
     const days = s.allDays || [];
     const rows = days.map(d => {
       const counted = d.kind === 'included';
@@ -422,14 +546,26 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
     }).join('');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey) : (m.label || '');
+    const notes = ['Counted: days with office time. WFH, leave, holidays and week-offs without work aren\'t counted.'];
+    if (m.todayInView && !m.includeToday) notes.push('Today isn\'t listed: Include today is off.');
 
     return `
-      <div class="tip days" role="tooltip" id="calc-tip">
-        <div class="tip-head"><div class="tip-title">How you got here</div><span>${s.trackedDays} of ${plural(days.length, 'day')} counted</span></div>
-        <div class="day-list">${rows}</div>
-        <div class="day-sum"><span>${fmt.duration(s.totalMinutes)} ÷ ${plural(s.trackedDays, 'day')}</span><b>= ${fmt.duration(s.averageMinutes)}</b></div>
-        ${m.todayInView && !m.includeToday ? '<div class="tip-foot">Today isn\'t listed: Include today is off.</div>' : ''}
-      </div>`;
+      <div class="modal-head">
+        <div><div class="modal-title" id="kh-modal-title">How you got this average</div><div class="modal-sub">${esc(period)} · ${s.trackedDays} of ${plural(days.length, 'day')} counted</div></div>
+        <button class="icon-btn" type="button" data-act="modal-close" aria-label="Close" title="Close">${ICON_CLOSE}</button>
+      </div>
+      <div class="modal-sum"><span>${fmt.duration(s.totalMinutes)} ÷ ${plural(s.trackedDays, 'day')}</span><b class="${tone(s)}">${fmt.duration(s.averageMinutes)}</b></div>
+      <div class="day-list">${rows}</div>
+      <div class="modal-foot">${notes.map(esc).join('<br>')}</div>`;
+  }
+
+  /** "Office hours avg this month (Oct)", or "… for September" when viewing a past month. */
+  function avgLabel(m) {
+    if (!m.monthKey) return 'Office hours avg';
+    const month = fmt.monthName(m.monthKey);
+    const current = m.todayKey && m.todayKey.slice(0, 7) === m.monthKey;
+    return current ? `Office hours avg this month (${month.slice(0, 3)})` : `Office hours avg for ${month}`;
   }
 
   function overviewHtml(s, m) {
@@ -447,13 +583,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `
       <div class="hero">
         <div class="hero-top">
-          <div class="eyebrow">Average gross hours / day</div>
+          <div class="eyebrow-wrap">
+            <div class="eyebrow">${esc(avgLabel(m))}</div>
+            ${s.trackedDays ? `<button class="info-btn" type="button" data-act="avg-info" aria-haspopup="dialog" aria-label="See the days behind this average" title="See the days behind this average">${ICON_INFO}</button>` : ''}
+          </div>
           ${m.todayInView ? includeSwitchHtml(!!m.includeToday) : ''}
         </div>
         <div class="hero-row">
-          ${s.trackedDays ? `<span class="has-tip calc" tabindex="0" aria-describedby="calc-tip">` : ''}
           <span class="hero-value">${fmt.duration(s.averageMinutes)}</span>
-          ${s.trackedDays ? `${calcTipHtml(s, m)}</span>` : ''}
           ${d == null ? '' : `<span class="chip ${t}">${d === 0 ? `On ${target}` : `${fmt.delta(d)} vs ${target}`}</span>`}
         </div>
       </div>
@@ -658,7 +795,309 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  const pad2 = n => String(n).padStart(2, '0');
+
+  /** 'HH:MM' -> { hour: 1-12, minute, ap: 'AM' | 'PM' } */
+  function to12(hhmm) {
+    const t = W.parseTime(hhmm) || 0;
+    const h = Math.floor(t / 60);
+    return { hour: h % 12 || 12, minute: t % 60, ap: h < 12 ? 'AM' : 'PM' };
+  }
+
+  /** { hour, minute, ap } -> 'HH:MM' */
+  function to24({ hour, minute, ap }) {
+    return `${pad2((hour % 12) + (ap === 'PM' ? 12 : 0))}:${pad2(minute)}`;
+  }
+
+  /** 179 min -> "in 2h 59m", 12 -> "in 12 min" */
+  function inLabel(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60000));
+    return m >= 60 ? `in ${Math.floor(m / 60)}h ${pad2(m % 60)}m` : `in ${m} min`;
+  }
+
+  /** 7 PM -> "7 PM" (hour labels under the day bar) */
+  function hourLabel(ms) {
+    const h = new Date(ms).getHours();
+    return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+  }
+
+  /**
+   * Clock-in → now → reminder → limit, as a bar: a tick every hour, labelled
+   * (12-hour) every 2 h, counted back from the limit so the last one marks it.
+   */
+  function trackHtml(p, now, markAt, warn) {
+    const span = p.end - p.firstIn;
+    if (!(span > 0)) return '';
+    const pos = ms => Math.max(0, Math.min(100, ((ms - p.firstIn) / span) * 100)).toFixed(1);
+    const HOUR = 3600000;
+    const every = span <= 6 * HOUR ? 1 : 2; // label every Nth hour
+    const top = new Date(p.end);
+    top.setMinutes(0, 0, 0);
+    const hours = [];
+    for (let at = top.getTime(), i = 0; at > p.firstIn; at -= HOUR, i++) {
+      const x = Number(pos(at));
+      if (i % every || at < p.firstIn + 20 * 60000) {
+        hours.unshift(`<span class="minor" style="left:${x}%"></span>`);
+        continue;
+      }
+      const edge = x < 7 ? ' start' : x > 93 ? ' end' : '';
+      hours.unshift(`<span class="${edge.trim()}" style="left:${x}%">${hourLabel(at)}</span>`);
+    }
+    return `
+      <div class="day-track" aria-hidden="true">
+        <div class="day-track-bar">
+          <span class="day-track-fill" style="width:${pos(now)}%"></span>
+          ${markAt != null ? `<span class="day-track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
+          <span class="day-track-now" style="left:${pos(now)}%"></span>
+        </div>
+        <div class="day-track-hours">${hours.join('')}</div>
+      </div>`;
+  }
+
+  /** Hour : minute selects and the AM / PM buttons (named by `act`) for a 12-hour time. */
+  function timePartsHtml(v, act) {
+    const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+    if (!minutes.includes(v.minute)) minutes.push(v.minute);
+    minutes.sort((a, b) => a - b);
+    const opt = (value, label, on) => `<option value="${value}"${on ? ' selected' : ''}>${label}</option>`;
+    const seg = (value, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${value}</button>`;
+    return {
+      selects: `
+        <select class="time-sel" data-field="hour" aria-label="Hour">${Array.from({ length: 12 }, (_, i) => i + 1).map(h => opt(h, h, h === v.hour)).join('')}</select>
+        <span class="time-colon">:</span>
+        <select class="time-sel" data-field="minute" aria-label="Minute">${minutes.map(m => opt(m, pad2(m), m === v.minute)).join('')}</select>`,
+      ampm: `<div class="seg" role="radiogroup" aria-label="AM or PM">${seg('AM', v.ap === 'AM')}${seg('PM', v.ap === 'PM')}</div>`,
+    };
+  }
+
+  /** Separate selects + AM-PM (the auto clock-out pop-up). */
+  function timePickerHtml(v, act) {
+    const t = timePartsHtml(v, act);
+    return `<div class="time-row">${t.selects}${t.ampm}</div>`;
+  }
+
+  /** The tab's auto clock-out card: what will happen today, Set up / Edit, and Reset for today's state. */
+  function autoRowHtml(ap, resettable) {
+    const t = W.timeLabel;
+    let text;
+    let tone = '';
+    switch (ap.status) {
+      case 'off': text = 'Let Keka Hours clock you out at a set time on WFH days.'; break;
+      case 'scheduled': case 'heads-up':
+        text = `Clocks you out at <b>${t(ap.at)}</b>${ap.scope === 'today' ? ' today' : ' on WFH days'}.`; break;
+      case 'waiting': text = `On at <b>${t(ap.at)}</b>, once you clock in.`; break;
+      case 'standby': text = 'Paused: you\'re clocked out.'; break;
+      case 'due': case 'running': text = 'Clocking you out…'; break;
+      case 'done': text = `Clocked you out at ${t(ap.doneAt || ap.at)}.`; tone = 'good'; break;
+      case 'failed': text = 'Didn\'t work today. Clock out yourself.'; tone = 'warn'; break;
+      case 'skipped': text = `Skipped today (${t(ap.at)}).`; break;
+      case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}.`; break;
+      case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}.`; break;
+      default: text = 'Not today.';
+    }
+    const reset = resettable && ap.on
+      ? '<button class="btn-sm quiet" type="button" data-act="wfh-auto-reset" title="Clear today\'s skip, delay or result so it runs again at its time">Reset</button>'
+      : '';
+    const open = ap.on
+      ? '<button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">Edit</button>'
+      : '<button class="btn-primary" type="button" data-act="auto-open" aria-haspopup="dialog">Set up</button>';
+    return `
+      <section class="auto-card${ap.on ? ' on' : ''}" aria-label="Auto clock-out">
+        <span class="auto-ic">${ICON_AUTO}</span>
+        <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${text}</div></div>
+        <div class="auto-actions">${reset}${open}</div>
+      </section>`;
+  }
+
+  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap, scope }. */
+  function autoModalHtml(v, error) {
+    const seg = (value, label, on) => `<button type="button" role="radio" data-act="auto-scope" data-value="${value}" aria-checked="${on}">${label}</button>`;
+    return `
+      <div class="modal-head">
+        <div><div class="modal-title" id="kh-modal-title">Auto clock-out</div><div class="modal-sub">Clocks you out of Keka at a set time on WFH days.</div></div>
+        <button class="icon-btn" type="button" data-act="modal-close" aria-label="Close" title="Close">${ICON_CLOSE}</button>
+      </div>
+      <div class="modal-body auto-form">
+        <div class="auto-switch">
+          <div><b>Clock me out automatically</b><small>${v.on ? 'On, at the time below' : 'Off'}</small></div>
+          <button class="switch bare" type="button" role="switch" data-act="auto-toggle" aria-checked="${v.on}" aria-label="Auto clock-out"><span class="track"><span class="thumb"></span></span></button>
+        </div>
+        <div class="auto-fields${v.on ? '' : ' off'}">
+          <h4 class="wfh-h">Clock me out at</h4>
+          ${timePickerHtml(v, 'auto-ap')}
+          <div class="form-row"><div class="seg" role="radiogroup" aria-label="Applies to">${seg('every', 'Every WFH day', v.scope === 'every')}${seg('today', 'Today only', v.scope === 'today')}</div></div>
+          ${error ? `<div class="form-msg err" role="status">${esc(error)}</div>` : ''}
+        </div>
+        <h4 class="wfh-h">What happens</h4>
+        <ul class="how">
+          <li>5 min before, a notification lets you <b>skip today</b> or add <b>15 min</b>.</li>
+          <li>At the time, Keka opens in a background tab, clicks <b>WFH Clock-out</b> and confirms, then the tab closes.</li>
+          <li>If it can't, you get an alert to clock out yourself.</li>
+          <li>Never after <b>${W.hhmmLabel(W.LATEST_TIME)}</b>, and only if you're clocked in then.</li>
+        </ul>
+        <div class="modal-note">Needs Chrome running, your laptop awake, and you signed in to Keka.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm" type="button" data-act="modal-close">Cancel</button>
+        <button class="btn-primary" type="button" data-act="auto-save">Save</button>
+      </div>`;
+  }
+
+  /**
+   * WFH tab. `wfhState` = { settings, day } from storage (the worker owns the
+   * day); everything shown is derived with the same rules the worker uses.
+   * `form` = { draft, msg, testMsg } held by the widget between renders.
+   */
+  function wfhHtml(wfhState, now, form) {
+    const today = W.dateKeyOf(now);
+    const settings = W.normalizeSettings(wfhState && wfhState.settings, today);
+    const raw = wfhState && wfhState.day;
+    const p = W.plan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now);
+    const t = W.timeLabel;
+    const set = W.hhmmLabel(p.time);
+
+    // ---- today
+    let state;
+    if (p.state === 'in') state = `<span class="live-dot on"></span>${p.firstIn != null ? `Clocked in ${t(p.firstIn)}` : 'Clocked in'}`;
+    else if (p.state === 'out') state = `<span class="live-dot"></span>Clocked out at ${t(p.lastOut)}`;
+    else state = '<span class="live-dot"></span>Not clocked in';
+
+    let label;
+    let big;
+    let right = '';
+    let sub = '';
+    let extra = '';
+    let markAt = null;
+    let warn = false;
+    if (p.state === 'none') {
+      label = 'Today\'s reminder';
+      big = `<span class="wfh-time-big">${t(p.configured)}</span>`;
+      sub = 'Starts when you use WFH Clock-In.';
+    } else if (p.state === 'out') {
+      label = 'Today\'s reminder';
+      big = '<span class="wfh-time-big word off">Off</span>';
+      sub = 'You\'re clocked out. It comes back on if you clock in again.';
+    } else if (p.remindAt == null) {
+      label = 'Today\'s reminder';
+      big = '<span class="wfh-time-big word off">None</span>';
+      sub = `You clocked in too late to be reminded before the ${t(p.end)} limit.`;
+    } else if (p.stopped) {
+      label = 'Today\'s reminder';
+      big = '<span class="wfh-time-big word off">Off</span>';
+      sub = 'You stopped it for today.';
+      right = '<button class="btn-sm" type="button" data-act="wfh-resume">Turn back on</button>';
+    } else if (p.snoozed) {
+      label = 'Snoozed until';
+      big = `<span class="wfh-time-big word warn">${t(p.nextAt)}</span>`;
+      sub = `Next reminder ${inLabel(p.nextAt - now)}.`;
+      markAt = p.nextAt;
+      warn = true;
+      const atCap = p.nextAt >= p.end - 5 * 60000;
+      right = `
+        <span class="wfh-snooze">
+          <button class="btn-sm" type="button" data-act="wfh-snooze-cancel">Cancel snooze</button>
+          <button class="btn-sm" type="button" data-act="wfh-snooze-more"${atCap ? ' disabled title="Can\'t snooze past the limit"' : ''}>+15 min</button>
+        </span>`;
+    } else if (p.reminding || p.due) {
+      label = 'Past your reminder';
+      big = '<span class="wfh-time-big word warn">Clock out</span>';
+      sub = p.nextAt != null
+        ? `Next at <b>${t(p.nextAt)}</b>, then every 15 min until ${t(p.end)}.`
+        : `Reminders ended at the ${t(p.end)} limit.`;
+      markAt = p.remindAt;
+      warn = true;
+      if (p.nextAt != null) right = '<button class="btn-sm" type="button" data-act="wfh-stop">Stop for today</button>';
+    } else {
+      label = 'Reminder at';
+      big = `<span class="wfh-time-big">${t(p.remindAt)}</span>`;
+      right = `<span class="wfh-in">${inLabel(p.remindAt - now)}</span>`;
+      markAt = p.remindAt;
+      if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
+    }
+    if (p.state === 'in' && p.firstIn == null) sub = 'Couldn\'t read your clock-in time yet. Reload this page to load it.';
+    const track = p.state === 'in' && p.firstIn != null && p.remindAt != null ? trackHtml(p, now, markAt, warn) : '';
+
+    // ---- change the time (12-hour), with an explicit Update
+    const saved = { ...to12(p.time), scope: p.scope };
+    const v = form.draft || saved;
+    const dirty = !!form.draft && (to24(form.draft) !== p.time || form.draft.scope !== p.scope);
+    const seg = (act, value, label, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${label}</button>`;
+    const tp = timePartsHtml(v, 'wfh-ap');
+    const msg = form.msg ? `<div class="form-msg${form.msg.error ? ' err' : ''}" role="status">${esc(form.msg.text)}</div>` : '';
+
+
+    const synced = p.updatedAt ? `Synced with Keka ${fmt.relative(p.updatedAt, now)}.` : 'Not synced with Keka yet today.';
+
+    return `
+      <div class="wfh">
+        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now), !!(raw && raw.date === today && W.autoResettable(raw)))}
+
+        <section class="rem" aria-labelledby="kh-rem-title">
+          <div class="rem-head"><h3 id="kh-rem-title">Clock-out reminder</h3><span class="wfh-state">${state}</span></div>
+
+          <div class="wfh-today">
+            <div class="wfh-label">${label}</div>
+            <div class="wfh-big">${big}${right}</div>
+            ${sub ? `<div class="wfh-sub">${sub}</div>` : ''}
+            ${track}
+            ${extra}
+          </div>
+
+          <div class="wfh-form" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
+            <h4 class="wfh-h">Change reminder time</h4>
+            <div class="time-line">
+              <div class="time-field">${tp.selects}${tp.ampm}</div>
+              <button class="btn-primary" type="button" data-act="wfh-update" aria-label="Update reminder"${dirty ? '' : ' disabled'}>Update</button>
+            </div>
+            <div class="seg scope" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
+            ${msg}
+          </div>
+
+          <ul class="how" aria-label="How the reminder works">
+            <li>At <b>${set}</b> a Chrome notification reminds you to clock out, and stays until you act on it.</li>
+            <li><b>${W.hhmmLabel(W.LATEST_TIME)}</b> is the hard limit: reminders can't go past it.</li>
+          </ul>
+        </section>
+
+        <div class="wfh-foot">
+          <span class="wfh-foot-note">${esc(form.testMsg || synced)}</span>
+          <button class="btn-sm" type="button" data-act="wfh-test">Send test reminder</button>
+        </div>
+      </div>`;
+  }
+
   const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
+
+  /** '#fff' / '#ffffff' / 'rgb(…)' -> [r, g, b], or null (unknown / fully transparent). */
+  function parseRgb(value) {
+    const v = String(value || '').trim();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+    if (m) {
+      const hex = m[1].length === 3 ? m[1].replace(/./g, c => c + c) : m[1];
+      return [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+    }
+    m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:[\s,/]+([\d.]+)(%?))?\s*\)$/i.exec(v);
+    if (m && !(m[4] != null && parseFloat(m[4]) === 0)) return [m[1], m[2], m[3]].map(Number);
+    return null;
+  }
+
+  /**
+   * Keka's display mode: 'dark' | 'light' | null (unknown). A "dark" class on
+   * <html>/<body> wins; otherwise the page background Keka sets as a CSS
+   * variable on <html> decides.
+   */
+  function readKekaMode() {
+    try {
+      const classes = `${document.documentElement.className} ${document.body ? document.body.className : ''}`;
+      if (/(^|[\s_-])dark([\s_-]|$)/i.test(classes)) return 'dark';
+      const rgb = parseRgb(getComputedStyle(document.documentElement).getPropertyValue('--primary-background-color')) ||
+        (document.body ? parseRgb(getComputedStyle(document.body).backgroundColor) : null);
+      if (!rgb) return null;
+      return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 < 0.45 ? 'dark' : 'light';
+    } catch (_) {
+      return null;
+    }
+  }
 
   /** Keka's current theme colours (from CSS variables on <html>), validated. */
   function readKekaTheme() {
@@ -708,9 +1147,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
             <span class="tab-ind" aria-hidden="true"></span>
             <button class="tab" type="button" role="tab" data-act="tab" data-tab="overview" aria-selected="true">Overview</button>
             <button class="tab" type="button" role="tab" data-act="tab" data-tab="plan" aria-selected="false">Plan</button>
+            <button class="tab" type="button" role="tab" data-act="tab" data-tab="wfh" aria-selected="false">WFH</button>
           </div>
           <div class="content" role="tabpanel"></div>
         </section>
+        <div class="modal" hidden>
+          <div class="modal-backdrop" data-act="modal-close"></div>
+          <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="kh-modal-title"></div>
+        </div>
       </div>`;
 
     const $ = sel => shadow.querySelector(sel);
@@ -725,11 +1169,23 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let expanded = false;
     let closing = null; // running close animation, if any
     let tab = 'overview';
+    let wfhState = { settings: null, day: null };
+    // WFH tab form, kept across re-renders: unsaved edits, the last Update result, the test result.
+    const wfhForm = { draft: null, msg: null, testMsg: null };
+    let wfhPending = false; // a re-render waiting for a time picker to lose focus
     let theme = 'light';
+    // The user's own pick, kept only while it differs from Keka's display mode.
+    let themeOverride = null;
+    let kekaMode = readKekaMode();
 
-    /** Apply 'light' | 'dark'; null (never chosen) follows the OS preference. */
+    /** Apply 'light' | 'dark' as an override; null follows Keka's display mode (then the OS). */
     function setTheme(value) {
-      theme = value === 'dark' || value === 'light' ? value : (systemPrefersDark() ? 'dark' : 'light');
+      themeOverride = value === 'dark' || value === 'light' ? value : null;
+      paintTheme();
+    }
+
+    function paintTheme() {
+      theme = themeOverride || kekaMode || (systemPrefersDark() ? 'dark' : 'light');
       const dark = theme === 'dark';
       rootEl.setAttribute('data-theme', theme);
       themeBtn.innerHTML = dark ? ICON_SUN : ICON_MOON;
@@ -745,9 +1201,83 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     // Keep Keka's global keyboard shortcuts away from our widget.
     for (const type of ['keydown', 'keyup', 'keypress']) {
       host.addEventListener(type, e => {
-        if (type === 'keydown' && e.key === 'Escape' && expanded) collapse(true);
+        if (type === 'keydown' && e.key === 'Escape') {
+          if (modalOpen) closeModal(true);
+          else if (expanded) collapse(true);
+        }
         e.stopPropagation();
       });
+    }
+
+    const modal = $('.modal');
+    const modalCard = $('.modal-card');
+    let modalOpen = false;
+    let modalKind = 'daylog'; // 'daylog' (average's ⓘ) | 'auto' (auto clock-out set-up)
+    let autoDraft = null; // the auto clock-out form while the pop-up is open
+    let autoError = null;
+
+    /** Fill the modal. The day log follows the model (keeping its scroll); the auto form only redraws on its own edits. */
+    function renderModal(force) {
+      if (!modalOpen) return;
+      if (modalKind === 'auto') {
+        if (force) modalCard.innerHTML = autoModalHtml(autoDraft, autoError);
+        return;
+      }
+      const s = model && model.summary;
+      if (!model || model.state !== 'ok' || !s || !s.trackedDays) { closeModal(false); return; }
+      const prev = modalCard.querySelector('.day-list');
+      const top = prev ? prev.scrollTop : 0;
+      modalCard.innerHTML = dayLogHtml(s, model);
+      const list = modalCard.querySelector('.day-list');
+      if (list) list.scrollTop = top;
+    }
+
+    function openModal(kind = 'daylog') {
+      modalKind = kind;
+      modalOpen = true;
+      modal.hidden = false;
+      renderModal(true);
+      const close = modalCard.querySelector('[data-act="modal-close"]');
+      if (close) close.focus({ preventScroll: true });
+    }
+
+    function closeModal(restoreFocus) {
+      if (!modalOpen) return;
+      modalOpen = false;
+      modal.hidden = true;
+      const back = restoreFocus && content.querySelector(modalKind === 'auto' ? '[data-act="auto-open"]' : '[data-act="avg-info"]');
+      if (back) back.focus({ preventScroll: true });
+    }
+
+    /** Open the auto clock-out pop-up with today's settings. */
+    function openAuto() {
+      const today = W.dateKeyOf(Date.now());
+      const a = W.autoFor(wfhState.settings, today);
+      autoDraft = { on: a.on, ...to12(a.time), scope: a.scope };
+      autoError = null;
+      openModal('auto');
+    }
+
+    /** Pull the pop-up's selects into the draft (buttons update it directly). */
+    function readAutoSelects() {
+      const form = modalCard.querySelector('.auto-form');
+      if (!form || !autoDraft) return;
+      autoDraft.hour = Number(form.querySelector('[data-field="hour"]').value);
+      autoDraft.minute = Number(form.querySelector('[data-field="minute"]').value);
+    }
+
+    function saveAuto() {
+      readAutoSelects();
+      const time = to24(autoDraft);
+      if (!W.validTime(time)) {
+        autoError = `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.`;
+        renderModal(true);
+        return;
+      }
+      // The Auto clock-out card shows the result; no separate message.
+      handlers.onAutoSave({ on: autoDraft.on, time, scope: autoDraft.scope });
+      closeModal(true);
+      renderWfh();
     }
 
     // Click / tap anywhere outside the card collapses it back to the pill.
@@ -769,6 +1299,23 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         if (next !== tab) { const prev = tab; tab = next; showTab(prev); }
       }
       else if (act === 'toggle') handlers.onToggleDay(el.getAttribute('data-date'));
+      else if (act === 'wfh-ap' || act === 'wfh-scope') {
+        const group = el.closest('.seg');
+        for (const b of group.querySelectorAll('button')) b.setAttribute('aria-checked', String(b === el));
+        syncWfhForm();
+      }
+      else if (act === 'wfh-update') saveWfhForm();
+      else if (act === 'wfh-snooze-cancel' || act === 'wfh-snooze-more' || act === 'wfh-stop' || act === 'wfh-resume' || act === 'wfh-auto-reset') handlers.onWfhAction(act);
+      else if (act === 'wfh-test') {
+        el.disabled = true;
+        el.textContent = 'Sending…';
+        Promise.resolve(handlers.onWfhTest()).then(res => {
+          if (!res) wfhForm.testMsg = 'Couldn\'t reach the extension. Reload this page and try again.';
+          else if (res.permission === 'denied') wfhForm.testMsg = 'Chrome is blocking notifications for Keka Hours. Allow them in Chrome settings.';
+          else wfhForm.testMsg = 'Sent. Didn\'t see it? Allow Chrome notifications in your OS and turn off Do Not Disturb.';
+          renderWfh();
+        });
+      }
       else if (act === 'include-today') {
         const on = el.getAttribute('aria-checked') !== 'true';
         const viaKeyboard = e.detail === 0;
@@ -780,9 +1327,26 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           if (viaKeyboard && next) next.focus({ preventScroll: true });
         }, reduceMotion() ? 0 : 180);
       }
+      else if (act === 'avg-info') openModal('daylog');
+      else if (act === 'auto-open') openAuto();
+      else if (act === 'auto-save') saveAuto();
+      else if (act === 'auto-toggle' || act === 'auto-ap' || act === 'auto-scope') {
+        readAutoSelects();
+        if (act === 'auto-toggle') autoDraft.on = !autoDraft.on;
+        else if (act === 'auto-ap') autoDraft.ap = el.getAttribute('data-value');
+        else autoDraft.scope = el.getAttribute('data-value');
+        autoError = null;
+        renderModal(true);
+        const again = modalCard.querySelector(`[data-act="${act}"]${act === 'auto-toggle' ? '' : `[data-value="${el.getAttribute('data-value')}"]`}`);
+        if (again && e.detail === 0) again.focus({ preventScroll: true });
+      }
+      else if (act === 'modal-close') closeModal(e.detail === 0);
       else if (act === 'theme') {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
-        handlers.onThemeChange(theme);
+        const next = theme === 'dark' ? 'light' : 'dark';
+        // Picking Keka's own mode means "follow Keka" again.
+        themeOverride = next === kekaMode ? null : next;
+        paintTheme();
+        handlers.onThemeChange(themeOverride);
       }
     });
 
@@ -812,6 +1376,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function collapse(viaKeyboard, instant) {
       if (!expanded) return;
       expanded = false;
+      closeModal(false);
       const done = () => {
         if (resetClose) resetClose();
         panel.hidden = true;
@@ -904,15 +1469,93 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           </div>`;
         return;
       }
+      // Don't yank a time picker away while it's open.
+      const editing = editingWfh();
+      const keep = editing ? content.querySelector('[data-pane="wfh"]') : null;
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
           <div class="pane" data-pane="plan">${planHtml(m.plan)}</div>
+          <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhForm)}</div>
         </div>`;
+      if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
       showTab();
     }
 
-    const TAB_ORDER = ['overview', 'plan'];
+    function editingWfh() {
+      const a = shadow.activeElement;
+      return !!(a && a.classList && a.classList.contains('time-sel'));
+    }
+
+    /** Re-render only the WFH tab (cheap; leaves the other tabs' scroll / hover alone). */
+    function renderWfh() {
+      const pane = content.querySelector('[data-pane="wfh"]');
+      if (!expanded || !pane) return;
+      if (editingWfh()) { wfhPending = true; return; }
+      wfhPending = false;
+      pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhForm);
+    }
+
+    function setWfh(next) {
+      wfhState = next || { settings: null, day: null };
+      renderWfh();
+    }
+
+    /** The form's current values: { hour, minute, ap, scope }. */
+    function readWfhForm(form) {
+      const val = sel => form.querySelector(sel);
+      const checked = act => {
+        const b = form.querySelector(`[data-act="${act}"][aria-checked="true"]`);
+        return b ? b.getAttribute('data-value') : null;
+      };
+      return {
+        hour: Number(val('[data-field="hour"]').value),
+        minute: Number(val('[data-field="minute"]').value),
+        ap: checked('wfh-ap') || 'PM',
+        scope: checked('wfh-scope') || 'every',
+      };
+    }
+
+    /** Any edit: remember it, and enable Update only when it differs from what's saved. */
+    function syncWfhForm() {
+      const form = shadow.querySelector('.wfh-form');
+      if (!form) return;
+      const draft = readWfhForm(form);
+      wfhForm.draft = draft;
+      wfhForm.msg = null;
+      const dirty = to24(draft) !== form.getAttribute('data-saved-time') || draft.scope !== form.getAttribute('data-saved-scope');
+      form.querySelector('[data-act="wfh-update"]').disabled = !dirty;
+      const msg = form.querySelector('.form-msg');
+      if (msg) msg.remove();
+    }
+
+    function saveWfhForm() {
+      const form = shadow.querySelector('.wfh-form');
+      if (!form) return;
+      const draft = readWfhForm(form);
+      const time = to24(draft);
+      if (!W.validTime(time)) {
+        wfhForm.draft = draft;
+        wfhForm.msg = { error: true, text: `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.` };
+        renderWfh();
+        return;
+      }
+      wfhForm.draft = null;
+      wfhForm.msg = { text: `Reminder updated: ${W.hhmmLabel(time)}, ${draft.scope === 'today' ? 'today only' : 'every WFH day'}.` };
+      handlers.onWfhSaveTime({ time, scope: draft.scope });
+      renderWfh();
+    }
+
+    shadow.addEventListener('change', e => {
+      if (e.target.closest && e.target.closest('.wfh-form')) syncWfhForm();
+    });
+    shadow.addEventListener('focusout', e => {
+      if (!e.target.classList || !e.target.classList.contains('time-sel')) return;
+      // Apply anything that arrived while a picker was open (after focus has really moved).
+      setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
+    });
+
+    const TAB_ORDER = ['overview', 'plan', 'wfh'];
     const reduceMotion = () => {
       try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
     };
@@ -961,6 +1604,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       model = next;
       if (!next.visible) {
         // Leaving the logs page: close and remove the widget entirely.
+        closeModal(false);
         collapse(false, true);
         host.remove();
         return;
@@ -969,19 +1613,33 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       applyTheme();
       renderPill();
       renderPanel();
+      renderModal();
     }
 
-    /** Match Keka's theme colour (green, pink, …); falls back to green. */
+    /**
+     * Match Keka's theme colour (green, pink, …; falls back to green) and its
+     * display mode. Switching Keka's mode drops any override, so both stay in sync.
+     */
     function applyTheme() {
       const t = readKekaTheme();
       if (t.primary) host.style.setProperty('--kh-primary', t.primary); else host.style.removeProperty('--kh-primary');
+      const mode = readKekaMode();
+      if (mode && mode !== kekaMode) {
+        const switched = kekaMode != null; // not just the first read
+        kekaMode = mode;
+        if (switched && themeOverride) {
+          themeOverride = null;
+          handlers.onThemeChange(null);
+        }
+        paintTheme();
+      }
     }
 
     function mount() {
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, setTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }
