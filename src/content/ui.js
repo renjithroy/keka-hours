@@ -1005,9 +1005,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     return `
       <div class="wfh">
-        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now), !!(raw && raw.date === today && W.autoResettable(raw)))}
-
         <div class="wfh-intro"><h3>WFH clock-out reminder</h3></div>
+
+        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now), !!(raw && raw.date === today && W.autoResettable(raw)))}
 
         <section class="wfh-today" aria-label="Today">
           <div class="wfh-top"><span class="wfh-label">${label}</span><span class="wfh-state">${state}</span></div>
