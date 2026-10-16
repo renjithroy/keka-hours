@@ -5,19 +5,27 @@
  *   GET /k/attendance/api/mytime/attendance/summary/<YYYY-MM-01>
  * whose records carry exact punch timestamps (to the second). The table only
  * shows minute-rounded "Gross Hours", so this hook passively reads copies of
- * that one response and forwards a *minimal* per-day record to the extension's
+ * that response and forwards a *minimal* per-day record to the extension's
  * content script on the same page.
  *
- * - It never makes requests of its own and never reads headers/tokens/cookies.
+ * For WFH clock-out reminders it also reads the responses of
+ *   POST .../attendance/workingremotelyclockin   (WFH Clock-In / Clock-out click)
+ *   GET  .../attendance/attendancedayrequests    (Actions card, on page load)
+ * keeping only the request date and each punch's time and in/out direction.
+ *
+ * - It never makes requests of its own and never reads headers/tokens/cookies
+ *   or request bodies.
  * - It ignores every other endpoint.
- * - It drops everything except the fields needed for the calculation
- *   (no locations, IP addresses, notes, premises, ids).
+ * - It drops everything except the fields needed (no locations, IP
+ *   addresses, notes, premises, ids).
  * - Data only travels via window.postMessage to this same page.
  */
 (function () {
   'use strict';
 
   const SUMMARY_URL = /\/attendance\/api\/mytime\/attendance\/summary\b/i;
+  const CLOCKIN_URL = /\/attendance\/api\/mytime\/attendance\/workingremotelyclockin\b/i;
+  const DAY_REQUESTS_URL = /\/attendance\/api\/mytime\/attendance\/attendancedayrequests\b/i;
   const CHANNEL = 'keka-hours-extension';
   const MAX_DAYS = 400;
 
@@ -71,8 +79,34 @@
     return list.slice(0, MAX_DAYS).map(trimSummaryRecord).filter(Boolean);
   }
 
+  /** One Keka WFH day request -> { date, punches: [{ at, in }] } (punchStatus 0 = in, 1 = out). */
+  function trimWfhRequest(req) {
+    if (!req || typeof req !== 'object') return null;
+    const date = typeof req.requestDate === 'string' ? req.requestDate.slice(0, 10) : null;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    const punches = (Array.isArray(req.timeEntries) ? req.timeEntries : [])
+      .filter(e => e && !e.isDeleted && toTimestamp(e.timestamp) && (e.punchStatus === 0 || e.punchStatus === 1))
+      .map(e => ({ at: e.timestamp.slice(0, 19), in: e.punchStatus === 0 }))
+      .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+    return { date, punches };
+  }
+
+  /** WFH Clock-In / Clock-out click response: today's request with every punch. */
+  function trimClockinResponse(payload) {
+    const rec = trimWfhRequest(payload && payload.data && payload.data.request);
+    return rec ? { records: [rec], complete: false } : null;
+  }
+
+  /** Page-load day requests: every WFH request, so a missing day means no web punches. */
+  function trimDayRequests(payload) {
+    const data = payload && payload.data;
+    if (!data || typeof data !== 'object' || !('workfromhome' in data)) return null;
+    const list = Array.isArray(data.workfromhome) ? data.workfromhome : [];
+    return { records: list.slice(0, 31).map(trimWfhRequest).filter(Boolean), complete: true };
+  }
+
   if (typeof module === 'object' && module.exports) {
-    module.exports = { trimSummaryRecord, trimSummaryPayload };
+    module.exports = { trimSummaryRecord, trimSummaryPayload, trimWfhRequest, trimClockinResponse, trimDayRequests };
     return;
   }
 
@@ -97,9 +131,32 @@
     } catch (_) { /* not our data; ignore */ }
   }
 
+  // Latest WFH punches seen (the page-load request usually completes before
+  // the content script is listening).
+  let lastWfh = null;
+
+  function ingestWfh(trim, payload) {
+    try {
+      const wfh = trim(typeof payload === 'string' ? JSON.parse(payload) : payload);
+      if (!wfh) return;
+      lastWfh = wfh;
+      window.postMessage({ source: CHANNEL, type: 'wfh-punches', ...wfh }, window.location.origin);
+    } catch (_) { /* not our data; ignore */ }
+  }
+
+  /** Which handler (if any) reads this response. */
+  function handlerFor(url) {
+    if (SUMMARY_URL.test(url)) return ingest;
+    if (CLOCKIN_URL.test(url)) return payload => ingestWfh(trimClockinResponse, payload);
+    if (DAY_REQUESTS_URL.test(url)) return payload => ingestWfh(trimDayRequests, payload);
+    return null;
+  }
+
   window.addEventListener('message', event => {
     if (event.source !== window || !event.data || event.data.source !== CHANNEL) return;
-    if (event.data.type === 'replay-request' && cache.size) publish([...cache.values()]);
+    if (event.data.type !== 'replay-request') return;
+    if (cache.size) publish([...cache.values()]);
+    if (lastWfh) window.postMessage({ source: CHANNEL, type: 'wfh-punches', ...lastWfh }, window.location.origin);
   });
 
   // Keka's Angular router navigates with history.pushState/replaceState, which
@@ -122,9 +179,10 @@
       try {
         const input = args[0];
         const url = typeof input === 'string' ? input : input && input.url;
-        if (url && SUMMARY_URL.test(url)) {
+        const handle = url ? handlerFor(String(url)) : null;
+        if (handle) {
           result.then(res => {
-            if (res && res.ok) res.clone().json().then(ingest).catch(() => {});
+            if (res && res.ok) res.clone().json().then(handle).catch(() => {});
           }).catch(() => {});
         }
       } catch (_) { /* never interfere with Keka */ }
@@ -138,18 +196,19 @@
     const originalSend = XHR.prototype.send;
 
     XHR.prototype.open = function (method, url, ...rest) {
-      try { this.__kekaHoursWatch = typeof url === 'string' ? SUMMARY_URL.test(url) : SUMMARY_URL.test(String(url)); } catch (_) {}
+      try { this.__kekaHoursHandle = handlerFor(String(url)); } catch (_) {}
       return originalOpen.call(this, method, url, ...rest);
     };
 
     XHR.prototype.send = function (...args) {
-      if (this.__kekaHoursWatch) {
+      const handle = this.__kekaHoursHandle;
+      if (handle) {
         this.addEventListener('load', function () {
           try {
             if (this.status < 200 || this.status >= 300) return;
             const type = this.responseType;
-            if (type === '' || type === 'text') ingest(this.responseText);
-            else if (type === 'json') ingest(this.response);
+            if (type === '' || type === 'text') handle(this.responseText);
+            else if (type === 'json') handle(this.response);
           } catch (_) { /* ignore */ }
         });
       }

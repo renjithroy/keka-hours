@@ -318,9 +318,28 @@
     };
   }
 
+  /**
+   * Pure: the Actions card's button / link labels -> 'in' (shows "WFH
+   * Clock-out"), 'out' (only "WFH Clock-In"), or null (card not there).
+   */
+  function clockStateFromLabels(labels) {
+    const texts = (labels || []).map(clean);
+    if (texts.some(t => /\bclock[\s-]*out\b/i.test(t))) return 'in';
+    if (texts.some(t => /\bclock[\s-]*in\b/i.test(t))) return 'out';
+    return null;
+  }
+
+  /** DOM: WFH clock state from Keka's Actions card (fallback when no API data). */
+  function readClockState(doc) {
+    const card = doc.querySelector('employee-attendance-request-actions');
+    if (!card) return null;
+    return clockStateFromLabels([...card.querySelectorAll('button, a')].map(el => el.textContent));
+  }
+
   const api = {
     parseHeader, resolveRowDate, parseMinutes, classifyRow, preciseSeconds,
     normalizeApiRecord, mergeDay, buildView, signature, snapshot, localDateKey,
+    clockStateFromLabels, readClockState,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).parser = api;

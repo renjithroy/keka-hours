@@ -4,6 +4,8 @@
  * Shape: { planOverrides: { 'YYYY-MM': { 'YYYY-MM-DD': 'office' | 'away' } } }
  * Also stores the widget's colour theme: { theme: 'light' | 'dark' }
  * and the Overview's "include today" switch: { includeToday: boolean }
+ * WFH clock-out reminder time (wfhSettings) and today's reminder state
+ * (wfhDay, written by the background worker; read-only here).
  */
 (function (root) {
   'use strict';
@@ -11,6 +13,8 @@
   const KEY = 'planOverrides';
   const THEME_KEY = 'theme';
   const INCLUDE_TODAY_KEY = 'includeToday';
+  const WFH_SETTINGS_KEY = 'wfhSettings';
+  const WFH_DAY_KEY = 'wfhDay';
   const KEEP_MONTHS = 3;
 
   function storage() {
@@ -104,8 +108,40 @@
     } catch (_) { /* storage unavailable */ }
   }
 
+  /** { settings, day } for the WFH tab (raw; normalised by KekaHours.wfh). */
+  async function loadWfh() {
+    const s = storage();
+    if (!s) return { settings: null, day: null };
+    try {
+      const got = await s.get({ [WFH_SETTINGS_KEY]: null, [WFH_DAY_KEY]: null });
+      return { settings: got[WFH_SETTINGS_KEY], day: got[WFH_DAY_KEY] };
+    } catch (_) {
+      return { settings: null, day: null };
+    }
+  }
+
+  async function saveWfhSettings(value) {
+    const s = storage();
+    if (!s) return;
+    try { await s.set({ [WFH_SETTINGS_KEY]: value }); } catch (_) { /* extension reloaded */ }
+  }
+
+  /** Calls back with { settings?, day? } when either changes (worker, or another Keka tab). */
+  function onWfhChange(callback) {
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local' || !(changes[WFH_SETTINGS_KEY] || changes[WFH_DAY_KEY])) return;
+        const next = {};
+        if (changes[WFH_SETTINGS_KEY]) next.settings = changes[WFH_SETTINGS_KEY].newValue || null;
+        if (changes[WFH_DAY_KEY]) next.day = changes[WFH_DAY_KEY].newValue || null;
+        callback(next);
+      });
+    } catch (_) { /* storage unavailable */ }
+  }
+
   root.KekaHours.settings = {
     loadOverrides, saveOverrides, onChange, loadTheme, saveTheme, onThemeChange,
     loadIncludeToday, saveIncludeToday, onIncludeTodayChange,
+    loadWfh, saveWfhSettings, onWfhChange,
   };
 })(globalThis);

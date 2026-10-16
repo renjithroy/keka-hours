@@ -7,6 +7,7 @@
   'use strict';
 
   const fmt = root.KekaHours.format;
+  const W = root.KekaHours.wfh;
   const HOST_ID = 'keka-hours-extension';
 
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -141,7 +142,7 @@ svg { width: 100%; height: 100%; display: block; }
   animation: kh-fade .18s cubic-bezier(.2,.8,.2,1);
 }
 .pill:hover { transform: translateY(-1px); border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
-.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .has-tip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pill:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .cal-cell:focus-visible, .switch:focus-visible, .has-tip:focus-visible, .seg button:focus-visible, .btn-sm:focus-visible, .wfh-time:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .badge-icon {
   flex: none; width: 30px; height: 30px; padding: 6px;
   border-radius: 9px; color: var(--brand); background: var(--brand-soft);
@@ -305,8 +306,9 @@ svg { width: 100%; height: 100%; display: block; }
 /* ---------- tabs ---------- */
 .tabs { position: relative; display: flex; margin: 0 22px 14px; padding: 3px; background: var(--surface); border-radius: 10px; }
 /* Highlight that glides under the selected tab. */
-.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
+.tab-ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: 8px; background: var(--tab-ind); box-shadow: var(--tab-ind-shadow); transition: transform .26s cubic-bezier(.3,.9,.3,1); }
 .tabs[data-tab="plan"] .tab-ind { transform: translateX(100%); }
+.tabs[data-tab="wfh"] .tab-ind { transform: translateX(200%); }
 .tab { position: relative; z-index: 1; flex: 1; height: 31px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--muted); transition: color .2s ease; }
 .tab:hover { color: var(--text); }
 .tab[aria-selected="true"] { color: var(--brand-text); }
@@ -352,6 +354,41 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .lp { border: 1.5px dashed var(--brand-line); }
 .legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
+
+/* ---------- WFH clock-out reminder ---------- */
+.wfh { display: flex; flex-direction: column; gap: 12px; padding-top: 2px; }
+.wfh-status { display: flex; align-items: center; gap: 12px; }
+.wfh-status .dot { width: 9px; height: 9px; }
+.wfh-status .dot.good { box-shadow: 0 0 0 4px color-mix(in srgb, var(--dot-good) 22%, transparent); }
+.wfh-title { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.wfh-sub { font-size: 12.5px; color: var(--muted); }
+.wfh-card { padding: 12px 14px; border-radius: 12px; background: var(--surface); }
+.wfh-set { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wfh-label { font-size: 14px; font-weight: 600; }
+.wfh-hint { font-size: 12px; color: var(--subtle); }
+.wfh-time { width: 128px; height: 36px; padding: 0 10px; border: 1px solid var(--line-hover); border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; font-weight: 650; }
+.wfh-time:focus { outline: none; border-color: var(--brand); }
+.seg { display: flex; margin-top: 10px; padding: 3px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.seg button { flex: 1; height: 28px; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--muted); transition: background .18s ease, color .18s ease; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-checked="true"] { background: var(--brand-soft); color: var(--brand-text); }
+.wfh-error { margin-top: 8px; font-size: 12.5px; color: var(--warn); }
+.wfh-next { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 11px; background: var(--surface); color: var(--muted); font-size: 13.5px; }
+.wfh-next b { color: var(--text); font-weight: 650; }
+.wfh-next .grow { flex: 1; min-width: 0; }
+.wfh-next .small { display: block; font-size: 12px; opacity: .85; }
+.wfh-next.armed { background: var(--brand-soft); color: var(--brand-text); }
+.wfh-next.armed b { color: var(--brand-text); }
+.wfh-next.due, .wfh-next.snoozed { background: var(--warn-soft); color: var(--warn); }
+.wfh-next.due b, .wfh-next.snoozed b { color: var(--warn); }
+.wfh-actions { display: flex; gap: 6px; flex: none; }
+.btn-sm { height: 28px; padding: 0 10px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-hover); font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; transition: box-shadow .14s ease; }
+.btn-sm:hover { box-shadow: inset 0 0 0 1px var(--brand); }
+.btn-sm:disabled { opacity: .55; cursor: default; box-shadow: inset 0 0 0 1px var(--line); }
+.wfh-note { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.wfh-note b { color: var(--text); font-weight: 600; }
+.wfh-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.wfh-foot .wfh-hint { flex: 1; min-width: 0; }
 
 
 @keyframes kh-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -658,6 +695,93 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  /**
+   * WFH tab. `wfhState` = { settings, day } from storage (the worker owns the
+   * day); everything shown is derived with the same rules the worker uses.
+   */
+  function wfhHtml(wfhState, now, testMsg) {
+    const today = W.dateKeyOf(now);
+    const settings = W.normalizeSettings(wfhState && wfhState.settings, today);
+    const raw = wfhState && wfhState.day;
+    const p = W.plan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now);
+    const t = W.timeLabel;
+    const end = t(p.end);
+
+    let status;
+    if (p.state === 'in') {
+      status = {
+        dot: 'good',
+        title: p.firstIn != null ? `Clocked in since ${t(p.firstIn)}` : 'Clocked in',
+        sub: p.lastIn != null && p.lastIn !== p.firstIn ? `WFH · back from a break at ${t(p.lastIn)}` : 'WFH',
+      };
+    } else if (p.state === 'out') {
+      status = { dot: '', title: `Clocked out at ${t(p.lastOut)}`, sub: 'Reminders resume if you clock back in.' };
+    } else {
+      status = { dot: '', title: 'No WFH clock-in today', sub: 'Reminders start when you use WFH Clock-In.' };
+    }
+    const updated = p.updatedAt ? ` · updated from Keka ${fmt.relative(p.updatedAt, now)}` : '';
+
+    let next;
+    if (p.state !== 'in') {
+      next = `<div class="wfh-next"><span class="grow">Reminder at <b>${t(p.configured)}</b> on WFH days once you're clocked in.</span></div>`;
+    } else if (p.remindAt == null) {
+      next = `<div class="wfh-next"><span class="grow">No reminder today: you clocked in too late to be reminded before <b>${end}</b>.</span></div>`;
+    } else if (p.snoozed) {
+      const atCap = p.nextAt >= p.end - 5 * 60000;
+      next = `
+        <div class="wfh-next snoozed">
+          <span class="grow"><b>Snoozed</b> · next reminder at <b>${t(p.nextAt)}</b></span>
+          <span class="wfh-actions">
+            <button class="btn-sm" type="button" data-act="wfh-snooze-cancel">Cancel snooze</button>
+            <button class="btn-sm" type="button" data-act="wfh-snooze-more"${atCap ? ' disabled title="Can\'t snooze past the last call"' : ''}>+15 min</button>
+          </span>
+        </div>`;
+    } else if (p.reminding || p.due) {
+      next = p.nextAt != null
+        ? `<div class="wfh-next due"><span class="grow"><b>Time to clock out</b> · reminding every 15 min, next at <b>${t(p.nextAt)}</b><span class="small">Until ${end}</span></span></div>`
+        : `<div class="wfh-next"><span class="grow">Reminders stopped at <b>${end}</b>.</span></div>`;
+    } else {
+      next = `<div class="wfh-next armed"><span class="grow">Reminder at <b>${t(p.remindAt)}</b><span class="small">Then every 15 min until ${end} if you're still clocked in</span></span></div>`;
+    }
+
+    let note = '';
+    if (p.state === 'in' && p.reason === 'safety') {
+      note = `You clocked in at <b>${t(p.firstIn)}</b>, so we'll remind you at <b>${t(p.remindAt)}</b>: 11h after clock-in, before Keka marks a missed clock-out at ${t(p.firstIn + W.CUTOFF_MS)}.`;
+    } else if (p.state === 'in' && p.reason === 'late') {
+      note = `You clocked in at <b>${t(p.lastIn)}</b>, after ${W.hhmmLabel(p.time)}, so the reminder is 30 min after that clock-in.`;
+    } else if (p.state === 'in' && p.firstIn == null) {
+      note = 'Couldn\'t read your clock-in time yet, so the 11h safety check is off. Reload this page to load it.';
+    }
+
+    return `
+      <div class="wfh">
+        <div class="wfh-status">
+          <span class="dot ${status.dot}"></span>
+          <div><div class="wfh-title">${esc(status.title)}</div><div class="wfh-sub">${esc(status.sub + updated)}</div></div>
+        </div>
+
+        <div class="wfh-card">
+          <div class="wfh-set">
+            <div><div class="wfh-label">Clock-out reminder</div><div class="wfh-hint">Any time up to ${W.hhmmLabel(W.LATEST_TIME)}</div></div>
+            <input class="wfh-time" type="time" value="${esc(p.time)}" max="${W.LATEST_TIME}" aria-label="Clock-out reminder time">
+          </div>
+          <div class="seg" role="radiogroup" aria-label="Reminder applies to">
+            <button type="button" role="radio" data-act="wfh-scope" data-scope="every" aria-checked="${p.scope === 'every'}">Every WFH day</button>
+            <button type="button" role="radio" data-act="wfh-scope" data-scope="today" aria-checked="${p.scope === 'today'}">Today only</button>
+          </div>
+          <div class="wfh-error" hidden></div>
+        </div>
+
+        ${next}
+        ${note ? `<div class="wfh-note">${note}</div>` : ''}
+
+        <div class="wfh-foot">
+          <span class="wfh-hint">${esc(testMsg || 'Reminders need Chrome running. Do Not Disturb can hide them.')}</span>
+          <button class="btn-sm" type="button" data-act="wfh-test">Send test reminder</button>
+        </div>
+      </div>`;
+  }
+
   const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
 
   /** Keka's current theme colours (from CSS variables on <html>), validated. */
@@ -708,6 +832,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
             <span class="tab-ind" aria-hidden="true"></span>
             <button class="tab" type="button" role="tab" data-act="tab" data-tab="overview" aria-selected="true">Overview</button>
             <button class="tab" type="button" role="tab" data-act="tab" data-tab="plan" aria-selected="false">Plan</button>
+            <button class="tab" type="button" role="tab" data-act="tab" data-tab="wfh" aria-selected="false">WFH</button>
           </div>
           <div class="content" role="tabpanel"></div>
         </section>
@@ -725,6 +850,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let expanded = false;
     let closing = null; // running close animation, if any
     let tab = 'overview';
+    let wfhState = { settings: null, day: null };
+    let wfhTestMsg = null; // result of the last "Send test reminder"
+    let wfhPending = false; // a re-render waiting for the time input to lose focus
     let theme = 'light';
 
     /** Apply 'light' | 'dark'; null (never chosen) follows the OS preference. */
@@ -769,6 +897,22 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         if (next !== tab) { const prev = tab; tab = next; showTab(prev); }
       }
       else if (act === 'toggle') handlers.onToggleDay(el.getAttribute('data-date'));
+      else if (act === 'wfh-scope') {
+        const input = shadow.querySelector('.wfh-time');
+        if (input && W.validTime(input.value)) handlers.onWfhSaveTime({ time: input.value, scope: el.getAttribute('data-scope') });
+      }
+      else if (act === 'wfh-snooze-cancel') handlers.onWfhSnooze('cancel');
+      else if (act === 'wfh-snooze-more') handlers.onWfhSnooze('more');
+      else if (act === 'wfh-test') {
+        el.disabled = true;
+        el.textContent = 'Sending…';
+        Promise.resolve(handlers.onWfhTest()).then(res => {
+          if (!res) wfhTestMsg = 'Couldn\'t reach the extension. Reload this page and try again.';
+          else if (res.permission === 'denied') wfhTestMsg = 'Chrome is blocking notifications for Keka Hours. Allow them in Chrome settings.';
+          else wfhTestMsg = 'Sent. Didn\'t see it? Allow Chrome notifications in your OS and check Do Not Disturb.';
+          renderWfh();
+        });
+      }
       else if (act === 'include-today') {
         const on = el.getAttribute('aria-checked') !== 'true';
         const viaKeyboard = e.detail === 0;
@@ -904,15 +1048,70 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           </div>`;
         return;
       }
+      // Don't yank the time input away while it's being edited.
+      const editing = editingWfh();
+      const keep = editing ? content.querySelector('[data-pane="wfh"]') : null;
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
           <div class="pane" data-pane="plan">${planHtml(m.plan)}</div>
+          <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhTestMsg)}</div>
         </div>`;
+      if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
       showTab();
     }
 
-    const TAB_ORDER = ['overview', 'plan'];
+    function editingWfh() {
+      const a = shadow.activeElement;
+      return !!(a && a.classList && a.classList.contains('wfh-time'));
+    }
+
+    /** Re-render only the WFH tab (cheap; leaves the other tabs' scroll / hover alone). */
+    function renderWfh() {
+      const pane = content.querySelector('[data-pane="wfh"]');
+      if (!expanded || !pane) return;
+      if (editingWfh()) { wfhPending = true; return; }
+      wfhPending = false;
+      pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhTestMsg);
+    }
+
+    function setWfh(next) {
+      wfhState = next || { settings: null, day: null };
+      renderWfh();
+    }
+
+    /** Save the time input (on blur / Enter, so one edit = one save). */
+    function commitWfhTime(input) {
+      const pane = input.closest('[data-pane="wfh"]');
+      const err = pane && pane.querySelector('.wfh-error');
+      let value = input.value;
+      if (!value) return;
+      if (!W.validTime(value)) {
+        value = W.LATEST_TIME;
+        input.value = value;
+        if (err) { err.hidden = false; err.textContent = `Reminders can be set up to ${W.hhmmLabel(W.LATEST_TIME)}, so it's set to that.`; }
+      } else if (err) {
+        err.hidden = true;
+      }
+      const scope = pane && pane.querySelector('[data-act="wfh-scope"][aria-checked="true"]');
+      handlers.onWfhSaveTime({ time: value, scope: scope ? scope.getAttribute('data-scope') : 'every' });
+    }
+
+    shadow.addEventListener('change', e => {
+      if (e.target.classList && e.target.classList.contains('wfh-time')) e.target.__dirty = true;
+    });
+    shadow.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('wfh-time')) e.target.blur();
+    });
+    shadow.addEventListener('focusout', e => {
+      const el = e.target;
+      if (!el.classList || !el.classList.contains('wfh-time')) return;
+      if (el.__dirty) { el.__dirty = false; commitWfhTime(el); }
+      // Apply anything that arrived while editing (after focus has really moved).
+      setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
+    });
+
+    const TAB_ORDER = ['overview', 'plan', 'wfh'];
     const reduceMotion = () => {
       try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
     };
@@ -981,7 +1180,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, setTheme, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }
