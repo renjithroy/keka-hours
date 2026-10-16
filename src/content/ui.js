@@ -389,13 +389,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .wfh-in { font-size: 13.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .wfh-sub { margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .wfh-sub b { color: var(--text); font-weight: 600; }
-.track { margin-top: 16px; }
-.track-bar { position: relative; height: 6px; border-radius: 999px; background: var(--meter-off); }
-.track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--brand) 55%, transparent); }
-.track-mark { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
-.track-mark.warn { background: var(--warn); }
-.track-now { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2.5px var(--brand); }
-.track-ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--subtle); }
+.day-track { margin-top: 16px; }
+.day-track-bar { position: relative; height: 6px; border-radius: 999px; background: var(--meter-off); }
+.day-track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--brand) 55%, transparent); }
+.day-track-mark { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
+.day-track-mark.warn { background: var(--warn); }
+.day-track-now { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2.5px var(--brand); }
+.day-track-ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--subtle); }
 .wfh-snooze { display: flex; gap: 8px; margin-top: 12px; }
 
 /* Changing the time: 12-hour pickers, scope, and an explicit Update. */
@@ -510,6 +510,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="modal-foot">${notes.map(esc).join('<br>')}</div>`;
   }
 
+  /** "Office hours avg this month (Oct)", or "… for September" when viewing a past month. */
+  function avgLabel(m) {
+    if (!m.monthKey) return 'Office hours avg';
+    const month = fmt.monthName(m.monthKey);
+    const current = m.todayKey && m.todayKey.slice(0, 7) === m.monthKey;
+    return current ? `Office hours avg this month (${month.slice(0, 3)})` : `Office hours avg for ${month}`;
+  }
+
   function overviewHtml(s, m) {
     const t = tone(s);
     const worked = [];
@@ -526,7 +534,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="hero">
         <div class="hero-top">
           <div class="eyebrow-wrap">
-            <div class="eyebrow">Average gross hours / day</div>
+            <div class="eyebrow">${esc(avgLabel(m))}</div>
             ${s.trackedDays ? `<button class="info-btn" type="button" data-act="avg-info" aria-haspopup="dialog" aria-label="See the days behind this average" title="See the days behind this average">${ICON_INFO}</button>` : ''}
           </div>
           ${m.todayInView ? includeSwitchHtml(!!m.includeToday) : ''}
@@ -763,13 +771,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (!(span > 0)) return '';
     const pos = ms => Math.max(0, Math.min(100, ((ms - p.firstIn) / span) * 100)).toFixed(1);
     return `
-      <div class="track" aria-hidden="true">
-        <div class="track-bar">
-          <span class="track-fill" style="width:${pos(now)}%"></span>
-          ${markAt != null ? `<span class="track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
-          <span class="track-now" style="left:${pos(now)}%"></span>
+      <div class="day-track" aria-hidden="true">
+        <div class="day-track-bar">
+          <span class="day-track-fill" style="width:${pos(now)}%"></span>
+          ${markAt != null ? `<span class="day-track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
+          <span class="day-track-now" style="left:${pos(now)}%"></span>
         </div>
-        <div class="track-ends"><span>Clocked in ${W.timeLabel(p.firstIn)}</span><span>Limit ${W.timeLabel(p.end)}</span></div>
+        <div class="day-track-ends"><span>Clocked in ${W.timeLabel(p.firstIn)}</span><span>Limit ${W.timeLabel(p.end)}</span></div>
       </div>`;
   }
 

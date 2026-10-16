@@ -40,7 +40,7 @@ between Keka tabs) until you pick Keka's mode again or change Keka's display mod
 can't be read, the card follows your OS setting.
 
 - **Overview**: average, total, tracked days, longest/shortest, days ≥ / < 9h, WFH / leave.
-  Click the ⓘ next to "Average gross hours / day" to see every day behind it in a pop-up: date,
+  Click the ⓘ next to "Office hours avg this month" to see every day behind it in a pop-up: date,
   type (office / WFH / leave / week-off…) and hours, with counted days highlighted, and
   total ÷ counted days. The list scrolls for long months.
   Today is left out of every Overview figure, the chart, and the minimised pill unless you turn on
