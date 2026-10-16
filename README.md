@@ -76,6 +76,22 @@ request is approved yet.
 - **Toolbar badge:** the extension icon counts down to the reminder. It turns amber while snoozed
   and red **OUT** once it's time.
 
+### Auto clock-out (optional)
+
+Off by default. Set it up from the **Auto clock-out** row in the WFH tab: a time (default 30 min
+after your reminder, up to 10:00 PM), for **Today only** or **Every WFH day**.
+
+- 5 min before, a notification lets you **Skip today** or add **+15 min**.
+- At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
+  then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
+  extension never builds one or reads your login.
+- It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
+  (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
+  clock out yourself.
+- It runs at most once a day, only if you're clocked in then and clocked in before that time, and
+  never later than 11h after your first clock-in or 10:00 PM.
+- It needs Chrome running, your laptop awake, and you signed in to Keka.
+
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and
 whenever a Keka Attendance page loads (so a clock-in from the mobile app is picked up the next time
 you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Send
@@ -123,7 +139,9 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 - Permissions: `storage` (which upcoming days you marked away/office in Plan, your light/dark theme choice, your reminder time, and today's WFH punch times for reminders), `alarms` and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host permissions.
 - Runs only on `https://hatio.keka.com/*`.
-- Never makes network requests. It doesn't read credentials, tokens, or cookies.
+- Never makes network requests. It doesn't read credentials, tokens, or cookies. If you turn on
+  auto clock-out, it clicks Keka's own WFH Clock-out / Clock-out buttons in a background tab it
+  opens for that, and Keka sends its usual request.
 - It reads only Keka's responses from `/attendance/api/mytime/attendance/summary/*`,
   `workingremotelyclockin` (the WFH Clock-In / Clock-out click) and `attendancedayrequests` (the
   Actions card). It keeps only dates, status flags, durations, and punch times, and drops locations,
@@ -152,6 +170,7 @@ src/content/planner.js       pure planMonth(): required minutes per remaining of
 src/content/settings.js      chrome.storage.local (planner day overrides + theme)
 src/content/ui.js            Shadow-DOM widget (minimised pill + expanded card)
 src/content/main.js          controller: events, debouncing, signatures, freshness
+src/content/autoclock.js     auto clock-out: the two clicks on Keka's Actions card
 src/shared/wfh.js            pure WFH clock-out reminder rules (worker + WFH tab)
 src/background/service-worker.js  alarms, notifications and toolbar badge for clock-out reminders
 tests/                       node --test unit tests

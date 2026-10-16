@@ -24,7 +24,7 @@
   if (!K || K.__started) return;
   K.__started = true;
 
-  const { parser, calculator, planner, settings, ui, wfh } = K;
+  const { parser, calculator, planner, settings, ui, wfh, autoclock } = K;
   const CHANNEL = 'keka-hours-extension';
   // Shown only on Me → Attendance → Attendance Log.
   const ROUTE_RE = /^#\/me\/attendance\/logs\/?(\?.*)?$/i;
@@ -203,11 +203,37 @@
     const today = wfh.dateKeyOf(Date.now());
     const current = wfh.normalizeSettings(state.wfh.settings, today);
     const next = scope === 'today'
-      ? { everyDay: current.everyDay, today: { date: today, time } }
-      : { everyDay: time, today: null };
+      ? { ...current, today: { date: today, time } }
+      : { ...current, everyDay: time, today: null };
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
+  }
+
+  /** Auto clock-out pop-up: save on/off + time for today only or every WFH day. */
+  function saveAutoClockOut({ on, time, scope }) {
+    if (!wfh.validTime(time)) return;
+    const today = wfh.dateKeyOf(Date.now());
+    const current = wfh.normalizeSettings(state.wfh.settings, today);
+    const auto = scope === 'today'
+      ? { every: current.auto.every, today: { date: today, on: !!on, time } }
+      : { every: { on: !!on, time }, today: null };
+    const next = { ...current, auto };
+    state.wfh = { ...state.wfh, settings: next };
+    if (widget) widget.setWfh(state.wfh);
+    settings.saveWfhSettings(next);
+  }
+
+  /**
+   * In the background tab the worker opened for auto clock-out: click WFH
+   * Clock-out → Clock-out on Keka's Actions card and report how it went.
+   */
+  async function runAutoClockOutIfAsked() {
+    const res = await toWorker({ type: 'wfh-auto-tab' });
+    if (!res || !res.run) return;
+    const report = r => toWorker({ type: 'wfh-auto-result', ...r });
+    const out = await autoclock.clockOut(autoclock.kekaDom(document), { report });
+    report(out);
   }
 
   function setIncludeToday(value) {
@@ -309,6 +335,7 @@
       onWfhSaveTime: saveWfhTime,
       onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
+      onAutoSave: saveAutoClockOut,
     });
     widget.setWfh(state.wfh);
     // Before the first render, so the widget never flashes the wrong theme.
@@ -357,4 +384,5 @@
   window.postMessage({ source: CHANNEL, type: 'replay-request' }, location.origin);
 
   start().catch(() => { /* never surface errors into Keka */ });
+  runAutoClockOutIfAsked().catch(() => { /* the worker times out and alerts */ });
 })(globalThis);

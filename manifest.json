@@ -44,6 +44,7 @@
         "src/content/settings.js",
         "src/shared/wfh.js",
         "src/content/ui.js",
+        "src/content/autoclock.js",
         "src/content/main.js"
       ],
       "run_at": "document_idle",

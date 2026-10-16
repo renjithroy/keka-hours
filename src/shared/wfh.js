@@ -17,10 +17,18 @@
  *  - Everything stops quietly at the day's end: 10 PM, or Keka's 12h cutoff
  *    if that's earlier. Clocking out stops it at once.
  *
+ * Auto clock-out (opt-in): at its own time (default reminder + 30 min, latest
+ * 10 PM, never later than first clock-in + 11h), a 5-min heads-up
+ * (Skip today / +15 min), then the worker opens Keka Attendance in a
+ * background tab and clicks WFH Clock-out → Clock-out. At most once a day,
+ * and only if you're clocked in then and clocked in before that time.
+ *
  * Day state (persisted by the worker, one day at a time):
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
- *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt }
- * Settings: { everyDay: 'HH:MM', today: { date, time } | null }
+ *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt,
+ *     autoSkip, autoDelay, autoHeadsUpFor, autoStatus, autoStartedAt, autoTabId, autoDoneAt }
+ * Settings: { everyDay: 'HH:MM', today: { date, time } | null,
+ *             auto: { every: { on, time }, today: { date, on, time } | null } }
  */
 (function (root) {
   'use strict';
@@ -37,6 +45,10 @@
   const SNOOZE_STEP_MS = 15 * MIN;
   // Snoozing never swallows the last call before the day's end.
   const LAST_CALL_MS = 5 * MIN;
+  const AUTO_AFTER_REMINDER_MS = 30 * MIN; // default auto clock-out time
+  const AUTO_HEADS_UP_MS = 5 * MIN;
+  const AUTO_DELAY_STEP_MS = 15 * MIN;
+  const AUTO_TIMEOUT_MS = 90 * 1000; // give the background tab this long to clock out
 
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -90,7 +102,25 @@
     const everyDay = validTime(s && s.everyDay) || DEFAULT_TIME;
     const t = s && s.today;
     const today = t && t.date === todayKey && validTime(t.time) ? { date: t.date, time: t.time } : null;
-    return { everyDay, today };
+    const a = (s && s.auto) || {};
+    const every = { on: !!(a.every && a.every.on === true), time: validTime(a.every && a.every.time) };
+    const at = a.today;
+    const autoToday = at && at.date === todayKey && validTime(at.time) ? { date: at.date, on: at.on === true, time: at.time } : null;
+    return { everyDay, today, auto: { every, today: autoToday } };
+  }
+
+  /** 'HH:MM' + minutes, capped at 10 PM. */
+  function addMinutes(hhmm, minutes) {
+    const t = Math.min(parseTime(hhmm) + minutes, parseTime(LATEST_TIME));
+    return `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
+  }
+
+  /** Auto clock-out settings for `dateKey`: { on, time, scope }. */
+  function autoFor(settings, dateKey) {
+    const s = normalizeSettings(settings, dateKey);
+    if (s.auto.today) return { on: s.auto.today.on, time: s.auto.today.time, scope: 'today' };
+    const fallback = addMinutes(s.today ? s.today.time : s.everyDay, AUTO_AFTER_REMINDER_MS / MIN);
+    return { on: s.auto.every.on, time: s.auto.every.time || fallback, scope: 'every' };
   }
 
   /** The reminder time that applies on `dateKey`, and whether it's today's one-off. */
@@ -100,7 +130,10 @@
   }
 
   function emptyDay(date) {
-    return { date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null };
+    return {
+      date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null,
+      autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null,
+    };
   }
 
   /** Punches -> { state: 'none' | 'in' | 'out', firstIn, lastIn, lastOut } (epoch ms). */
@@ -240,6 +273,69 @@
     return { ...day, stoppedAt: null };
   }
 
+  /**
+   * Auto clock-out for `day` at `now`.
+   * status: 'off' | 'waiting' (not clocked in yet) | 'scheduled' | 'heads-up' | 'due' |
+   *   'running' | 'done' | 'failed' | 'skipped' | 'late-start' (clocked in after the time) |
+   *   'missed' (not clocked in at the time) | 'ended' (past the day's end)
+   * at: when it runs; headsUpAt: when the 5-min warning shows.
+   */
+  function autoPlan(day, settings, now) {
+    const a = autoFor(settings, day.date);
+    const p = plan(day, settings, now);
+    let at = atTime(day.date, a.time) + (day.autoDelay || 0);
+    let reason = 'time';
+    if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
+    if (at > p.end - LAST_CALL_MS) at = p.end - LAST_CALL_MS;
+    const base = { on: a.on, time: a.time, scope: a.scope, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
+    let status;
+    if (!a.on) status = 'off';
+    else if (day.autoStatus === 'done' || day.autoStatus === 'failed' || day.autoStatus === 'running') status = day.autoStatus;
+    else if (day.autoSkip) status = 'skipped';
+    else if (p.state === 'none') status = now >= p.end ? 'ended' : 'waiting';
+    else if (p.lastIn != null && p.lastIn >= at) status = 'late-start';
+    else if (now >= p.end) status = 'ended';
+    else if (now >= at) status = p.state === 'in' ? 'due' : 'missed';
+    else if (p.state !== 'in') status = 'scheduled';
+    else if (now >= at - AUTO_HEADS_UP_MS) status = 'heads-up';
+    else status = 'scheduled';
+    return { ...base, status };
+  }
+
+  /** Heads-up "+15 min" (never past the last call). */
+  function autoPostpone(day, settings, now) {
+    const ap = autoPlan(day, settings, now);
+    if (ap.status !== 'scheduled' && ap.status !== 'heads-up' && ap.status !== 'due') return day;
+    const room = (ap.end - LAST_CALL_MS) - ap.at;
+    return { ...day, autoDelay: (day.autoDelay || 0) + Math.max(0, Math.min(AUTO_DELAY_STEP_MS, room)), autoHeadsUpFor: null };
+  }
+
+  function autoSkipToday(day) {
+    return { ...day, autoSkip: true };
+  }
+
+  function autoStart(day, now) {
+    return { ...day, autoStatus: 'running', autoStartedAt: now, autoTabId: null };
+  }
+
+  /** Did Keka's data show the clock-out we started? */
+  function autoClockedOut(day) {
+    if (day.autoStatus !== 'running' || day.autoStartedAt == null) return false;
+    const ps = punchState(day);
+    return ps.state === 'out' && ps.lastOut != null && ps.lastOut >= day.autoStartedAt - 2 * MIN;
+  }
+
+  function autoFinish(day, ok, now) {
+    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null };
+  }
+
+  function autoHeadsUp(ap) {
+    return {
+      title: `Auto clock-out at ${timeLabel(ap.at)}`,
+      message: 'Keka Hours will clock you out in 5 minutes.',
+    };
+  }
+
   /** Should we post "reminder set for …"? Once per distinct reminder time, never for one already due. */
   function shouldAnnounce(day, p, now) {
     return p.state === 'in' && !p.stopped && p.remindAt != null && p.remindAt > now && day.announcedFor !== p.remindAt;
@@ -287,6 +383,7 @@
     normalizeSettings, timeFor, emptyDay, punchState, plan,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

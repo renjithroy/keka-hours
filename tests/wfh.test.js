@@ -251,3 +251,77 @@ test('badge: countdown, amber while snoozed, red OUT once due, hidden when out',
   assert.equal(W.badge(W.plan(lastCall, DEFAULTS, at('21:51')), at('21:51')).text, 'OUT');
   assert.equal(W.badge(W.plan(lastCall, DEFAULTS, at('22:00')), at('22:00')), null);
 });
+
+// ---------- auto clock-out ----------
+
+const AUTO_ON = { everyDay: '18:30', auto: { every: { on: true, time: null } } };
+
+test('auto clock-out: off by default; default time is reminder + 30 min (max 10 PM)', () => {
+  assert.equal(W.autoPlan(day(REAL), DEFAULTS, at('12:00')).status, 'off');
+  assert.equal(W.autoFor(AUTO_ON, DATE).time, '19:00');
+  assert.equal(W.autoFor({ everyDay: '21:45', auto: { every: { on: true } } }, DATE).time, '22:00');
+  // Today-only override wins for today, not tomorrow.
+  const s = { everyDay: '18:30', auto: { every: { on: false, time: '20:00' }, today: { date: DATE, on: true, time: '21:00' } } };
+  assert.deepEqual(W.autoFor(s, DATE), { on: true, time: '21:00', scope: 'today' });
+  assert.deepEqual(W.autoFor(s, '2026-10-17'), { on: false, time: '20:00', scope: 'every' });
+  // Reminder settings saved without `auto` keep working.
+  assert.equal(W.normalizeSettings({ everyDay: '19:00' }, DATE).auto.every.on, false);
+});
+
+test('auto clock-out: scheduled → heads-up 5 min before → due', () => {
+  const d = day(REAL);
+  assert.equal(W.autoPlan(d, AUTO_ON, at('18:00')).status, 'scheduled');
+  const hu = W.autoPlan(d, AUTO_ON, at('18:55'));
+  assert.equal(hu.status, 'heads-up');
+  assert.equal(hu.at, at('19:00'));
+  assert.equal(W.autoHeadsUp(hu).title, 'Auto clock-out at 7:00 PM');
+  assert.equal(W.autoPlan(d, AUTO_ON, at('19:00')).status, 'due');
+  // Asleep at 7 PM, awake at 9 PM and still clocked in: do it now.
+  assert.equal(W.autoPlan(d, AUTO_ON, at('21:00')).status, 'due');
+  assert.equal(W.autoPlan(d, AUTO_ON, at('22:00')).status, 'ended');
+});
+
+test('auto clock-out: +15 min and skip today', () => {
+  let d = W.autoPostpone(day(REAL), AUTO_ON, at('18:55'));
+  let ap = W.autoPlan(d, AUTO_ON, at('18:56'));
+  assert.equal(ap.at, at('19:15'));
+  assert.equal(ap.status, 'scheduled', 'heads-up shows again 5 min before the new time');
+  // Never past the last call before 10 PM.
+  const late = { everyDay: '18:30', auto: { every: { on: true, time: '21:50' } } };
+  // (clocked in at 11:00, so the 11h safety cap is 10 PM, not in play)
+  d = W.autoPostpone(day([p('11:00', true)]), late, at('21:46'));
+  assert.equal(W.autoPlan(d, late, at('21:46')).at, at('21:55'));
+  assert.equal(W.autoPlan(W.autoSkipToday(day(REAL)), AUTO_ON, at('19:00')).status, 'skipped');
+});
+
+test('auto clock-out: never runs on someone who clocked in after its time', () => {
+  // Started the day late.
+  assert.equal(W.autoPlan(day([p('19:10', true)]), AUTO_ON, at('19:40')).status, 'late-start');
+  // On a break across the time, back afterwards: skipped for today.
+  const brk = day([p('10:00', true), p('18:50', false), p('19:20', true)]);
+  assert.equal(W.autoPlan(brk, AUTO_ON, at('19:30')).status, 'late-start');
+  // On a break at the time and still out: nothing to clock out.
+  assert.equal(W.autoPlan(day([p('10:00', true), p('18:50', false)]), AUTO_ON, at('19:05')).status, 'missed');
+  // Not clocked in at all: waits (no WFH day yet).
+  assert.equal(W.autoPlan(W.emptyDay(DATE), AUTO_ON, at('19:05')).status, 'waiting');
+});
+
+test('auto clock-out: early starter is clocked out 11h after clock-in, before Keka cuts off', () => {
+  const ap = W.autoPlan(day([p('08:15', true)]), { everyDay: '18:30', auto: { every: { on: true, time: '21:00' } } }, at('12:00'));
+  assert.equal(ap.at, at('19:15'));
+  assert.equal(ap.reason, 'safety');
+});
+
+test('auto clock-out: running → done when Keka shows the clock-out; at most once a day', () => {
+  let d = W.autoStart(day(REAL), at('19:00'));
+  assert.equal(W.autoPlan(d, AUTO_ON, at('19:00')).status, 'running');
+  assert.equal(W.autoClockedOut(d), false);
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [...REAL, p('19:00', false)] }] }, at('19:00'));
+  assert.equal(W.autoClockedOut(d), true);
+  d = W.autoFinish(d, true, at('19:00'));
+  assert.equal(W.autoPlan(d, AUTO_ON, at('19:01')).status, 'done');
+  // Clocking back in afterwards doesn't trigger it again.
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [...REAL, p('19:00', false), p('19:10', true)] }] }, at('19:10'));
+  assert.equal(W.autoPlan(d, AUTO_ON, at('20:00')).status, 'done');
+  assert.equal(W.autoPlan(W.autoFinish(W.autoStart(day(REAL), at('19:00')), false, at('19:02')), AUTO_ON, at('19:03')).status, 'failed');
+});

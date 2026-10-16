@@ -7,6 +7,11 @@
  * via chrome.alarms, so reminders arrive as system notifications whatever tab
  * (or app) is in front, even after every Keka tab is closed. The toolbar badge
  * counts down to the reminder. Nothing here makes network requests.
+ *
+ * Auto clock-out (opt-in): a 5-min heads-up, then Keka Attendance opens in a
+ * background tab where the content script clicks WFH Clock-out → Clock-out
+ * (Keka sends its own request). Success is read from Keka's response; the tab
+ * is closed either way, and a failure falls back to an on-screen alert.
  */
 importScripts('../shared/wfh.js');
 
@@ -15,13 +20,18 @@ const DAY_KEY = 'wfhDay';
 const SETTINGS_KEY = 'wfhSettings';
 const ALARM_NEXT = 'wfh-next';
 const ALARM_TICK = 'wfh-tick'; // keeps the badge countdown fresh while clocked in
+const ALARM_AUTO = 'wfh-auto'; // auto clock-out: heads-up, start, timeout
 const N_REMINDER = 'wfh-reminder';
 const N_ARMED = 'wfh-armed';
 const N_TEST = 'wfh-test';
+const N_AUTO_SOON = 'wfh-auto-soon';
+const N_AUTO_RESULT = 'wfh-auto-result';
+const N_AUTO_FAILED = 'wfh-auto-failed';
 const KEKA_URL = 'https://hatio.keka.com/#/me/attendance/logs';
 const ICON = 'icons/icon128.png';
 // Clicking the notification itself opens Keka.
 const REMINDER_BUTTONS = [{ title: 'Snooze 30 min' }, { title: 'Stop for today' }];
+const AUTO_SOON_BUTTONS = [{ title: 'Skip today' }, { title: '+15 min' }];
 
 async function load(now) {
   const got = await chrome.storage.local.get({ [DAY_KEY]: null, [SETTINGS_KEY]: null });
@@ -30,7 +40,7 @@ async function load(now) {
   return { day, settings: W.normalizeSettings(got[SETTINGS_KEY], today) };
 }
 
-function notify(id, { title, message }, urgent) {
+function notify(id, { title, message }, urgent, buttons = urgent ? REMINDER_BUTTONS : undefined) {
   return chrome.notifications.create(id, {
     type: 'basic',
     iconUrl: chrome.runtime.getURL(ICON),
@@ -38,8 +48,64 @@ function notify(id, { title, message }, urgent) {
     message,
     priority: urgent ? 2 : 0,
     requireInteraction: urgent,
-    buttons: urgent ? REMINDER_BUTTONS : undefined,
+    buttons,
   });
+}
+
+/** Keka Attendance in a tab the user isn't looking at (a minimized window if none is open). */
+async function openKekaInBackground() {
+  try {
+    const tab = await chrome.tabs.create({ url: KEKA_URL, active: false });
+    return tab.id;
+  } catch (_) {
+    const win = await chrome.windows.create({ url: KEKA_URL, focused: false, state: 'minimized' });
+    return win && win.tabs && win.tabs[0] ? win.tabs[0].id : null;
+  }
+}
+
+async function closeTab(id) {
+  if (id == null) return;
+  try { await chrome.tabs.remove(id); } catch (_) { /* already closed */ }
+}
+
+/**
+ * Auto clock-out bookkeeping for this step: finish a running one (Keka's data
+ * shows the clock-out, or it timed out), show the heads-up, or start it.
+ */
+async function stepAuto(day, settings, now) {
+  let ap = W.autoPlan(day, settings, now);
+  if (ap.status === 'running') {
+    const ok = W.autoClockedOut(day);
+    if (ok || now - day.autoStartedAt > W.AUTO_TIMEOUT_MS) day = await finishAuto(day, ok, now);
+  } else if (ap.status === 'heads-up' && day.autoHeadsUpFor !== ap.at) {
+    await chrome.notifications.clear(N_AUTO_SOON);
+    await notify(N_AUTO_SOON, W.autoHeadsUp(ap), true, AUTO_SOON_BUTTONS);
+    day = { ...day, autoHeadsUpFor: ap.at };
+  } else if (ap.status === 'due') {
+    await chrome.notifications.clear(N_AUTO_SOON);
+    day = W.autoStart(day, now);
+    day = { ...day, autoTabId: await openKekaInBackground() };
+  }
+  return day;
+}
+
+async function finishAuto(day, ok, now, note) {
+  await closeTab(day.autoTabId);
+  const done = W.autoFinish(day, ok, now);
+  if (ok) {
+    await notify(N_AUTO_RESULT, {
+      title: note === 'already-out' ? 'You were already clocked out' : `Clocked out at ${W.timeLabel(now)}`,
+      message: note === 'already-out' ? 'Keka shows you clocked out, so nothing was changed.' : 'Keka Hours clocked you out of Keka (WFH).',
+    }, false);
+  } else {
+    await notify(N_AUTO_FAILED, {
+      title: 'Auto clock-out didn\'t work',
+      message: 'Clock out in Keka yourself now. Click to open Keka.',
+    }, true, [{ title: 'Open Keka' }]);
+    // The alert is this round's reminder; the next one comes 15 min later.
+    return { ...done, lastShownAt: now };
+  }
+  return done;
 }
 
 async function setBadge(b) {
@@ -65,10 +131,15 @@ async function step(change) {
   const now = Date.now();
   let { day, settings } = await load(now);
   const before = JSON.stringify(day);
-  if (change) day = change(day, settings, now) || day;
+  if (change) day = (await change(day, settings, now)) || day;
+  const autoBefore = day.autoStatus;
+  day = await stepAuto(day, settings, now);
   let plan = W.plan(day, settings, now);
+  const auto = W.autoPlan(day, settings, now);
+  // The heads-up / running clock-out / failure alert already say it all: don't also nag.
+  const autoBusy = auto.status === 'heads-up' || auto.status === 'running' || (auto.status === 'failed' && autoBefore === 'running');
 
-  if (plan.due) {
+  if (plan.due && !autoBusy) {
     // Clear first so the OS pops it up again rather than silently updating it.
     await chrome.notifications.clear(N_REMINDER);
     await notify(N_REMINDER, W.reminder(plan, now), true);
@@ -76,7 +147,9 @@ async function step(change) {
     plan = W.plan(day, settings, now);
   } else if (W.shouldAnnounce(day, plan, now)) {
     await chrome.notifications.clear(N_ARMED);
-    await notify(N_ARMED, W.announcement(plan), false);
+    const msg = W.announcement(plan);
+    if (auto.status === 'scheduled' || auto.status === 'heads-up') msg.message += ` Auto clock-out at ${W.timeLabel(auto.at)}.`;
+    await notify(N_ARMED, msg, false);
     day = { ...day, announcedFor: plan.remindAt };
   }
   if (plan.state !== 'in' || plan.stopped) await chrome.notifications.clear(N_REMINDER);
@@ -88,6 +161,12 @@ async function step(change) {
 
   if (plan.nextAt == null) await chrome.alarms.clear(ALARM_NEXT);
   else await chrome.alarms.create(ALARM_NEXT, { when: Math.max(plan.nextAt, now + 1000) });
+  const autoAt = auto.status === 'scheduled' ? auto.headsUpAt
+    : auto.status === 'heads-up' ? auto.at
+      : auto.status === 'running' ? day.autoStartedAt + W.AUTO_TIMEOUT_MS + 1000
+        : null;
+  if (autoAt == null) await chrome.alarms.clear(ALARM_AUTO);
+  else await chrome.alarms.create(ALARM_AUTO, { when: Math.max(autoAt, now + 1000) });
   // Minute ticks only while there's a badge to keep current (and clear at the end).
   if (!b) await chrome.alarms.clear(ALARM_TICK);
   else if (!(await chrome.alarms.get(ALARM_TICK))) await chrome.alarms.create(ALARM_TICK, { periodInMinutes: 1 });
@@ -125,6 +204,24 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-test':
       testReminder().then(reply, () => reply({ permission: 'unknown' }));
       return true; // async reply
+    case 'wfh-auto-tab': {
+      // A freshly loaded Keka tab asks: "am I the one opened to clock out?"
+      const tabId = sender.tab && sender.tab.id;
+      queue.then(() => load(Date.now())).then(({ day }) => {
+        reply({ run: tabId != null && day.autoStatus === 'running' && day.autoTabId === tabId });
+      }, () => reply({ run: false }));
+      return true;
+    }
+    case 'wfh-auto-result': {
+      const tabId = sender.tab && sender.tab.id;
+      run(async (day, s, now) => {
+        if (day.autoStatus !== 'running' || day.autoTabId !== tabId) return day;
+        if (msg.result === 'done' || msg.result === 'already-out') return finishAuto(day, true, now, msg.result);
+        if (msg.result === 'failed') return finishAuto(day, false, now);
+        return day; // 'clicked': wait for Keka's response (or the timeout)
+      });
+      return false;
+    }
     default:
       return false;
   }
@@ -136,7 +233,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === ALARM_NEXT || alarm.name === ALARM_TICK) run();
+  if (alarm.name === ALARM_NEXT || alarm.name === ALARM_TICK || alarm.name === ALARM_AUTO) run();
 });
 
 function openKeka() {
@@ -144,6 +241,17 @@ function openKeka() {
 }
 
 chrome.notifications.onButtonClicked.addListener((id, index) => {
+  if (id === N_AUTO_SOON) {
+    chrome.notifications.clear(id);
+    if (index === 0) run(day => W.autoSkipToday(day));
+    else run((day, s, now) => W.autoPostpone(day, s, now));
+    return;
+  }
+  if (id === N_AUTO_FAILED) {
+    chrome.notifications.clear(id);
+    openKeka();
+    return;
+  }
   if (id !== N_REMINDER && id !== N_TEST) return;
   chrome.notifications.clear(id);
   if (id !== N_REMINDER) return; // the test reminder's buttons do nothing
@@ -152,7 +260,7 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
 });
 
 chrome.notifications.onClicked.addListener(id => {
-  if (id !== N_REMINDER && id !== N_ARMED && id !== N_TEST) return;
+  if (![N_REMINDER, N_ARMED, N_TEST, N_AUTO_SOON, N_AUTO_RESULT, N_AUTO_FAILED].includes(id)) return;
   chrome.notifications.clear(id);
   openKeka();
 });

@@ -15,6 +15,7 @@
   const ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.9" r="1.15" fill="currentColor"/></svg>';
+  const ICON_AUTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9.5V13l2.3 1.6M10 3.5h4M12 3.5v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.8 6.2l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   const ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
@@ -368,12 +369,12 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
 /* ---------- WFH clock-out reminder ---------- */
-.wfh { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-top: 2px; }
+.wfh { flex: 1; display: flex; flex-direction: column; gap: 12px; padding-top: 0; }
 .wfh-intro h3 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
 .wfh-intro p { margin: 3px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
 /* Today: status, the reminder time (the one big thing), and the day so far. */
-.wfh-today { padding: 14px 16px 16px; border-radius: 14px; background: var(--surface); }
+.wfh-today { padding: 12px 16px 12px; border-radius: 14px; background: var(--surface); }
 .wfh-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wfh-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .live-dot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--subtle); }
@@ -404,7 +405,28 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .day-track-hours span.end::before { left: auto; right: 0; }
 .day-track-hours span.minor { padding: 0; }
 .day-track-hours span.minor::before { height: 3px; opacity: .6; }
-.wfh-snooze { display: flex; gap: 8px; margin-top: 12px; }
+.wfh-snooze { display: flex; gap: 6px; flex: none; }
+
+/* Auto clock-out: one row in the tab; set up in a pop-up. */
+.auto-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px 7px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
+.auto-ic { flex: none; width: 28px; height: 28px; padding: 5px; border-radius: 9px; color: var(--muted); background: var(--surface); }
+.auto-row.on .auto-ic { color: var(--brand-text); background: var(--brand-soft); }
+.auto-text { flex: 1; min-width: 0; }
+.auto-title { font-size: 13.5px; font-weight: 600; }
+.auto-status { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auto-status.good { color: var(--good); }
+.auto-status.warn { color: var(--warn); }
+.modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 22px 6px; }
+.modal-body .wfh-h { margin-top: 16px; }
+.auto-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface); }
+.auto-switch b { font-size: 14px; font-weight: 600; }
+.auto-switch small { display: block; font-size: 12.5px; color: var(--muted); }
+.auto-fields.off { opacity: .5; }
+.switch.bare { padding: 0 4px; height: 26px; }
+.how b { white-space: nowrap; }
+.modal-note { margin-top: 12px; font-size: 12.5px; line-height: 1.45; color: var(--subtle); }
+.modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 22px 16px; border-top: 1px solid var(--line); }
+.modal-actions .btn-sm { height: 36px; padding: 0 14px; }
 
 /* Changing the time: 12-hour pickers, scope, and an explicit Update. */
 .wfh-h { margin: 0 0 9px; font-size: 13.5px; font-weight: 600; }
@@ -428,12 +450,12 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .form-msg.err { color: var(--warn); }
 
 /* The rules, in plain words. */
-.how { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.how { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .how li { position: relative; padding-left: 15px; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .how li::before { content: ""; position: absolute; left: 2px; top: .58em; width: 5px; height: 5px; border-radius: 50%; background: var(--brand-line); }
 .how b { color: var(--text); font-weight: 600; }
 
-.wfh-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
+.wfh-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
 .wfh-foot-note { flex: 1; min-width: 0; font-size: 12px; line-height: 1.45; color: var(--subtle); }
 .btn-sm { height: 30px; padding: 0 11px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-hover); font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; transition: box-shadow .14s ease; }
 .btn-sm:hover { box-shadow: inset 0 0 0 1px var(--brand); }
@@ -812,6 +834,80 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  /** Hour / minute selects + AM-PM for a 12-hour time; `act` names the AM-PM buttons. */
+  function timePickerHtml(v, act) {
+    const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+    if (!minutes.includes(v.minute)) minutes.push(v.minute);
+    minutes.sort((a, b) => a - b);
+    const opt = (value, label, on) => `<option value="${value}"${on ? ' selected' : ''}>${label}</option>`;
+    const seg = (value, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${value}</button>`;
+    return `
+      <div class="time-row">
+        <select class="time-sel" data-field="hour" aria-label="Hour">${Array.from({ length: 12 }, (_, i) => i + 1).map(h => opt(h, h, h === v.hour)).join('')}</select>
+        <span class="time-colon">:</span>
+        <select class="time-sel" data-field="minute" aria-label="Minute">${minutes.map(m => opt(m, pad2(m), m === v.minute)).join('')}</select>
+        <div class="seg" role="radiogroup" aria-label="AM or PM">${seg('AM', v.ap === 'AM')}${seg('PM', v.ap === 'PM')}</div>
+      </div>`;
+  }
+
+  /** The tab's auto clock-out row: what will happen today, and Set up / Edit. */
+  function autoRowHtml(ap) {
+    const t = W.timeLabel;
+    let text;
+    let tone = '';
+    switch (ap.status) {
+      case 'off': text = 'Off'; break;
+      case 'waiting': case 'scheduled': case 'heads-up': text = `On · ${t(ap.at)}${ap.scope === 'today' ? ' today' : ''}`; break;
+      case 'due': case 'running': text = 'Clocking you out…'; break;
+      case 'done': text = `Clocked you out at ${t(ap.doneAt || ap.at)}`; tone = 'good'; break;
+      case 'failed': text = 'Didn\'t work today. Clock out yourself.'; tone = 'warn'; break;
+      case 'skipped': text = `Skipped today (${t(ap.at)})`; break;
+      case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}`; break;
+      case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}`; break;
+      default: text = 'Not today';
+    }
+    return `
+      <div class="auto-row${ap.on ? ' on' : ''}">
+        <span class="auto-ic">${ICON_AUTO}</span>
+        <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${esc(text)}</div></div>
+        <button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">${ap.on ? 'Edit' : 'Set up'}</button>
+      </div>`;
+  }
+
+  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap, scope }. */
+  function autoModalHtml(v, error) {
+    const seg = (value, label, on) => `<button type="button" role="radio" data-act="auto-scope" data-value="${value}" aria-checked="${on}">${label}</button>`;
+    return `
+      <div class="modal-head">
+        <div><div class="modal-title" id="kh-modal-title">Auto clock-out</div><div class="modal-sub">Clocks you out of Keka at a set time on WFH days.</div></div>
+        <button class="icon-btn" type="button" data-act="modal-close" aria-label="Close" title="Close">${ICON_CLOSE}</button>
+      </div>
+      <div class="modal-body auto-form">
+        <div class="auto-switch">
+          <div><b>Auto clock-out</b><small>${v.on ? 'On: Keka Hours clocks you out at this time' : 'Off'}</small></div>
+          <button class="switch bare" type="button" role="switch" data-act="auto-toggle" aria-checked="${v.on}" aria-label="Auto clock-out"><span class="track"><span class="thumb"></span></span></button>
+        </div>
+        <div class="auto-fields${v.on ? '' : ' off'}">
+          <h4 class="wfh-h">Clock me out at</h4>
+          ${timePickerHtml(v, 'auto-ap')}
+          <div class="form-row"><div class="seg" role="radiogroup" aria-label="Applies to">${seg('every', 'Every WFH day', v.scope === 'every')}${seg('today', 'Today only', v.scope === 'today')}</div></div>
+          ${error ? `<div class="form-msg err" role="status">${esc(error)}</div>` : ''}
+        </div>
+        <h4 class="wfh-h">What happens</h4>
+        <ul class="how">
+          <li>5 min before, a notification lets you <b>skip today</b> or add <b>15 min</b>.</li>
+          <li>At the time, Keka opens in a background tab, clicks <b>WFH Clock-out</b> and confirms, then the tab closes.</li>
+          <li>If it can't, you get an alert to clock out yourself.</li>
+          <li>Never after <b>${W.hhmmLabel(W.LATEST_TIME)}</b>, and only if you're clocked in then.</li>
+        </ul>
+        <div class="modal-note">Needs Chrome running, your laptop awake, and you signed in to Keka.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm" type="button" data-act="modal-close">Cancel</button>
+        <button class="btn-primary" type="button" data-act="auto-save">Save</button>
+      </div>`;
+  }
+
   /**
    * WFH tab. `wfhState` = { settings, day } from storage (the worker owns the
    * day); everything shown is derived with the same rules the worker uses.
@@ -857,17 +953,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       right = '<button class="btn-sm" type="button" data-act="wfh-resume">Turn back on</button>';
     } else if (p.snoozed) {
       label = 'Snoozed until';
-      big = `<span class="wfh-time-big warn">${t(p.nextAt)}</span>`;
-      right = `<span class="wfh-in">${inLabel(p.nextAt - now)}</span>`;
+      big = `<span class="wfh-time-big word warn">${t(p.nextAt)}</span>`;
+      sub = `Next reminder ${inLabel(p.nextAt - now)}.`;
       markAt = p.nextAt;
       warn = true;
       const atCap = p.nextAt >= p.end - 5 * 60000;
-      extra = `
-        <div class="wfh-snooze">
+      right = `
+        <span class="wfh-snooze">
           <button class="btn-sm" type="button" data-act="wfh-snooze-cancel">Cancel snooze</button>
           <button class="btn-sm" type="button" data-act="wfh-snooze-more"${atCap ? ' disabled title="Can\'t snooze past the limit"' : ''}>+15 min</button>
-          <button class="btn-sm quiet" type="button" data-act="wfh-stop">Stop for today</button>
-        </div>`;
+        </span>`;
     } else if (p.reminding || p.due) {
       label = 'Past your reminder';
       big = '<span class="wfh-time-big word warn">Clock out</span>';
@@ -891,10 +986,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const saved = { ...to12(p.time), scope: p.scope };
     const v = form.draft || saved;
     const dirty = !!form.draft && (to24(form.draft) !== p.time || form.draft.scope !== p.scope);
-    const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
-    if (!minutes.includes(v.minute)) minutes.push(v.minute);
-    minutes.sort((a, b) => a - b);
-    const opt = (value, label, on) => `<option value="${value}"${on ? ' selected' : ''}>${label}</option>`;
     const seg = (act, value, label, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${label}</button>`;
     const msg = form.msg ? `<div class="form-msg${form.msg.error ? ' err' : ''}" role="status">${esc(form.msg.text)}</div>` : '';
 
@@ -913,14 +1004,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${extra}
         </section>
 
+        ${autoRowHtml(W.autoPlan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now))}
+
         <section class="wfh-form" aria-label="Change reminder time" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
           <h4 class="wfh-h">Change reminder time</h4>
-          <div class="time-row">
-            <select class="time-sel" data-field="hour" aria-label="Hour">${Array.from({ length: 12 }, (_, i) => i + 1).map(h => opt(h, h, h === v.hour)).join('')}</select>
-            <span class="time-colon">:</span>
-            <select class="time-sel" data-field="minute" aria-label="Minute">${minutes.map(m => opt(m, pad2(m), m === v.minute)).join('')}</select>
-            <div class="seg" role="radiogroup" aria-label="AM or PM">${seg('wfh-ap', 'AM', 'AM', v.ap === 'AM')}${seg('wfh-ap', 'PM', 'PM', v.ap === 'PM')}</div>
-          </div>
+          ${timePickerHtml(v, 'wfh-ap')}
           <div class="form-row">
             <div class="seg" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
             <button class="btn-primary" type="button" data-act="wfh-update"${dirty ? '' : ' disabled'}>Update reminder</button>
@@ -1090,10 +1178,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const modal = $('.modal');
     const modalCard = $('.modal-card');
     let modalOpen = false;
+    let modalKind = 'daylog'; // 'daylog' (average's ⓘ) | 'auto' (auto clock-out set-up)
+    let autoDraft = null; // the auto clock-out form while the pop-up is open
+    let autoError = null;
 
-    /** Fill the day-log modal from the current model (keeps the list's scroll position). */
-    function renderModal() {
+    /** Fill the modal. The day log follows the model (keeping its scroll); the auto form only redraws on its own edits. */
+    function renderModal(force) {
       if (!modalOpen) return;
+      if (modalKind === 'auto') {
+        if (force) modalCard.innerHTML = autoModalHtml(autoDraft, autoError);
+        return;
+      }
       const s = model && model.summary;
       if (!model || model.state !== 'ok' || !s || !s.trackedDays) { closeModal(false); return; }
       const prev = modalCard.querySelector('.day-list');
@@ -1103,10 +1198,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (list) list.scrollTop = top;
     }
 
-    function openModal() {
+    function openModal(kind = 'daylog') {
+      modalKind = kind;
       modalOpen = true;
       modal.hidden = false;
-      renderModal();
+      renderModal(true);
       const close = modalCard.querySelector('[data-act="modal-close"]');
       if (close) close.focus({ preventScroll: true });
     }
@@ -1115,8 +1211,39 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!modalOpen) return;
       modalOpen = false;
       modal.hidden = true;
-      const info = restoreFocus && content.querySelector('[data-act="avg-info"]');
-      if (info) info.focus({ preventScroll: true });
+      const back = restoreFocus && content.querySelector(modalKind === 'auto' ? '[data-act="auto-open"]' : '[data-act="avg-info"]');
+      if (back) back.focus({ preventScroll: true });
+    }
+
+    /** Open the auto clock-out pop-up with today's settings. */
+    function openAuto() {
+      const today = W.dateKeyOf(Date.now());
+      const a = W.autoFor(wfhState.settings, today);
+      autoDraft = { on: a.on, ...to12(a.time), scope: a.scope };
+      autoError = null;
+      openModal('auto');
+    }
+
+    /** Pull the pop-up's selects into the draft (buttons update it directly). */
+    function readAutoSelects() {
+      const form = modalCard.querySelector('.auto-form');
+      if (!form || !autoDraft) return;
+      autoDraft.hour = Number(form.querySelector('[data-field="hour"]').value);
+      autoDraft.minute = Number(form.querySelector('[data-field="minute"]').value);
+    }
+
+    function saveAuto() {
+      readAutoSelects();
+      const time = to24(autoDraft);
+      if (!W.validTime(time)) {
+        autoError = `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.`;
+        renderModal(true);
+        return;
+      }
+      handlers.onAutoSave({ on: autoDraft.on, time, scope: autoDraft.scope });
+      wfhForm.msg = { text: autoDraft.on ? `Auto clock-out on: ${W.hhmmLabel(time)}, ${autoDraft.scope === 'today' ? 'today only' : 'every WFH day'}.` : 'Auto clock-out turned off.' };
+      closeModal(true);
+      renderWfh();
     }
 
     // Click / tap anywhere outside the card collapses it back to the pill.
@@ -1166,7 +1293,19 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           if (viaKeyboard && next) next.focus({ preventScroll: true });
         }, reduceMotion() ? 0 : 180);
       }
-      else if (act === 'avg-info') openModal();
+      else if (act === 'avg-info') openModal('daylog');
+      else if (act === 'auto-open') openAuto();
+      else if (act === 'auto-save') saveAuto();
+      else if (act === 'auto-toggle' || act === 'auto-ap' || act === 'auto-scope') {
+        readAutoSelects();
+        if (act === 'auto-toggle') autoDraft.on = !autoDraft.on;
+        else if (act === 'auto-ap') autoDraft.ap = el.getAttribute('data-value');
+        else autoDraft.scope = el.getAttribute('data-value');
+        autoError = null;
+        renderModal(true);
+        const again = modalCard.querySelector(`[data-act="${act}"]${act === 'auto-toggle' ? '' : `[data-value="${el.getAttribute('data-value')}"]`}`);
+        if (again && e.detail === 0) again.focus({ preventScroll: true });
+      }
       else if (act === 'modal-close') closeModal(e.detail === 0);
       else if (act === 'theme') {
         const next = theme === 'dark' ? 'light' : 'dark';
@@ -1374,7 +1513,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     }
 
     shadow.addEventListener('change', e => {
-      if (e.target.classList && e.target.classList.contains('time-sel')) syncWfhForm();
+      if (e.target.closest && e.target.closest('.wfh-form')) syncWfhForm();
     });
     shadow.addEventListener('focusout', e => {
       if (!e.target.classList || !e.target.classList.contains('time-sel')) return;
