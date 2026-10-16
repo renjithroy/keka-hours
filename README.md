@@ -1,8 +1,11 @@
 # Keka Hours
 
-A small Chrome extension that shows your **average gross hours per office day** for the
-month you're viewing in Keka (`hatio.keka.com → Me → Attendance`). It helps you see at a glance
-whether you're keeping up the daily minimum.
+A small Chrome extension for Keka (`hatio.keka.com → Me → Attendance`):
+
+- your **average office hours per day** for the month you're viewing, and how long to sit on the
+  remaining days to stay at 9h+;
+- a **clock-out reminder on WFH days**, so Keka doesn't mark a missed clock-out;
+- optional **auto clock-out** at a time you choose.
 
 Everything runs locally in your browser. Nothing is sent anywhere.
 
@@ -10,10 +13,12 @@ Everything runs locally in your browser. Nothing is sent anywhere.
   <tr>
     <th>Overview</th>
     <th>Plan</th>
+    <th>WFH</th>
   </tr>
   <tr>
-    <td><img src="docs/overview.png" alt="Overview tab: average gross hours per day, totals, longest/shortest day and daily-hours chart" width="360"></td>
-    <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="360"></td>
+    <td><img src="docs/overview.png" alt="Overview tab: average office hours per day, totals, longest/shortest day and daily-hours chart" width="280"></td>
+    <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="280"></td>
+    <td><img src="docs/wfh.png" alt="WFH tab: auto clock-out at 8:30 PM, clock-out reminder at 8:00 PM with a day bar, and the reminder time picker" width="280"></td>
   </tr>
 </table>
 
@@ -51,8 +56,10 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
-- **WFH**: your clock-out reminder (below): today's reminder and status, a 12-hour time picker with
-  **Update reminder**, snooze / stop controls and a test button.
+- **WFH**: the **Auto clock-out** card on top, then one **Clock-out reminder** box: your clock-in
+  status, today's reminder time with a day bar (hour labels, a mark at the reminder), snooze / stop
+  controls, a 12-hour time field with **Update**, **Every WFH day / Today only**, and the two rules.
+  **Send test reminder** at the bottom. Details below.
 
 ### WFH clock-out reminders
 
@@ -78,13 +85,14 @@ request is approved yet.
 
 ### Auto clock-out (optional)
 
-Off by default. Set it up from the **Auto clock-out** row in the WFH tab: a time (default 30 min
-after your reminder, up to 10:00 PM), for **Today only** or **Every WFH day**.
+Off by default. Set it up from the **Auto clock-out** card at the top of the WFH tab (**Set up** /
+**Edit** opens a pop-up): a time (default 30 min after your reminder, up to 10:00 PM), for
+**Today only** or **Every WFH day**.
 
 - 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
   heads-up: if the time has already passed (your laptop was asleep, or you pressed Reset), it warns
   you first and runs 5 min later.
-- **Reset** on the Auto clock-out row clears today's skip, +15 min or result, so it runs again.
+- **Reset** on the Auto clock-out card clears today's skip, +15 min or result, so it runs again.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
   extension never builds one or reads your login.
@@ -114,7 +122,7 @@ A day counts toward the average only if it is **not WFH**, **not Leave**, and ha
 | WFH (any day, any hours)                 | ❌       |
 | Leave (even if some time shows)          | ❌       |
 | W-OFF / holiday / absent with 0h         | ❌       |
-| Today, while still clocked in            | ❌ until you clock out (shown as a note) |
+| Today                                    | ❌ unless **Include today** is on (and then only once you've clocked out) |
 
 There's no Monday–Friday logic. The attendance record decides.
 
@@ -140,7 +148,10 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 ## Privacy
 
-- Permissions: `storage` (which upcoming days you marked away/office in Plan, your light/dark theme choice, your reminder time, and today's WFH punch times for reminders), `alarms` and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host permissions.
+- Permissions: `storage` (which upcoming days you marked away/office in Plan, your theme override,
+  Include today, your reminder and auto clock-out settings, and today's WFH punch times), `alarms`
+  and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host
+  permissions. Auto clock-out opens and closes its own Keka tab, which needs no extra permission.
 - Runs only on `https://hatio.keka.com/*`.
 - Never makes network requests. It doesn't read credentials, tokens, or cookies. If you turn on
   auto clock-out, it clicks Keka's own WFH Clock-out / Clock-out buttons in a background tab it
@@ -170,12 +181,12 @@ src/content/parser.js        DOM snapshot + pure normalisation/merge → Attenda
 src/content/calculator.js    pure calculateSummary(days, targetMinutes)
 src/content/format.js        display formatting
 src/content/planner.js       pure planMonth(): required minutes per remaining office day
-src/content/settings.js      chrome.storage.local (planner day overrides + theme)
+src/content/settings.js      chrome.storage.local (plan overrides, theme, Include today, WFH settings)
 src/content/ui.js            Shadow-DOM widget (minimised pill + expanded card)
 src/content/main.js          controller: events, debouncing, signatures, freshness
 src/content/autoclock.js     auto clock-out: the two clicks on Keka's Actions card
 src/shared/wfh.js            pure WFH clock-out reminder rules (worker + WFH tab)
-src/background/service-worker.js  alarms, notifications and toolbar badge for clock-out reminders
+src/background/service-worker.js  alarms, notifications, toolbar badge, auto clock-out tab
 tests/                       node --test unit tests
 ```
 
