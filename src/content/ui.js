@@ -882,8 +882,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       big = `<span class="wfh-time-big">${t(p.remindAt)}</span>`;
       right = `<span class="wfh-in">${inLabel(p.remindAt - now)}</span>`;
       markAt = p.remindAt;
-      if (p.reason === 'safety') sub = `11h after your ${t(p.firstIn)} clock-in, earlier than ${set}.`;
-      else if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
+      if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
     }
     if (p.state === 'in' && p.firstIn == null) sub = 'Couldn\'t read your clock-in time yet. Reload this page to load it.';
     const track = p.state === 'in' && p.firstIn != null && p.remindAt != null ? trackHtml(p, now, markAt, warn) : '';
