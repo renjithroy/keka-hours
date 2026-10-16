@@ -407,15 +407,19 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .day-track-hours span.minor::before { height: 3px; opacity: .6; }
 .wfh-snooze { display: flex; gap: 6px; flex: none; }
 
-/* Auto clock-out: one row in the tab; set up in a pop-up. */
-.auto-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px 7px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
-.auto-ic { flex: none; width: 28px; height: 28px; padding: 5px; border-radius: 9px; color: var(--muted); background: var(--surface); }
-.auto-row.on .auto-ic { color: var(--brand-text); background: var(--brand-soft); }
+/* Auto clock-out: a highlighted card in the tab; set up in a pop-up. */
+.auto-card { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 14px; border: 1.5px dashed var(--brand-line); background: var(--bg); }
+.auto-card.on { border: 1.5px solid transparent; background: var(--brand-soft); }
+.auto-ic { flex: none; width: 36px; height: 36px; padding: 7px; border-radius: 11px; color: var(--brand-text); background: var(--brand-soft); }
+.auto-card.on .auto-ic { color: #fff; background: var(--brand); }
 .auto-text { flex: 1; min-width: 0; }
-.auto-title { font-size: 13.5px; font-weight: 600; }
-.auto-status { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auto-title { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; }
+.auto-status { margin-top: 1px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.auto-status b { color: var(--brand-text); font-weight: 700; }
 .auto-status.good { color: var(--good); }
 .auto-status.warn { color: var(--warn); }
+.auto-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.auto-card .btn-primary { height: 34px; padding: 0 14px; }
 .modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 22px 6px; }
 .modal-body .wfh-h { margin-top: 16px; }
 .auto-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface); }
@@ -850,29 +854,35 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** The tab's auto clock-out row: what will happen today, Set up / Edit, and Reset for today's state. */
+  /** The tab's auto clock-out card: what will happen today, Set up / Edit, and Reset for today's state. */
   function autoRowHtml(ap, resettable) {
     const t = W.timeLabel;
     let text;
     let tone = '';
     switch (ap.status) {
-      case 'off': text = 'Off'; break;
-      case 'waiting': case 'scheduled': case 'heads-up': text = `On · ${t(ap.at)}${ap.scope === 'today' ? ' today' : ''}`; break;
+      case 'off': text = 'Let Keka Hours clock you out at a set time on WFH days.'; break;
+      case 'waiting': case 'scheduled': case 'heads-up':
+        text = `Clocks you out at <b>${t(ap.at)}</b>${ap.scope === 'today' ? ' today' : ' on WFH days'}.`; break;
       case 'due': case 'running': text = 'Clocking you out…'; break;
-      case 'done': text = `Clocked you out at ${t(ap.doneAt || ap.at)}`; tone = 'good'; break;
+      case 'done': text = `Clocked you out at ${t(ap.doneAt || ap.at)}.`; tone = 'good'; break;
       case 'failed': text = 'Didn\'t work today. Clock out yourself.'; tone = 'warn'; break;
-      case 'skipped': text = `Skipped today (${t(ap.at)})`; break;
-      case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}`; break;
-      case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}`; break;
-      default: text = 'Not today';
+      case 'skipped': text = `Skipped today (${t(ap.at)}).`; break;
+      case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}.`; break;
+      case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}.`; break;
+      default: text = 'Not today.';
     }
+    const reset = resettable && ap.on
+      ? '<button class="btn-sm quiet" type="button" data-act="wfh-auto-reset" title="Clear today\'s skip, delay or result so it runs again at its time">Reset</button>'
+      : '';
+    const open = ap.on
+      ? '<button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">Edit</button>'
+      : '<button class="btn-primary" type="button" data-act="auto-open" aria-haspopup="dialog">Set up</button>';
     return `
-      <div class="auto-row${ap.on ? ' on' : ''}">
+      <section class="auto-card${ap.on ? ' on' : ''}" aria-label="Auto clock-out">
         <span class="auto-ic">${ICON_AUTO}</span>
-        <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${esc(text)}</div></div>
-        ${resettable && ap.on ? '<button class="btn-sm quiet" type="button" data-act="wfh-auto-reset" title="Clear today\'s skip, delay or result so it runs again at its time">Reset</button>' : ''}
-        <button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">${ap.on ? 'Edit' : 'Set up'}</button>
-      </div>`;
+        <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${text}</div></div>
+        <div class="auto-actions">${reset}${open}</div>
+      </section>`;
   }
 
   /** Auto clock-out pop-up. `v` = { on, hour, minute, ap, scope }. */
@@ -1021,7 +1031,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           <h4 class="wfh-h">How it works</h4>
           <ul class="how">
             <li>At <b>${set}</b> a Chrome notification reminds you to clock out, and stays until you act on it.</li>
-            <li>Snooze it 30 min or stop it for today from the notification. Clocking out stops it too.</li>
             <li><b>${W.hhmmLabel(W.LATEST_TIME)}</b> is the hard limit: reminders can't go past it.</li>
           </ul>
         </section>
