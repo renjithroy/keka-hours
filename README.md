@@ -74,6 +74,9 @@ request is approved yet.
   **Custom time** opens a picker for any other time up to **10:00 PM** (e.g. 8:45 PM); a time past
   8 PM shows at the slider's end as "9:30 PM ›". The time applies on every WFH day. While you're
   clocked in, the slider also shows how far into the day you are, with a tick at "now".
+- **A time that has already passed today** (for the reminder or auto clock-out) starts on your next
+  WFH day; today keeps the time it had, so you never get an instant reminder or a surprise
+  clock-out. The tab and the pop-ups say so as soon as you pick it.
 - **Safety net:** if 11h after your first clock-in comes earlier than your reminder time, you're
   reminded then instead.
 - **Late clock-in:** if you clock in (or back in from a break) after the reminder time, you're

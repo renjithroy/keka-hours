@@ -197,19 +197,19 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
-  /** WFH tab: save the reminder time (applies on every WFH day). */
+  /** WFH tab: save the reminder time (every WFH day; a time already past today starts tomorrow). */
   function saveWfhTime({ time }) {
     if (!wfh.validTime(time)) return;
-    const next = { ...wfh.normalizeSettings(state.wfh.settings), everyDay: time };
+    const next = wfh.withReminderTime(state.wfh.settings, time, Date.now());
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
   }
 
-  /** Auto clock-out pop-up: save on/off + time (applies on every WFH day). */
+  /** Auto clock-out pop-up: save on/off + time (every WFH day; a time already past today starts tomorrow). */
   function saveAutoClockOut({ on, time }) {
     if (!wfh.validTime(time)) return;
-    const next = { ...wfh.normalizeSettings(state.wfh.settings), auto: { every: { on: !!on, time } } };
+    const next = wfh.withAutoClockOut(state.wfh.settings, { on, time }, Date.now());
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
