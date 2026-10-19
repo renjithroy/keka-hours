@@ -52,6 +52,8 @@
   const AUTO_HEADS_UP_MS = 5 * MIN;
   const AUTO_DELAY_STEP_MS = 15 * MIN;
   const AUTO_TIMEOUT_MS = 90 * 1000; // give the background tab this long to clock out
+  // Auto clock-out may run as late as 1 min before the day's end (Keka's cutoff / 10 PM).
+  const AUTO_LAST_MS = MIN;
 
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -95,9 +97,10 @@
     return t == null ? '' : timeLabel(new Date(2000, 0, 1, Math.floor(t / 60), t % 60).getTime());
   }
 
-  /** 125 min -> "2:05", 45 min -> "45m" (toolbar badge, max 4 chars). */
+  /** 125 min -> "2:05", 45 min -> "45m", 630 min -> "10h" (toolbar badge, max 4 chars). */
   function shortLeft(ms) {
     const total = Math.max(0, Math.ceil(ms / MIN));
+    if (total >= 600) return `${Math.floor(total / 60)}h`; // "10h": "10:29" doesn't fit
     return total >= 60 ? `${Math.floor(total / 60)}:${pad2(total % 60)}` : `${total}m`;
   }
 
@@ -245,6 +248,7 @@
     return {
       date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null,
       autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null,
+      autoSession: null,
     };
   }
 
@@ -295,8 +299,14 @@
       reason = 'late';
     }
     if (remindAt >= end) {
-      remindAt = null;
-      reason = 'too-late';
+      // Back from a break near Keka's cutoff, or a time set at the 10 PM limit: still
+      // remind once, 5 min before the end, if they were clocked in before then.
+      if (ps.lastIn == null || ps.lastIn < end - LAST_CALL_MS) {
+        remindAt = Math.max(end - LAST_CALL_MS, ps.lastIn != null ? ps.lastIn + MIN : 0);
+      } else {
+        remindAt = null;
+        reason = 'too-late';
+      }
     }
 
     const stopped = day.stoppedAt != null;
@@ -401,13 +411,15 @@
     let at = atTime(day.date, a.time);
     let reason = 'time';
     if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
-    // +15 min / heads-up delays apply on top, but never past the last call before the end.
+    // +15 min / heads-up delays apply on top, but never later than 1 min before the end.
     at += day.autoDelay || 0;
-    if (at > p.end - LAST_CALL_MS) at = p.end - LAST_CALL_MS;
+    if (at > p.end - AUTO_LAST_MS) at = p.end - AUTO_LAST_MS;
     const base = { on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
     let status;
-    if (!a.on) status = 'off';
-    else if (day.autoStatus === 'done' || day.autoStatus === 'failed' || day.autoStatus === 'running') status = day.autoStatus;
+    // A run that started (or ended) today keeps its status even if auto clock-out was
+    // turned off meanwhile, so it still finishes, closes its tab and reports.
+    if (['running', 'done', 'failed', 'expired'].includes(day.autoStatus)) status = day.autoStatus;
+    else if (!a.on) status = 'off';
     else if (day.autoSkip) status = 'skipped';
     else if (p.state === 'none') status = now >= p.end ? 'ended' : 'waiting';
     else if (p.lastIn != null && p.lastIn >= at) status = 'late-start';
@@ -419,12 +431,19 @@
     return { ...base, status };
   }
 
-  /** Heads-up "+15 min" (never past the last call). */
+  /** Whole minutes a heads-up "+N min" can still add (0 = can't postpone), at most 15. */
+  function autoPostponeMinutes(ap) {
+    const room = (ap.end - AUTO_LAST_MS) - ap.at;
+    return Math.max(0, Math.min(AUTO_DELAY_STEP_MS, room) / MIN | 0);
+  }
+
+  /** Heads-up "+15 min" (or whatever room is left before the end). */
   function autoPostpone(day, settings, now) {
     const ap = autoPlan(day, settings, now);
     if (ap.status !== 'scheduled' && ap.status !== 'heads-up' && ap.status !== 'due') return day;
-    const room = (ap.end - LAST_CALL_MS) - ap.at;
-    return { ...day, autoDelay: (day.autoDelay || 0) + Math.max(0, Math.min(AUTO_DELAY_STEP_MS, room)), autoHeadsUpFor: null };
+    const minutes = autoPostponeMinutes(ap);
+    if (!minutes) return day;
+    return { ...day, autoDelay: (day.autoDelay || 0) + minutes * MIN, autoHeadsUpFor: null };
   }
 
   function autoSkipToday(day) {
@@ -433,27 +452,29 @@
 
   /**
    * Due without a heads-up for this time yet (after a Reset, or waking from
-   * sleep past it): move it 5 min from now so the heads-up comes first.
-   * Returns `day` unchanged when there's no room left before the end.
+   * sleep past it): move it so the heads-up comes first — 5 min from now, or
+   * as much as is left before the end. With under a minute left there's no
+   * time to warn, so it's called off for today ('expired'); the reminder
+   * carries on. It never clocks out without a heads-up.
    */
   function autoDeferForHeadsUp(day, settings, now) {
     const ap = autoPlan(day, settings, now);
     if (ap.status !== 'due' || day.autoHeadsUpFor === ap.at) return day;
-    const target = Math.min(now + AUTO_HEADS_UP_MS, ap.end - LAST_CALL_MS);
-    if (target <= now) return day;
+    const target = Math.min(now + AUTO_HEADS_UP_MS, ap.end - AUTO_LAST_MS);
+    if (target - now < MIN) return { ...day, autoStatus: 'expired' };
     return { ...day, autoDelay: (day.autoDelay || 0) + (target - ap.at) };
   }
 
   /** Is there anything of today's auto clock-out to reset (skip, +15, done, failed)? Not while running. */
   function autoResettable(day) {
     return day.autoStatus !== 'running' &&
-      (day.autoSkip === true || (day.autoDelay || 0) > 0 || day.autoStatus === 'done' || day.autoStatus === 'failed');
+      (day.autoSkip === true || (day.autoDelay || 0) > 0 || ['done', 'failed', 'expired'].includes(day.autoStatus));
   }
 
   /** Tab "Reset": forget today's skip / delay / result, so it runs again at its set time. */
   function autoReset(day) {
     if (day.autoStatus === 'running') return day;
-    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null };
+    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null };
   }
 
   function autoStart(day, now) {
@@ -471,10 +492,11 @@
     return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null };
   }
 
-  function autoHeadsUp(ap) {
+  function autoHeadsUp(ap, now) {
+    const minutes = now == null ? 5 : Math.max(1, Math.round((ap.at - now) / MIN));
     return {
       title: `Auto clock-out at ${timeLabel(ap.at)}`,
-      message: 'Keka Hours will clock you out in 5 minutes.',
+      message: `Keka Hours will clock you out in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
     };
   }
 
@@ -523,7 +545,7 @@
     nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow, sliderStep,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoPostponeMinutes, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

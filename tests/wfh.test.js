@@ -138,11 +138,33 @@ test('back from a break after the reminder time: 30 min after re-clock-in', () =
   assert.equal(W.plan(day(REAL), DEFAULTS, at('13:00')).remindAt, at('18:30'));
 });
 
-test('clocked in too late to remind before the end: no reminder', () => {
-  const pl = W.plan(day([p('21:45', true)]), DEFAULTS, at('21:46'));
+test('near the day\'s end: one reminder 5 min before it; none if clocked in even later', () => {
+  // Clocked in at 9:45 PM: 30 min later is past 10 PM, so remind at 9:55 PM instead of never.
+  let pl = W.plan(day([p('21:45', true)]), DEFAULTS, at('21:46'));
+  assert.equal(pl.remindAt, at('21:55'));
+  assert.equal(pl.reason, 'late');
+  // Clocked in at 9:57 PM: no room left.
+  pl = W.plan(day([p('21:57', true)]), DEFAULTS, at('21:58'));
   assert.equal(pl.remindAt, null);
   assert.equal(pl.reason, 'too-late');
   assert.equal(pl.nextAt, null);
+});
+
+test('back from a break near Keka\'s 12h cutoff still gets a reminder before it', () => {
+  // First clock-in 8:00 AM (cutoff 8:00 PM), break 6:00–7:35 PM: 30 min after is past the cutoff.
+  const d = day([p('08:00', true), p('18:00', false), p('19:35', true)]);
+  const pl = W.plan(d, DEFAULTS, at('19:36'));
+  assert.equal(pl.end, at('20:00'));
+  assert.equal(pl.remindAt, at('19:55'));
+  assert.equal(W.badge(pl, at('19:36')).text, '19m');
+});
+
+test('a reminder set at the 10 PM limit fires at 9:55 PM', () => {
+  // (clocked in at 11:00 AM, so the 11h safety net is 10 PM and not in play)
+  const d = day([p('11:00', true)]);
+  const pl = W.plan(d, { everyDay: '22:00' }, at('12:00'));
+  assert.equal(pl.remindAt, at('21:55'));
+  assert.equal(W.plan(d, { everyDay: '22:00' }, at('21:55')).due, true);
 });
 
 test('ignored reminders repeat every 15 min and stop quietly at the end', () => {
@@ -314,9 +336,12 @@ test('auto clock-out: +15 min and skip today', () => {
   assert.equal(ap.status, 'scheduled', 'heads-up shows again 5 min before the new time');
   // Never past the last call before 10 PM.
   const late = { everyDay: '18:30', auto: { every: { on: true, time: '21:50' } } };
-  // (clocked in at 11:00, so the 11h safety cap is 10 PM, not in play)
+  // (clocked in at 11:00, so the 11h safety cap is 10 PM, not in play): only 9 min of room left.
+  assert.equal(W.autoPostponeMinutes(W.autoPlan(day([p('11:00', true)]), late, at('21:46'))), 9);
   d = W.autoPostpone(day([p('11:00', true)]), late, at('21:46'));
-  assert.equal(W.autoPlan(d, late, at('21:46')).at, at('21:55'));
+  assert.equal(W.autoPlan(d, late, at('21:46')).at, at('21:59'));
+  assert.equal(W.autoPostponeMinutes(W.autoPlan(d, late, at('21:46'))), 0, 'no more room: no +15 button');
+  assert.equal(W.autoPostpone(d, late, at('21:47')), d, '+15 with no room changes nothing');
   assert.equal(W.autoPlan(W.autoSkipToday(day(REAL)), AUTO_ON, at('19:00')).status, 'skipped');
 });
 
@@ -389,9 +414,15 @@ test('auto clock-out: never without a heads-up (after Reset, or waking past the 
   const e = W.autoPlan(W.autoDeferForHeadsUp(early, s, at('19:30')), s, at('19:30'));
   assert.equal(e.at, at('19:35'));
   assert.equal(e.status, 'heads-up');
-  // No room left before the end: run now rather than miss it.
-  const last = day([p('11:00', true)]);
-  assert.equal(W.autoDeferForHeadsUp(last, AUTO_ON, at('21:58')), last);
+  // Little room left: a shorter heads-up (here 3 min, running at 9:59 PM).
+  const late = W.autoDeferForHeadsUp(day([p('11:00', true)]), AUTO_ON, at('21:56'));
+  assert.equal(W.autoPlan(late, AUTO_ON, at('21:56')).at, at('21:59'));
+  assert.equal(W.autoHeadsUp(W.autoPlan(late, AUTO_ON, at('21:56')), at('21:56')).message, 'Keka Hours will clock you out in 3 minutes.');
+  // Under a minute left: no time to warn, so it's called off for today (never without a heads-up).
+  const gone = W.autoDeferForHeadsUp(day([p('11:00', true)]), AUTO_ON, at('21:58') + 30000);
+  assert.equal(gone.autoStatus, 'expired');
+  assert.equal(W.autoPlan(gone, AUTO_ON, at('21:59')).status, 'expired');
+  assert.equal(W.autoResettable(gone), true);
 });
 
 // ---------- a time that already passed today starts on the next WFH day ----------
@@ -472,4 +503,17 @@ test('slider keys: step to the neighbouring half hour; custom times never jump t
   assert.equal(W.sliderStep(11 * 60 + 30, 1), 720, '11:30 AM → 12:00 PM');
   assert.equal(W.sliderStep(1200, 1), 1200);
   assert.equal(W.sliderStep(720, -1), 720);
+});
+
+test('auto clock-out: a run keeps its status if it is turned off meanwhile', () => {
+  const running = W.autoStart(day(REAL), at('19:00'));
+  const off = { everyDay: '18:30', auto: { every: { on: false, time: '19:00' } } };
+  assert.equal(W.autoPlan(running, off, at('19:00') + 20000).status, 'running');
+  const done = W.autoFinish(W.applyObservation(running, { records: [{ date: DATE, punches: [...REAL, p('19:00', false)] }] }, at('19:01')), true, at('19:01'));
+  assert.equal(W.autoPlan(done, off, at('19:02')).status, 'done');
+});
+
+test('badge never overflows: 10h or more shows hours only', () => {
+  assert.equal(W.shortLeft(10 * 60 * 60000 + 29 * 60000), '10h');
+  assert.equal(W.shortLeft(9 * 60 * 60000 + 59 * 60000), '9:59');
 });

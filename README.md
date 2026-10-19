@@ -205,4 +205,5 @@ Run tests: `npm test` (or `node --test tests/`). Requires Node 18+.
   are checked as well.
 - If Keka changes its markup or API, the card falls back to "Waiting for attendance" instead of
   showing wrong numbers. The parser may then need updating.
-- A half-day leave combined with a half-day WFH or office day is excluded entirely.
+- A half-day leave with an office half counts (its office hours). A half-day leave with a WFH half is
+  excluded, like any WFH day.

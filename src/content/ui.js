@@ -942,6 +942,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       case 'skipped': text = `Skipped today (${t(ap.at)}).`; break;
       case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}.`; break;
       case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}.`; break;
+      case 'expired': text = 'Not today: too close to the limit to warn you first.'; break;
       default: text = 'Not today.';
     }
     if (upcoming && !ap.on) text = `Starts on your next WFH day at <b>${W.hhmmLabel(upcoming.time)}</b>.`;
