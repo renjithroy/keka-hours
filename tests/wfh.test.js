@@ -78,15 +78,40 @@ test('default 6:30 PM; day ends at 10 PM when clocked in at 10:25', () => {
   assert.equal(W.plan(day(REAL), DEFAULTS, at('18:30')).due, true);
 });
 
-test('custom time: today only vs every WFH day; capped at 10 PM', () => {
-  const s = { everyDay: '19:00', today: { date: DATE, time: '20:15' } };
-  assert.equal(W.plan(day(REAL), s, at('12:00')).remindAt, at('20:15'));
-  assert.equal(W.plan(day(REAL), s, at('12:00')).scope, 'today');
+test('the reminder time applies on every WFH day; capped at 10 PM; old "today only" ignored', () => {
+  const s = { everyDay: '19:00' };
+  assert.equal(W.plan(day(REAL), s, at('12:00')).remindAt, at('19:00'));
   const tomorrow = { ...W.emptyDay('2026-10-17'), source: 'api', punches: [{ at: '2026-10-17T10:00:00', in: true }] };
-  assert.equal(W.plan(tomorrow, s, at('12:00', '2026-10-17')).remindAt, at('19:00', '2026-10-17'), 'one-off expired');
+  assert.equal(W.plan(tomorrow, s, at('12:00', '2026-10-17')).remindAt, at('19:00', '2026-10-17'));
+  // A "today only" override saved by an older version no longer applies.
+  const old = { everyDay: '19:00', today: { date: DATE, time: '20:15' } };
+  assert.equal(W.plan(day(REAL), old, at('12:00')).remindAt, at('19:00'));
+  assert.deepEqual(W.normalizeSettings(old), { everyDay: '19:00', auto: { every: { on: false, time: null } } });
   assert.equal(W.validTime('22:00'), '22:00');
   assert.equal(W.validTime('22:01'), null);
-  assert.equal(W.normalizeSettings({ everyDay: '23:30' }, DATE).everyDay, '18:30', 'invalid -> default');
+  assert.equal(W.normalizeSettings({ everyDay: '23:30' }).everyDay, '18:30', 'invalid -> default');
+});
+
+test('slider: 12 PM–8 PM, snaps to half hours, clamps at the ends', () => {
+  assert.deepEqual(W.SLIDER, { min: 720, max: 1200, step: 30 });
+  assert.equal(W.sliderValueAt(0), 720); // 12:00 PM
+  assert.equal(W.sliderValueAt(1), 1200); // 8:00 PM
+  assert.equal(W.sliderValueAt(0.5), 960); // 4:00 PM
+  // 6:14 PM rounds down to 6:00, 6:15 to 6:30.
+  assert.equal(W.snapToSlider(18 * 60 + 14), 1080);
+  assert.equal(W.snapToSlider(18 * 60 + 15), 1110);
+  assert.equal(W.sliderValueAt(-0.3), 720, 'dragged past the left end');
+  assert.equal(W.sliderValueAt(1.4), 1200, 'dragged past the right end');
+  assert.equal(W.snapToSlider(NaN), 720);
+  // Every step is a whole half hour, and there are 17 of them.
+  const steps = new Set(Array.from({ length: 201 }, (_, i) => W.sliderValueAt(i / 200)));
+  assert.equal(steps.size, 17);
+  for (const v of steps) assert.equal(v % 30, 0);
+  // Positions, including custom times off the scale.
+  assert.equal(W.sliderFraction(1080), 0.75);
+  assert.ok(W.sliderFraction(21 * 60 + 30) > 1);
+  assert.equal(W.timeFromMinutes(1110), '18:30');
+  assert.equal(W.timeFromMinutes(W.sliderValueAt(0)), '12:00');
 });
 
 test('safety net: early starter is reminded at first clock-in + 11h', () => {
@@ -260,14 +285,13 @@ const AUTO_ON = { everyDay: '18:30', auto: { every: { on: true, time: null } } }
 
 test('auto clock-out: off by default; default time is reminder + 30 min (max 10 PM)', () => {
   assert.equal(W.autoPlan(day(REAL), DEFAULTS, at('12:00')).status, 'off');
-  assert.equal(W.autoFor(AUTO_ON, DATE).time, '19:00');
-  assert.equal(W.autoFor({ everyDay: '21:45', auto: { every: { on: true } } }, DATE).time, '22:00');
-  // Today-only override wins for today, not tomorrow.
+  assert.equal(W.autoFor(AUTO_ON).time, '19:00');
+  assert.equal(W.autoFor({ everyDay: '21:45', auto: { every: { on: true } } }).time, '22:00');
+  // An older "today only" auto clock-out is ignored; the every-day setting applies.
   const s = { everyDay: '18:30', auto: { every: { on: false, time: '20:00' }, today: { date: DATE, on: true, time: '21:00' } } };
-  assert.deepEqual(W.autoFor(s, DATE), { on: true, time: '21:00', scope: 'today' });
-  assert.deepEqual(W.autoFor(s, '2026-10-17'), { on: false, time: '20:00', scope: 'every' });
+  assert.deepEqual(W.autoFor(s), { on: false, time: '20:00' });
   // Reminder settings saved without `auto` keep working.
-  assert.equal(W.normalizeSettings({ everyDay: '19:00' }, DATE).auto.every.on, false);
+  assert.equal(W.normalizeSettings({ everyDay: '19:00' }).auto.every.on, false);
 });
 
 test('auto clock-out: scheduled → heads-up 5 min before → due', () => {

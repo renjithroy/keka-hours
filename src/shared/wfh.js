@@ -6,7 +6,8 @@
  * "WFH Clock-In / Clock-out") means a WFH day, approved or not.
  *
  *  - Reminder at a fixed time of day: 6:30 PM unless the user picks another
- *    time (latest 10 PM), for today only or every WFH day.
+ *    time (latest 10 PM), on every WFH day. In the tab it's set with a slider
+ *    (12 PM–8 PM in half hours) or a custom time.
  *  - Safety net: Keka marks a missed clock-out 12h after the first clock-in,
  *    so if first clock-in + 11h comes earlier, remind then instead.
  *  - Clocked in (or back in from a break) after the reminder time: remind
@@ -27,8 +28,8 @@
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
  *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt,
  *     autoSkip, autoDelay, autoHeadsUpFor, autoStatus, autoStartedAt, autoTabId, autoDoneAt }
- * Settings: { everyDay: 'HH:MM', today: { date, time } | null,
- *             auto: { every: { on, time }, today: { date, on, time } | null } }
+ * Settings: { everyDay: 'HH:MM', auto: { every: { on, time } } }
+ * (Older "today only" overrides are ignored: every setting applies to every WFH day.)
  */
 (function (root) {
   'use strict';
@@ -98,15 +99,11 @@
     return total >= 60 ? `${Math.floor(total / 60)}:${pad2(total % 60)}` : `${total}m`;
   }
 
-  function normalizeSettings(s, todayKey) {
+  function normalizeSettings(s) {
     const everyDay = validTime(s && s.everyDay) || DEFAULT_TIME;
-    const t = s && s.today;
-    const today = t && t.date === todayKey && validTime(t.time) ? { date: t.date, time: t.time } : null;
     const a = (s && s.auto) || {};
     const every = { on: !!(a.every && a.every.on === true), time: validTime(a.every && a.every.time) };
-    const at = a.today;
-    const autoToday = at && at.date === todayKey && validTime(at.time) ? { date: at.date, on: at.on === true, time: at.time } : null;
-    return { everyDay, today, auto: { every, today: autoToday } };
+    return { everyDay, auto: { every } };
   }
 
   /** 'HH:MM' + minutes, capped at 10 PM. */
@@ -115,18 +112,40 @@
     return `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
   }
 
-  /** Auto clock-out settings for `dateKey`: { on, time, scope }. */
-  function autoFor(settings, dateKey) {
-    const s = normalizeSettings(settings, dateKey);
-    if (s.auto.today) return { on: s.auto.today.on, time: s.auto.today.time, scope: 'today' };
-    const fallback = addMinutes(s.today ? s.today.time : s.everyDay, AUTO_AFTER_REMINDER_MS / MIN);
-    return { on: s.auto.every.on, time: s.auto.every.time || fallback, scope: 'every' };
+  /** Auto clock-out settings: { on, time } (default time: reminder + 30 min). */
+  function autoFor(settings) {
+    const s = normalizeSettings(settings);
+    return { on: s.auto.every.on, time: s.auto.every.time || addMinutes(s.everyDay, AUTO_AFTER_REMINDER_MS / MIN) };
   }
 
-  /** The reminder time that applies on `dateKey`, and whether it's today's one-off. */
-  function timeFor(settings, dateKey) {
-    const s = normalizeSettings(settings, dateKey);
-    return s.today ? { time: s.today.time, scope: 'today' } : { time: s.everyDay, scope: 'every' };
+  /** The reminder time setting ('HH:MM'). */
+  function timeFor(settings) {
+    return { time: normalizeSettings(settings).everyDay };
+  }
+
+  // ---- The reminder slider: 12 PM–8 PM in half-hour steps (other times via "Custom time").
+  const SLIDER = { min: 12 * 60, max: 20 * 60, step: 30 };
+
+  /** Minutes since midnight -> 'HH:MM'. */
+  function timeFromMinutes(m) {
+    return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+  }
+
+  /** Any minute value -> the nearest slider step, kept inside 12 PM–8 PM. */
+  function snapToSlider(minutes) {
+    if (!Number.isFinite(minutes)) return SLIDER.min;
+    const snapped = Math.round((minutes - SLIDER.min) / SLIDER.step) * SLIDER.step + SLIDER.min;
+    return Math.max(SLIDER.min, Math.min(SLIDER.max, snapped));
+  }
+
+  /** A position along the slider (0 = 12 PM, 1 = 8 PM) -> snapped minutes. */
+  function sliderValueAt(fraction) {
+    return snapToSlider(SLIDER.min + fraction * (SLIDER.max - SLIDER.min));
+  }
+
+  /** Minutes -> position along the slider (can be < 0 or > 1 for custom times off the scale). */
+  function sliderFraction(minutes) {
+    return (minutes - SLIDER.min) / (SLIDER.max - SLIDER.min);
   }
 
   function emptyDay(date) {
@@ -165,7 +184,7 @@
    */
   function plan(day, settings, now) {
     const ps = punchState(day);
-    const chosen = timeFor(settings, day.date);
+    const chosen = timeFor(settings);
     const configured = atTime(day.date, chosen.time);
     const tenPm = atTime(day.date, LATEST_TIME);
     const cutoff = ps.firstIn != null ? ps.firstIn + CUTOFF_MS : null;
@@ -200,7 +219,6 @@
       ...ps,
       date: day.date,
       time: chosen.time,
-      scope: chosen.scope,
       configured,
       remindAt,
       reason,
@@ -282,7 +300,7 @@
    * at: when it runs; headsUpAt: when the 5-min warning shows.
    */
   function autoPlan(day, settings, now) {
-    const a = autoFor(settings, day.date);
+    const a = autoFor(settings);
     const p = plan(day, settings, now);
     let at = atTime(day.date, a.time);
     let reason = 'time';
@@ -290,7 +308,7 @@
     // +15 min / heads-up delays apply on top, but never past the last call before the end.
     at += day.autoDelay || 0;
     if (at > p.end - LAST_CALL_MS) at = p.end - LAST_CALL_MS;
-    const base = { on: a.on, time: a.time, scope: a.scope, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
+    const base = { on: a.on, time: a.time, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
     let status;
     if (!a.on) status = 'off';
     else if (day.autoStatus === 'done' || day.autoStatus === 'failed' || day.autoStatus === 'running') status = day.autoStatus;
@@ -405,6 +423,7 @@
     DEFAULT_TIME, LATEST_TIME, SAFETY_MS, CUTOFF_MS, REPEAT_MS, SNOOZE_MS, SNOOZE_STEP_MS,
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, emptyDay, punchState, plan,
+    SLIDER, timeFromMinutes, snapToSlider, sliderValueAt, sliderFraction,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,

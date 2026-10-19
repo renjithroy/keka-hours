@@ -197,28 +197,19 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
-  /** WFH tab: save the reminder time for today only or every WFH day. */
-  function saveWfhTime({ time, scope }) {
+  /** WFH tab: save the reminder time (applies on every WFH day). */
+  function saveWfhTime({ time }) {
     if (!wfh.validTime(time)) return;
-    const today = wfh.dateKeyOf(Date.now());
-    const current = wfh.normalizeSettings(state.wfh.settings, today);
-    const next = scope === 'today'
-      ? { ...current, today: { date: today, time } }
-      : { ...current, everyDay: time, today: null };
+    const next = { ...wfh.normalizeSettings(state.wfh.settings), everyDay: time };
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
   }
 
-  /** Auto clock-out pop-up: save on/off + time for today only or every WFH day. */
-  function saveAutoClockOut({ on, time, scope }) {
+  /** Auto clock-out pop-up: save on/off + time (applies on every WFH day). */
+  function saveAutoClockOut({ on, time }) {
     if (!wfh.validTime(time)) return;
-    const today = wfh.dateKeyOf(Date.now());
-    const current = wfh.normalizeSettings(state.wfh.settings, today);
-    const auto = scope === 'today'
-      ? { every: current.auto.every, today: { date: today, on: !!on, time } }
-      : { every: { on: !!on, time }, today: null };
-    const next = { ...current, auto };
+    const next = { ...wfh.normalizeSettings(state.wfh.settings), auto: { every: { on: !!on, time } } };
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);

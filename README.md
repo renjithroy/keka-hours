@@ -57,9 +57,8 @@ can't be read, the card follows your OS setting.
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
 - **WFH**: the **Auto clock-out** card on top, then one **Clock-out reminder** box: your clock-in
-  status, today's reminder time with a day bar (hour labels, a mark at the reminder), snooze / stop
-  controls, a 12-hour time field with **Update**, **Every WFH day / Today only**, and the two rules.
-  **Send test reminder** at the bottom. Details below.
+  status, today's reminder (with snooze / stop controls), the **reminder time slider**, and the two
+  rules. **Send test reminder** at the bottom. Details below.
 
 ### WFH clock-out reminders
 
@@ -68,9 +67,13 @@ Office attendance is biometric, so a web **WFH Clock-In** means a WFH day, wheth
 request is approved yet.
 
 - **When:** once you're clocked in via the web, a system notification reminds you at **6:30 PM**. It
-  appears whichever tab or app you're in, even with Keka closed. Change the time in the **WFH** tab
-  (up to **10:00 PM**), for **Today only** or **Every WFH day**. A low-key notification confirms when
-  a reminder is set.
+  appears whichever tab or app you're in, even with Keka closed. A low-key notification confirms
+  when a reminder is set after you clock in.
+- **Setting the time:** drag the slider in the WFH tab (or click anywhere on it): 12 PM to 8 PM in
+  half hours. It saves when you let go. With the keyboard: ← → 30 min, PgUp / PgDn 1 h, Home / End.
+  **Custom time** opens a picker for any other time up to **10:00 PM** (e.g. 8:45 PM); a time past
+  8 PM shows at the slider's end as "9:30 PM ›". The time applies on every WFH day. While you're
+  clocked in, the slider also shows how far into the day you are, with a tick at "now".
 - **Safety net:** if 11h after your first clock-in comes earlier than your reminder time, you're
   reminded then instead.
 - **Late clock-in:** if you clock in (or back in from a break) after the reminder time, you're
@@ -86,8 +89,8 @@ request is approved yet.
 ### Auto clock-out (optional)
 
 Off by default. Set it up from the **Auto clock-out** card at the top of the WFH tab (**Set up** /
-**Edit** opens a pop-up): a time (default 30 min after your reminder, up to 10:00 PM), for
-**Today only** or **Every WFH day**.
+**Edit** opens a pop-up): a time (default 30 min after your reminder, up to 10:00 PM) that applies
+on every WFH day.
 
 - 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
   heads-up: if the time has already passed (your laptop was asleep, or you pressed Reset), it warns

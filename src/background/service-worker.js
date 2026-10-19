@@ -37,7 +37,7 @@ async function load(now) {
   const got = await chrome.storage.local.get({ [DAY_KEY]: null, [SETTINGS_KEY]: null });
   const today = W.dateKeyOf(now);
   const day = got[DAY_KEY] && got[DAY_KEY].date === today ? got[DAY_KEY] : W.emptyDay(today);
-  return { day, settings: W.normalizeSettings(got[SETTINGS_KEY], today) };
+  return { day, settings: W.normalizeSettings(got[SETTINGS_KEY]) };
 }
 
 function notify(id, { title, message }, urgent, buttons = urgent ? REMINDER_BUTTONS : undefined) {
@@ -131,12 +131,13 @@ async function setBadge(b) {
  * Serialized so overlapping events never lose an update.
  */
 let queue = Promise.resolve();
-function run(change) {
-  queue = queue.then(() => step(change)).catch(() => {});
+function run(change, opts) {
+  queue = queue.then(() => step(change, opts)).catch(() => {});
   return queue;
 }
 
-async function step(change) {
+/** opts.quiet: the user changed the time in the tab, so don't announce it back to them. */
+async function step(change, opts = {}) {
   const now = Date.now();
   let { day, settings } = await load(now);
   const before = JSON.stringify(day);
@@ -154,6 +155,8 @@ async function step(change) {
     await notify(N_REMINDER, W.reminder(plan), true);
     day = { ...day, lastShownAt: now, announcedFor: plan.remindAt };
     plan = W.plan(day, settings, now);
+  } else if (W.shouldAnnounce(day, plan, now) && opts.quiet) {
+    day = { ...day, announcedFor: plan.remindAt };
   } else if (W.shouldAnnounce(day, plan, now)) {
     await chrome.notifications.clear(N_ARMED);
     const msg = W.announcement(plan);
@@ -243,7 +246,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 // Reminder time changed in the WFH tab (any Keka tab).
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[SETTINGS_KEY]) run();
+  if (area === 'local' && changes[SETTINGS_KEY]) run(null, { quiet: true });
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
