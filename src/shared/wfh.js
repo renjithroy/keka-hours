@@ -168,19 +168,34 @@
   }
 
   /**
-   * Settings with a new auto clock-out. Turning it on at a time that has
-   * already passed today starts on the next day (today keeps what it had);
-   * anything else, including turning it off, applies now.
+   * Settings with a new auto clock-out. Turning it on when today's run would
+   * already be due starts it on the next day (today keeps what it had). That's
+   * judged on the time it would really run today — the 11h safety time can
+   * be earlier than the time picked — so it never clocks you out by surprise.
+   * Anything else, including turning it off, applies now. `day` is today's
+   * state (punches); without it only the picked time counts.
    */
-  function withAutoClockOut(settings, { on, time }, now) {
+  function withAutoClockOut(settings, { on, time }, now, day) {
     const s = normalizeSettings(settings);
     const today = dateKeyOf(now);
     const next = { on: !!on, time };
     const base = { ...s, auto: { every: next } };
-    if (!on || !passedToday(time, now)) return base;
+    if (!on) return base;
     const todays = autoFor(settings, today);
-    if (todays.on && todays.time === time) return base;
+    if (todays.on && todays.time === time) return base; // no change for today
+    const d = day && day.date === today ? day : emptyDay(today);
+    if (autoPlan(d, base, now).at > now) return base;
     return { ...s, auto: { every: next, prev: { on: todays.on, time: todays.time }, from: nextDateKey(today) } };
+  }
+
+  /** Would saving this reminder time make it start only on the next WFH day? */
+  function reminderStartsTomorrow(settings, time, now) {
+    return !!withReminderTime(settings, time, now).everyDayFrom;
+  }
+
+  /** Would saving this auto clock-out make it start only on the next WFH day? */
+  function autoStartsTomorrow(settings, change, now, day) {
+    return !!withAutoClockOut(settings, change, now, day).auto.from;
   }
 
   // ---- The reminder slider: 12 PM–8 PM in half-hour steps (other times via "Custom time").
@@ -201,6 +216,24 @@
   /** A position along the slider (0 = 12 PM, 1 = 8 PM) -> snapped minutes. */
   function sliderValueAt(fraction) {
     return snapToSlider(SLIDER.min + fraction * (SLIDER.max - SLIDER.min));
+  }
+
+  /**
+   * One keyboard step from `minutes` (+1 / -1 half hour, ±2 an hour) to the
+   * next slider step in that direction. A custom time between steps moves to
+   * its neighbour; one off the scale never jumps the "wrong" way (9:30 PM
+   * with → stays put; with ← it comes onto the scale at 8 PM).
+   */
+  function sliderStep(minutes, steps) {
+    const S = SLIDER;
+    if (steps > 0) {
+      if (minutes >= S.max) return minutes;
+      const below = Math.floor((minutes - S.min) / S.step) * S.step + S.min;
+      return Math.max(S.min, Math.min(S.max, below + steps * S.step));
+    }
+    if (minutes <= S.min) return minutes;
+    const above = Math.ceil((minutes - S.min) / S.step) * S.step + S.min;
+    return Math.min(S.max, Math.max(S.min, above + steps * S.step));
   }
 
   /** Minutes -> position along the slider (can be < 0 or > 1 for custom times off the scale). */
@@ -487,7 +520,7 @@
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, emptyDay, punchState, plan,
     SLIDER, timeFromMinutes, snapToSlider, sliderValueAt, sliderFraction,
-    nextDateKey, passedToday, withReminderTime, withAutoClockOut,
+    nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow, sliderStep,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,

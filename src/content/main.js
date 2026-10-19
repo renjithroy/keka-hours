@@ -209,7 +209,8 @@
   /** Auto clock-out pop-up: save on/off + time (every WFH day; a time already past today starts tomorrow). */
   function saveAutoClockOut({ on, time }) {
     if (!wfh.validTime(time)) return;
-    const next = wfh.withAutoClockOut(state.wfh.settings, { on, time }, Date.now());
+    // Today's punches decide when it would really run today (the 11h safety time can be earlier).
+    const next = wfh.withAutoClockOut(state.wfh.settings, { on, time }, Date.now(), state.wfh.day);
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);

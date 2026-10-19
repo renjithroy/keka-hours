@@ -155,13 +155,15 @@ async function step(change, opts = {}) {
     await notify(N_REMINDER, W.reminder(plan), true);
     day = { ...day, lastShownAt: now, announcedFor: plan.remindAt };
     plan = W.plan(day, settings, now);
-  } else if (W.shouldAnnounce(day, plan, now) && opts.quiet) {
-    day = { ...day, announcedFor: plan.remindAt };
   } else if (W.shouldAnnounce(day, plan, now)) {
+    // Any earlier "set for …" notification now states the wrong time.
     await chrome.notifications.clear(N_ARMED);
-    const msg = W.announcement(plan);
-    if (auto.status === 'scheduled' || auto.status === 'heads-up') msg.message += ` Auto clock-out at ${W.timeLabel(auto.at)}.`;
-    await notify(N_ARMED, msg, false);
+    // Changed from the tab: they're looking at it, so don't announce it back.
+    if (!opts.quiet) {
+      const msg = W.announcement(plan);
+      if (auto.status === 'scheduled' || auto.status === 'heads-up') msg.message += ` Auto clock-out at ${W.timeLabel(auto.at)}.`;
+      await notify(N_ARMED, msg, false);
+    }
     day = { ...day, announcedFor: plan.remindAt };
   }
   if (plan.state !== 'in' || plan.stopped) await chrome.notifications.clear(N_REMINDER);

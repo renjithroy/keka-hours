@@ -884,7 +884,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="rs" data-value="${value}" data-saved="${value}">
         <div class="rs-head">
           <span class="rs-title">Reminder time</span>
-          ${saved || '<span class="rs-hint">drag to change</span>'}
+          <span class="rs-hint"${saved ? ' hidden' : ''}>drag to change</span>${saved}
           <button class="btn-sm" type="button" data-act="rem-custom" aria-haspopup="dialog">Custom time</button>
         </div>
         <div class="rs-rail">
@@ -960,9 +960,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </section>`;
   }
 
-  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap }. */
-  function autoModalHtml(v, error) {
-    const past = v.on && pickPassed(v);
+  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap }; `past`: it would start tomorrow. */
+  function autoModalHtml(v, error, past) {
     return `
       <div class="modal-head">
         <div><div class="modal-title" id="kh-modal-title">Auto clock-out</div><div class="modal-sub">Clocks you out of Keka at a set time on WFH days.</div></div>
@@ -994,15 +993,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** True when the 12-hour pick `v` is a valid time that has already passed today. */
-  function pickPassed(v) {
-    const time = to24(v);
-    return !!W.validTime(time) && W.passedToday(time, Date.now());
-  }
-
-  /** "Custom time" pop-up for the reminder. `v` = { hour, minute, ap }. */
-  function remTimeModalHtml(v, error) {
-    const past = pickPassed(v);
+  /** "Custom time" pop-up for the reminder. `v` = { hour, minute, ap }; `past`: it would start tomorrow. */
+  function remTimeModalHtml(v, error, past) {
     return `
       <div class="modal-head">
         <div><div class="modal-title" id="kh-modal-title">Custom reminder time</div><div class="modal-sub">Any time up to ${W.hhmmLabel(W.LATEST_TIME)}, on every WFH day.</div></div>
@@ -1082,10 +1074,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (p.nextAt != null) right = '<button class="btn-sm" type="button" data-act="wfh-stop">Stop for today</button>';
     } else {
       label = 'Reminder at';
-      // The set time itself: follows the slider live while it's dragged.
-      const live = p.reason === 'time';
-      big = `<span class="wfh-time-big"${live ? ` data-live="time" data-orig="${t(p.remindAt)}"` : ''}>${t(p.remindAt)}</span>`;
-      right = `<span class="wfh-in"${live ? ` data-live-in data-orig="${inLabel(p.remindAt - now)}"` : ''}>${inLabel(p.remindAt - now)}</span>`;
+      // Follows the slider live while it's dragged (previewed with the same rules).
+      big = `<span class="wfh-time-big" data-live="time" data-orig="${t(p.remindAt)}">${t(p.remindAt)}</span>`;
+      right = `<span class="wfh-in" data-live-in data-orig="${inLabel(p.remindAt - now)}">${inLabel(p.remindAt - now)}</span>`;
       if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
     }
     if (p.state === 'in' && p.firstIn == null) sub = 'Couldn\'t read your clock-in time yet. Reload this page to load it.';
@@ -1277,7 +1268,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function renderModal(force) {
       if (!modalOpen) return;
       if (modalKind === 'auto' || modalKind === 'remtime') {
-        if (force) modalCard.innerHTML = modalKind === 'auto' ? autoModalHtml(autoDraft, autoError) : remTimeModalHtml(remDraft, remError);
+        if (!force) return;
+        const now = Date.now();
+        if (modalKind === 'auto') {
+          const time = to24(autoDraft);
+          const later = autoDraft.on && !!W.validTime(time) && W.autoStartsTomorrow(wfhState.settings, { on: true, time }, now, todayState(now));
+          modalCard.innerHTML = autoModalHtml(autoDraft, autoError, later);
+        } else {
+          const time = to24(remDraft);
+          const later = !!W.validTime(time) && W.reminderStartsTomorrow(wfhState.settings, time, now);
+          modalCard.innerHTML = remTimeModalHtml(remDraft, remError, later);
+        }
         return;
       }
       const s = model && model.summary;
@@ -1334,9 +1335,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return;
       }
       // The Auto clock-out card shows the result; no separate message.
-      handlers.onAutoSave({ on: autoDraft.on, time });
+      handlers.onAutoSave({ on: autoDraft.on, time }); // re-renders via setWfh (or once the picker lets go)
       closeModal(true);
-      renderWfh();
+      if (wfhPending) renderWfh(); // focus stays on Edit across it
     }
 
     /** "Custom time" for the reminder: the same 12-hour picker, any time up to 10 PM. */
@@ -1356,9 +1357,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return;
       }
       wfhForm.savedAt = Date.now();
-      handlers.onWfhSaveTime({ time });
+      handlers.onWfhSaveTime({ time }); // re-renders via setWfh (or once the picker lets go)
       closeModal(true);
-      renderWfh();
+      if (wfhPending) renderWfh(); // focus stays on Custom time across it
     }
 
     // Click / tap anywhere outside the card collapses it back to the pill.
@@ -1556,6 +1557,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       // Don't yank a time picker away while it's open.
       const editing = editingWfh();
       const keep = editing ? content.querySelector('[data-pane="wfh"]') : null;
+      const key = keep ? null : focusKey(content);
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
@@ -1564,20 +1566,42 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
       showTab();
+      restoreFocus(content, key);
     }
 
     // ---- Reminder time slider -------------------------------------------
-    // Pointer: press anywhere on the rail to jump, drag to adjust (snaps to
-    // half hours), release to save. Keyboard on the thumb: ← → / ↑ ↓ 30 min,
-    // PgUp / PgDn 1 h, Home / End, saved 0.8 s after the last key (or on blur
-    // / Enter). The tab never re-renders mid-edit.
-    let slide = null; // { rs, track, rail, pointerId } while dragging
+    // Pointer: press the rail to jump there, or grab the thumb and drag
+    // (a press on the thumb alone changes nothing); snaps to half hours and
+    // saves on release. Keyboard on the thumb: ← → / ↑ ↓ 30 min, PgUp / PgDn
+    // 1 h, Home / End, saved 0.8 s after the last key (or on Enter / blur).
+    // The tab never re-renders mid-edit or between a press and its click.
+    let slide = null; // { rs, track, rail, pointerId, startX, moved } while dragging
     let slideKeys = null; // { rs, timer } while a keyboard change waits to be saved
+    let pressing = false; // a pointer is down in the card (a click may be on its way)
 
     function editingWfh() {
-      if (slide || slideKeys) return true;
+      if (slide || slideKeys || pressing) return true;
       const a = shadow.activeElement;
       return !!(a && a.classList && a.classList.contains('time-sel'));
+    }
+
+    /** A selector for the focused control in `root`, to focus its replacement after a re-render. */
+    function focusKey(root) {
+      const a = shadow.activeElement;
+      if (!a || !root.contains(a)) return null;
+      if (a.classList.contains('rs-thumb')) return '.rs-thumb';
+      const act = a.getAttribute('data-act');
+      if (!act) return null;
+      let sel = `[data-act="${act}"]`;
+      for (const attr of ['data-value', 'data-tab', 'data-date']) {
+        if (a.hasAttribute(attr)) sel += `[${attr}="${a.getAttribute(attr)}"]`;
+      }
+      return sel;
+    }
+
+    function restoreFocus(root, key) {
+      const el = key && root.querySelector(key);
+      if (el) el.focus({ preventScroll: true });
     }
 
     /** Re-render only the WFH tab (cheap; leaves the other tabs' scroll / hover alone). */
@@ -1586,18 +1610,21 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!expanded || !pane) return;
       if (editingWfh()) { wfhPending = true; return; }
       wfhPending = false;
-      const a = shadow.activeElement;
-      const thumbFocused = !!(a && a.classList && a.classList.contains('rs-thumb'));
+      const key = focusKey(pane);
       pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhForm);
-      if (thumbFocused) {
-        const thumb = pane.querySelector('.rs-thumb');
-        if (thumb) thumb.focus({ preventScroll: true });
-      }
+      restoreFocus(pane, key);
     }
 
     function setWfh(next) {
       wfhState = next || { settings: null, day: null };
       renderWfh();
+    }
+
+    /** Today's day state for the shared rules (an empty day if none yet). */
+    function todayState(now) {
+      const today = W.dateKeyOf(now);
+      const raw = wfhState.day;
+      return raw && raw.date === today ? raw : W.emptyDay(today);
     }
 
     /** The slider's value at a pointer x position. */
@@ -1606,7 +1633,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       return W.sliderValueAt(r.width > 0 ? (clientX - r.left) / r.width : 0);
     }
 
-    /** Show `minutes` on the slider (thumb, bubble, a11y) and live in the card. Doesn't save. */
+    /**
+     * Show `minutes` on the slider (thumb, bubble, a11y) and preview it in the
+     * card with the same rules that will apply once it's saved. Doesn't save.
+     */
     function showSlide(rs, minutes) {
       const thumb = rs.querySelector('.rs-thumb');
       const bubble = rs.querySelector('.rs-bubble');
@@ -1615,29 +1645,36 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       rs.dataset.value = String(minutes);
       thumb.style.left = `${at.x}%`;
       thumb.classList.toggle('off', !at.onScale);
-      thumb.setAttribute('aria-valuenow', String(minutes));
+      thumb.setAttribute('aria-valuenow', String(W.snapToSlider(minutes)));
       thumb.setAttribute('aria-valuetext', label);
       bubble.textContent = sliderText(minutes);
       bubble.removeAttribute('title');
       bubble.classList.toggle('l', at.edge === 'l');
       bubble.classList.toggle('r', at.edge === 'r');
-      // A time that has already passed today only starts on the next WFH day:
-      // say so, and keep today's time in the card. Otherwise today follows along.
-      const past = W.passedToday(W.timeFromMinutes(minutes), Date.now());
+
+      const now = Date.now();
+      const time = W.timeFromMinutes(minutes);
+      // A time that would only start on the next WFH day: say so, keep today's time.
+      const later = W.reminderStartsTomorrow(wfhState.settings, time, now);
+      const saved = rs.querySelector('.rs-saved');
+      if (saved) saved.remove();
       const hint = rs.querySelector('.rs-hint');
       if (hint) {
-        hint.textContent = past ? 'past for today: starts next WFH day' : 'drag to change';
-        hint.classList.toggle('past', past);
+        hint.hidden = false;
+        hint.textContent = later ? 'past for today: starts next WFH day' : 'drag to change';
+        hint.classList.toggle('past', later);
       }
       const pane = rs.closest('[data-pane="wfh"]');
       const big = pane && pane.querySelector('[data-live="time"]');
-      if (big) big.textContent = past ? big.dataset.orig : label;
       const until = pane && pane.querySelector('[data-live-in]');
-      if (until) {
-        const d = new Date();
-        const at2 = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(minutes / 60), minutes % 60).getTime();
-        until.textContent = past ? until.dataset.orig : inLabel(at2 - Date.now());
+      let when = null;
+      if (!later) {
+        const p = W.plan(todayState(now), W.withReminderTime(wfhState.settings, time, now), now);
+        when = p.state === 'none' ? p.configured : p.remindAt; // safety net / late clock-in included
       }
+      const preview = when != null && when > now;
+      if (big) big.textContent = preview ? W.timeLabel(when) : big.dataset.orig;
+      if (until) until.textContent = preview ? inLabel(when - now) : until.dataset.orig;
     }
 
     /** Save the slider's value if it changed; then let the tab re-render. */
@@ -1657,7 +1694,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       }
     }
 
-    /** Put the slider back to its saved value (a cancelled drag). */
+    /** Put the slider back to its saved value (a cancelled drag, or a press that didn't move). */
     function revertSlide(rs) {
       slide = null;
       rs.classList.remove('dragging');
@@ -1665,68 +1702,86 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (wfhPending) renderWfh();
     }
 
+    // Any press in the card holds re-renders until its click has been handled,
+    // so a save landing in between can't replace the button being clicked.
+    const releasePress = () => {
+      window.removeEventListener('pointerup', releasePress, true);
+      window.removeEventListener('pointercancel', releasePress, true);
+      pressing = false;
+      setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
+    };
+    shadow.addEventListener('pointerdown', () => {
+      if (pressing) return;
+      pressing = true;
+      window.addEventListener('pointerup', releasePress, true);
+      window.addEventListener('pointercancel', releasePress, true);
+    }, true);
+
+    // During a drag only: follow the pointer anywhere on the page and end where it's released.
+    const onSlideMove = e => {
+      if (!slide || e.pointerId !== slide.pointerId) return;
+      if (!slide.moved && Math.abs(e.clientX - slide.startX) < 4) return; // a press, not a drag
+      slide.moved = true;
+      showSlide(slide.rs, slideValueAt(slide.track, e.clientX));
+    };
+    const onSlideEnd = e => {
+      if (!slide || e.pointerId !== slide.pointerId) return;
+      window.removeEventListener('pointermove', onSlideMove, true);
+      window.removeEventListener('pointerup', onSlideEnd, true);
+      window.removeEventListener('pointercancel', onSlideEnd, true);
+      const { rs, rail, moved } = slide;
+      try { rail.releasePointerCapture(e.pointerId); } catch (_) { /* not captured */ }
+      if (e.type === 'pointercancel' || !moved) revertSlide(rs);
+      else commitSlide(rs);
+    };
+
     shadow.addEventListener('pointerdown', e => {
       const rail = e.target.closest && e.target.closest('.rs-rail');
       if (!rail || slide) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       const rs = rail.closest('.rs');
       const track = rs.querySelector('.rs-track');
+      const thumb = rs.querySelector('.rs-thumb');
       e.preventDefault(); // no text selection / focus jump
-      if (slideKeys) { clearTimeout(slideKeys.timer); slideKeys = null; }
-      slide = { rs, track, rail, pointerId: e.pointerId };
+      if (slideKeys) commitSlide(rs); // save a pending keyboard change first
+      // On the rail: jump to the press. On the thumb: only a real drag moves it,
+      // so pressing a custom time (e.g. 9:30 PM ›) doesn't snap it to the scale.
+      const onThumb = !!(e.target.closest && e.target.closest('.rs-thumb'));
+      slide = { rs, track, rail, pointerId: e.pointerId, startX: e.clientX, moved: !onThumb };
       try { rail.setPointerCapture(e.pointerId); } catch (_) { /* synthetic / already released */ }
+      window.addEventListener('pointermove', onSlideMove, true);
+      window.addEventListener('pointerup', onSlideEnd, true);
+      window.addEventListener('pointercancel', onSlideEnd, true);
       rs.classList.add('dragging');
-      rs.querySelector('.rs-thumb').focus({ preventScroll: true });
-      showSlide(rs, slideValueAt(track, e.clientX));
+      thumb.focus({ preventScroll: true });
+      if (!onThumb) showSlide(rs, slideValueAt(track, e.clientX));
     });
 
+    // Mouse hover (not dragging): a faint dot where a click would land.
     shadow.addEventListener('pointermove', e => {
-      if (slide) {
-        if (e.pointerId === slide.pointerId) showSlide(slide.rs, slideValueAt(slide.track, e.clientX));
-        return;
-      }
-      // Mouse hover: a faint dot where a click would land.
-      if (e.pointerType !== 'mouse') return;
+      if (slide || e.pointerType !== 'mouse') return;
       const rail = e.target.closest && e.target.closest('.rs-rail');
       if (!rail) return;
-      const track = rail.querySelector('.rs-track');
       const ghost = rail.querySelector('.rs-ghost');
-      ghost.style.left = `${sliderPlace(slideValueAt(track, e.clientX)).x}%`;
+      ghost.style.left = `${sliderPlace(slideValueAt(rail.querySelector('.rs-track'), e.clientX)).x}%`;
       ghost.classList.add('on');
     });
 
-    const endSlide = e => {
-      if (!slide || e.pointerId !== slide.pointerId) return;
-      const { rs, rail } = slide;
-      try { rail.releasePointerCapture(e.pointerId); } catch (_) { /* not captured */ }
-      if (e.type === 'pointercancel') revertSlide(rs);
-      else commitSlide(rs);
-    };
-    shadow.addEventListener('pointerup', endSlide);
-    shadow.addEventListener('pointercancel', endSlide);
-    shadow.addEventListener('lostpointercapture', endSlide);
-    // Belt and braces: if pointer capture isn't available, a drag that leaves
-    // the card still follows the pointer and still ends where it's released.
-    window.addEventListener('pointermove', e => {
-      if (slide && e.pointerId === slide.pointerId) showSlide(slide.rs, slideValueAt(slide.track, e.clientX));
-    }, true);
-    window.addEventListener('pointerup', endSlide, true);
-    window.addEventListener('pointercancel', endSlide, true);
-
-    const SLIDE_KEYS = { ArrowLeft: -30, ArrowDown: -30, ArrowRight: 30, ArrowUp: 30, PageDown: -60, PageUp: 60 };
+    const SLIDE_STEPS = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -2, PageUp: 2 };
     shadow.addEventListener('keydown', e => {
       const thumb = e.target.classList && e.target.classList.contains('rs-thumb') ? e.target : null;
       if (!thumb || slide) return;
       const rs = thumb.closest('.rs');
       const S = W.SLIDER;
-      const current = W.snapToSlider(Number(rs.dataset.value));
+      const current = Number(rs.dataset.value);
       let next;
-      if (e.key in SLIDE_KEYS) next = W.snapToSlider(current + SLIDE_KEYS[e.key]);
+      if (e.key in SLIDE_STEPS) next = W.sliderStep(current, SLIDE_STEPS[e.key]);
       else if (e.key === 'Home') next = S.min;
       else if (e.key === 'End') next = S.max;
       else if (e.key === 'Enter') { e.preventDefault(); if (slideKeys) commitSlide(rs); return; }
       else return;
       e.preventDefault();
+      if (next === current) return; // e.g. → on a custom 9:30 PM: nowhere further to go
       showSlide(rs, next);
       if (slideKeys) clearTimeout(slideKeys.timer);
       slideKeys = { rs, timer: setTimeout(() => commitSlide(rs), 800) };
@@ -1747,9 +1802,15 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     shadow.addEventListener('focusout', e => {
       const el = e.target;
-      if (el.classList && el.classList.contains('rs-thumb') && slideKeys && !slide) commitSlide(slideKeys.rs);
+      if (!el.classList) return;
+      // Leaving the thumb with a keyboard change pending: save it once focus has
+      // moved (so the next control keeps focus, restored across the re-render).
+      if (el.classList.contains('rs-thumb') && slideKeys && !slide) {
+        const rs = slideKeys.rs;
+        setTimeout(() => { if (slideKeys && slideKeys.rs === rs) commitSlide(rs); }, 0);
+      }
       // A time picker or the slider let go: apply anything that arrived meanwhile.
-      if (el.classList && (el.classList.contains('time-sel') || el.classList.contains('rs-thumb'))) {
+      if (el.classList.contains('time-sel') || el.classList.contains('rs-thumb')) {
         setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
       }
     });

@@ -442,3 +442,34 @@ test('auto clock-out: turning on at a time that already passed starts tomorrow (
   assert.equal(W.normalizeSettings(moved).everyDay, '19:00');
   assert.deepEqual(W.normalizeSettings(W.withReminderTime(moved, '20:00', at('19:10'))).auto, W.normalizeSettings(moved).auto);
 });
+
+test('auto clock-out: judged on when it would really run today (11h safety), not just the picked time', () => {
+  // Clocked in 8:00 AM, so today it would run at 7:00 PM (11h). At 7:10 PM, turning it on for 9:00 PM
+  // would make it due at once: it starts tomorrow instead.
+  const early = day([p('08:00', true)]);
+  const s = W.withAutoClockOut({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), early);
+  assert.equal(s.auto.from, '2026-10-17');
+  assert.equal(W.autoPlan(early, s, at('19:10')).status, 'off', 'no surprise clock-out today');
+  assert.equal(W.autoStartsTomorrow({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), early), true);
+  // Clocked in at 10:25 AM (safety 9:25 PM): 9:00 PM is genuinely ahead, so it applies today.
+  assert.equal(W.autoStartsTomorrow({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), day(REAL)), false);
+  // The reminder's message helper agrees with what's saved, including picking today's own time back.
+  const pending = W.withReminderTime({ everyDay: '20:00' }, '18:00', at('19:10'));
+  assert.equal(W.reminderStartsTomorrow(pending, '18:00', at('19:15')), true);
+  assert.equal(W.reminderStartsTomorrow(pending, '20:00', at('19:15')), false, "today's own time: nothing deferred");
+  assert.equal(W.reminderStartsTomorrow({ everyDay: '18:30' }, '18:30', at('19:15')), false);
+});
+
+test('slider keys: step to the neighbouring half hour; custom times never jump the wrong way', () => {
+  assert.equal(W.sliderStep(18 * 60, 1), 1110);
+  assert.equal(W.sliderStep(18 * 60, -1), 1050);
+  assert.equal(W.sliderStep(18 * 60 + 15, 1), 1110, '6:15 → 6:30');
+  assert.equal(W.sliderStep(18 * 60 + 15, -1), 1080, '6:15 → 6:00');
+  assert.equal(W.sliderStep(18 * 60, 2), 1140);
+  assert.equal(W.sliderStep(21 * 60 + 30, 1), 1290, '9:30 PM → stays');
+  assert.equal(W.sliderStep(21 * 60 + 30, -1), 1200, '9:30 PM ← 8:00 PM');
+  assert.equal(W.sliderStep(11 * 60 + 30, -1), 690, '11:30 AM ← stays');
+  assert.equal(W.sliderStep(11 * 60 + 30, 1), 720, '11:30 AM → 12:00 PM');
+  assert.equal(W.sliderStep(1200, 1), 1200);
+  assert.equal(W.sliderStep(720, -1), 720);
+});
