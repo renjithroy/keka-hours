@@ -111,8 +111,12 @@ on, and applies on every WFH day.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
   (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
   clock out yourself.
-- It runs at most once a day, only if you're clocked in then and clocked in before that time, and
-  never later than 11h after your first clock-in or 10:00 PM.
+- It runs only if you're clocked in then and clocked in before that time, and never later than 11h
+  after your first clock-in or 10:00 PM.
+- **Clocked in again** after it has run (or after its time, e.g. back from a break): it comes back on
+  for that day, 1h after that clock-in, with the same heads-up and limits. A low-key notification
+  says when. The Today card shows it as **Today only**, with **Change time** (today only) and
+  **Skip today**. Skipping keeps it off for the rest of the day.
 - It needs Chrome running, your laptop awake, and you signed in to Keka.
 
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and

@@ -184,9 +184,13 @@ async function step(change, opts = {}) {
   }
   if (change) day = (await change(day, settings, now)) || day;
   const autoBefore = day.autoStatus;
-  day = await stepAuto(day, settings, now);
+  // Clocked in (or back in) after auto clock-out's time or its run: back on for today, 1h later.
+  const rearmed = W.autoRearm(day, settings, now);
+  const autoAgain = rearmed !== day;
+  day = await stepAuto(rearmed, settings, now);
   let plan = W.plan(day, settings, now);
   const auto = W.autoPlan(day, settings, now);
+  let announced = false;
   // The heads-up / running clock-out / failure alert already say it all: don't also nag.
   const autoBusy = auto.status === 'heads-up' || auto.status === 'running' || (auto.status === 'failed' && autoBefore === 'running');
 
@@ -197,6 +201,7 @@ async function step(change, opts = {}) {
     day = { ...day, lastShownAt: now, announcedFor: plan.remindAt };
     plan = W.plan(day, settings, now);
   } else if (W.shouldAnnounce(day, plan, now)) {
+    announced = true;
     // Any earlier "set for …" notification now states the wrong time.
     await chrome.notifications.clear(N_ARMED);
     // Changed from the tab: they're looking at it, so don't announce it back.
@@ -206,6 +211,11 @@ async function step(change, opts = {}) {
       await notify(N_ARMED, msg, false);
     }
     day = { ...day, announcedFor: plan.remindAt };
+  }
+  // Re-armed with no "reminder set" notice this time (that one already names the auto clock-out time).
+  if (autoAgain && !announced && (auto.status === 'scheduled' || auto.status === 'heads-up')) {
+    await chrome.notifications.clear(N_ARMED);
+    await notify(N_ARMED, W.autoAgainNotice(auto, ['done', 'failed', 'expired'].includes(autoBefore)), false);
   }
   if (plan.state !== 'in' || plan.stopped || !plan.on) await chrome.notifications.clear(N_REMINDER);
   if (!plan.on) await chrome.notifications.clear(N_ARMED); // "reminder set for …" no longer holds
@@ -277,6 +287,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       return false;
     case 'wfh-auto-unskip':
       run(day => W.autoUnskip(day));
+      return false;
+    case 'wfh-auto-again':
+      // The Today card's "Change time" on a re-armed auto clock-out (today only).
+      run((day, s, now) => W.withAutoAgainTime(day, s, now, msg.time));
       return false;
     case 'wfh-auto-reset':
       chrome.notifications.clear(N_AUTO_SOON);
