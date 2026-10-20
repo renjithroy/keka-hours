@@ -24,8 +24,9 @@
  * (Skip today / +15 min), then the worker opens Keka Attendance in a
  * background tab and clicks WFH Clock-out → Clock-out. Only if you're clocked
  * in then and clocked in before that time. Clocking in (or back in) after
- * its time, or after it has run, re-arms it for that day only: 1h after that
- * clock-in (same limits, heads-up first), and the tab can move that time.
+ * its time, or after it has run, re-arms it for that day: at the set time if
+ * that's after the clock-in (you changed it), else 1h after the clock-in
+ * (same limits, heads-up first).
  *
  * Day state (persisted by the worker, one day at a time):
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
@@ -263,9 +264,9 @@
    * −/+ (dir -1 / +1): to the neighbouring quarter hour, kept between 12 PM
    * and 10 PM. A time off the quarter hours (6:40 PM) goes to its neighbour
    * (6:30 / 6:45); one before 12 PM (an old custom 11:30 AM) only moves up.
-   * `S` = other { min, max, step } limits (today's re-armed auto clock-out).
    */
-  function stepTime(minutes, dir, S = TIME_STEPS) {
+  function stepTime(minutes, dir) {
+    const S = TIME_STEPS;
     if (dir > 0) {
       if (minutes >= S.max) return minutes;
       return Math.min(S.max, Math.floor(minutes / S.step) * S.step + S.step);
@@ -441,13 +442,16 @@
     const a = autoFor(settings, day.date);
     const p = plan(day, settings, now);
     const again = day.autoAgain && Number.isFinite(day.autoAgain.at) ? day.autoAgain : null;
-    let at = again ? again.at : atTime(day.date, a.time);
-    let reason = again ? 'again' : 'time';
+    // Re-armed for a clock-in past the set time: 1h after it, unless the set time now comes after it.
+    const setAt = atTime(day.date, a.time);
+    const late = again && setAt <= again.for;
+    let at = late ? again.at : setAt;
+    let reason = late ? 'again' : 'time';
     if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
     // +15 min / heads-up delays apply on top, but never later than 1 min before the end.
     at += day.autoDelay || 0;
     if (at > p.end - AUTO_LAST_MS) at = p.end - AUTO_LAST_MS;
-    const base = { on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
+    const base = { on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null, againFor: late ? again.for : null };
     let status;
     // A run that started (or ended) today keeps its status even if auto clock-out was
     // turned off meanwhile, so it still finishes, closes its tab and reports.
@@ -463,8 +467,6 @@
     else status = 'scheduled';
     return { ...base, status };
   }
-
-  const minutesOfDay = ms => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); };
 
   /** The latest a re-armed auto clock-out may run today: 11h after the first clock-in, and 1 min before the end. */
   function autoAgainCap(p) {
@@ -491,20 +493,6 @@
       ...day, autoAgain: { at, for: p.lastIn },
       autoStatus: null, autoDelay: 0, autoHeadsUpFor: null, autoStartedAt: null, autoTabId: null, autoSession: null, autoDoneAt: null,
     };
-  }
-
-  /** −/+ limits (minutes since midnight) for moving today's re-armed time: 10+ min from now, up to the cap. */
-  function autoAgainBounds(day, settings, now) {
-    const p = plan(day, settings, now);
-    return { min: Math.ceil((minutesOfDay(now) + 10) / 15) * 15, max: minutesOfDay(autoAgainCap(p)), step: 15 };
-  }
-
-  /** The Today card's "Change time" on a re-armed auto clock-out: today only, within its limits. */
-  function withAutoAgainTime(day, settings, now, time) {
-    const m = parseTime(time);
-    const b = autoAgainBounds(day, settings, now);
-    if (!day.autoAgain || m == null || m < b.min || m > b.max) return day;
-    return { ...day, autoAgain: { ...day.autoAgain, at: atTime(day.date, time) }, autoDelay: 0, autoHeadsUpFor: null };
   }
 
   /** Whole minutes a heads-up "+N min" can still add (0 = can't postpone), at most 15. */
@@ -582,7 +570,7 @@
   function autoAgainNotice(ap, ranToday) {
     return {
       title: `Auto clock-out at ${timeLabel(ap.at)}`,
-      message: ranToday ? 'You clocked in again, so it\'s back on for today.' : `You clocked in after ${hhmmLabel(ap.time)}, so today it's 1h after you clocked in.`,
+      message: ranToday ? 'You clocked in again, so it\'s back on for today, 1h later.' : `You clocked in after ${hhmmLabel(ap.time)}, so today it's 1h after you clocked in.`,
     };
   }
 
@@ -631,7 +619,7 @@
     nextDateKey, passedToday, withReminderTime, withReminderOn, withReminder, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge, autoAgainNotice,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoRearm, autoAgainBounds, withAutoAgainTime, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoRearm, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

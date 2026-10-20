@@ -288,10 +288,6 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-auto-unskip':
       run(day => W.autoUnskip(day));
       return false;
-    case 'wfh-auto-again':
-      // The Today card's "Change time" on a re-armed auto clock-out (today only).
-      run((day, s, now) => W.withAutoAgainTime(day, s, now, msg.time));
-      return false;
     case 'wfh-auto-reset':
       chrome.notifications.clear(N_AUTO_SOON);
       chrome.notifications.clear(N_AUTO_FAILED);

@@ -115,8 +115,8 @@ on, and applies on every WFH day.
   after your first clock-in or 10:00 PM.
 - **Clocked in again** after it has run (or after its time, e.g. back from a break): it comes back on
   for that day, 1h after that clock-in, with the same heads-up and limits. A low-key notification
-  says when. The Today card shows it as **Today only**, with **Change time** (today only) and
-  **Skip today**. Skipping keeps it off for the rest of the day.
+  says when. Set a time that's still to come and today uses that instead. **Skip today** keeps it
+  off for the rest of the day.
 - It needs Chrome running, your laptop awake, and you signed in to Keka.
 
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and

@@ -614,15 +614,24 @@ test('auto clock-out re-arms when you clock in after its time without it running
   assert.equal(W.autoRearm(day([p('12:00', true), p('18:00', false), p('21:56', true)]), AUTO_7, at('21:57')).autoAgain, null);
 });
 
-test("re-armed time can be moved for today, within today's limits", () => {
-  const r = W.autoRearm(day([p('09:48', true), p('18:00', false), p('19:40', true)]), AUTO_7, at('19:41'));
-  const b = W.autoAgainBounds(r, AUTO_7, at('19:41'));
-  assert.deepEqual(b, { min: 20 * 60, max: 20 * 60 + 48, step: 15 }, '10+ min from now, up to 11h after 9:48');
-  assert.equal(W.withAutoAgainTime(r, AUTO_7, at('19:41'), '20:15').autoAgain.at, at('20:15'));
-  assert.equal(W.withAutoAgainTime(r, AUTO_7, at('19:41'), '19:45'), r, 'too soon for a heads-up');
-  assert.equal(W.withAutoAgainTime(r, AUTO_7, at('19:41'), '21:00'), r, 'past the limit');
-  assert.equal(W.withAutoAgainTime(day([p('10:00', true)]), AUTO_7, at('12:00'), '13:00').autoAgain, null, 'only once re-armed');
-  // The pop-up's −/+ inside those limits.
-  assert.equal(W.stepTime(20 * 60 + 45, 1, b), 20 * 60 + 48);
-  assert.equal(W.stepTime(20 * 60, -1, b), 20 * 60);
+test('re-armed: your set time wins when it comes after the clock-in', () => {
+  // Back in at 19:42 after a 17:55 run (first in 10:00): re-armed for 20:42.
+  let d = W.autoFinish(W.applyObservation(W.autoStart(day([p('10:00', true)]), at('17:55')), { records: [{ date: DATE, punches: [p('10:00', true), p('17:55', false)] }] }, at('17:56')), true, at('17:56'));
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [p('10:00', true), p('17:55', false), p('19:42', true)] }] }, at('19:43'));
+  const AUTO_555 = { ...AUTO_7, auto: { every: { on: true, time: '17:55' } } };
+  const r = W.autoRearm(d, AUTO_555, at('19:43'));
+  let ap = W.autoPlan(r, AUTO_555, at('19:43'));
+  assert.deepEqual([ap.at, ap.reason, ap.againFor], [at('20:42'), 'again', at('19:42')]);
+  // You set 20:15 at 20:05: today runs at 20:15, as set.
+  const s815 = W.withAutoClockOut(AUTO_555, { on: true, time: '20:15' }, at('20:05'), r);
+  assert.equal(s815.auto.from, undefined, 'applies today');
+  ap = W.autoPlan(r, s815, at('20:05'));
+  assert.deepEqual([ap.at, ap.reason, ap.status], [at('20:15'), 'time', 'scheduled']);
+  // A set time later than the re-arm wins too (21:00 is past 11h after 10:00: capped there).
+  assert.equal(W.autoPlan(r, { ...AUTO_7, auto: { every: { on: true, time: '20:55' } } }, at('20:05')).at, at('20:55'));
+  assert.equal(W.autoPlan(r, { ...AUTO_7, auto: { every: { on: true, time: '21:30' } } }, at('20:05')).at, at('21:00'));
+  // One already behind you starts next WFH day; today stays at 20:42.
+  const past = W.withAutoClockOut(AUTO_555, { on: true, time: '19:50' }, at('20:05'), r);
+  assert.equal(past.auto.from, '2026-10-17');
+  assert.equal(W.autoPlan(r, past, at('20:05')).at, at('20:42'));
 });

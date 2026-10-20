@@ -331,7 +331,6 @@
       onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-unskip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
-      onAutoAgain: time => toWorker({ type: 'wfh-auto-again', time }), // today's re-armed auto clock-out time
     });
     widget.setWfh(state.wfh);
     // Before the first render, so the widget never flashes the wrong theme.
