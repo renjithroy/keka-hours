@@ -254,6 +254,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-dom':
       run((day, s, now) => W.applyDom(day, msg.state, now));
       return false;
+    case 'wfh-snooze':
+      // The tab's "Snooze 30 min": the on-screen reminder it replaces goes away too.
+      chrome.notifications.clear(N_REMINDER);
+      run((day, s, now) => W.snooze(day, s, now));
+      return false;
     case 'wfh-snooze-more':
       run((day, s, now) => W.extendSnooze(day, s, now));
       return false;
@@ -265,6 +270,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       return false;
     case 'wfh-resume':
       run(day => W.resume(day));
+      return false;
+    case 'wfh-auto-skip':
+      run(day => W.autoSkipToday(day)); // clears any heads-up still on screen
       return false;
     case 'wfh-auto-reset':
       chrome.notifications.clear(N_AUTO_SOON);

@@ -206,7 +206,7 @@
     settings.saveWfhSettings(next);
   }
 
-  /** Auto clock-out pop-up: save on/off + time (every WFH day; a time already past today starts tomorrow). */
+  /** WFH tab auto clock-out switch / time: save on/off + time (every WFH day; a time already past today starts tomorrow). */
   function saveAutoClockOut({ on, time }) {
     if (!wfh.validTime(time)) return;
     // Today's punches decide when it would really run today (the 11h safety time can be earlier).
@@ -325,7 +325,7 @@
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
       onWfhSaveTime: saveWfhTime,
-      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-reset
+      onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
     });

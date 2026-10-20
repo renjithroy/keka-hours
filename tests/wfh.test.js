@@ -92,26 +92,21 @@ test('the reminder time applies on every WFH day; capped at 10 PM; old "today on
   assert.equal(W.normalizeSettings({ everyDay: '23:30' }).everyDay, '18:30', 'invalid -> default');
 });
 
-test('slider: 12 PM–8 PM, snaps to half hours, clamps at the ends', () => {
-  assert.deepEqual(W.SLIDER, { min: 720, max: 1200, step: 30 });
-  assert.equal(W.sliderValueAt(0), 720); // 12:00 PM
-  assert.equal(W.sliderValueAt(1), 1200); // 8:00 PM
-  assert.equal(W.sliderValueAt(0.5), 960); // 4:00 PM
-  // 6:14 PM rounds down to 6:00, 6:15 to 6:30.
-  assert.equal(W.snapToSlider(18 * 60 + 14), 1080);
-  assert.equal(W.snapToSlider(18 * 60 + 15), 1110);
-  assert.equal(W.sliderValueAt(-0.3), 720, 'dragged past the left end');
-  assert.equal(W.sliderValueAt(1.4), 1200, 'dragged past the right end');
-  assert.equal(W.snapToSlider(NaN), 720);
-  // Every step is a whole half hour, and there are 17 of them.
-  const steps = new Set(Array.from({ length: 201 }, (_, i) => W.sliderValueAt(i / 200)));
-  assert.equal(steps.size, 17);
-  for (const v of steps) assert.equal(v % 30, 0);
-  // Positions, including custom times off the scale.
-  assert.equal(W.sliderFraction(1080), 0.75);
-  assert.ok(W.sliderFraction(21 * 60 + 30) > 1);
+test('time pop-up: −/+ 15 min between 12 PM and 10 PM; quick picks are valid times', () => {
+  assert.deepEqual(W.TIME_STEPS, { min: 720, max: 1320, step: 15 });
+  assert.equal(W.stepTime(18 * 60, 1), 1095, '6:00 → 6:15');
+  assert.equal(W.stepTime(18 * 60, -1), 1065, '6:00 → 5:45');
+  assert.equal(W.stepTime(18 * 60 + 40, 1), 1125, '6:40 → 6:45');
+  assert.equal(W.stepTime(18 * 60 + 40, -1), 1110, '6:40 → 6:30');
+  assert.equal(W.stepTime(21 * 60 + 50, 1), 1320, '9:50 → 10:00 PM');
+  assert.equal(W.stepTime(1320, 1), 1320, '10:00 PM is the limit');
+  assert.equal(W.stepTime(720, -1), 720, '12:00 PM is the floor');
+  assert.equal(W.stepTime(12 * 60 + 5, -1), 720);
+  assert.equal(W.stepTime(11 * 60 + 30, -1), 690, 'an old 11:30 AM never goes further down');
+  assert.equal(W.stepTime(11 * 60 + 30, 1), 705, '… but can come up');
+  for (const t of W.QUICK_TIMES) assert.equal(W.validTime(t), t);
   assert.equal(W.timeFromMinutes(1110), '18:30');
-  assert.equal(W.timeFromMinutes(W.sliderValueAt(0)), '12:00');
+  assert.equal(W.timeFromMinutes(W.stepTime(1305, 1)), '22:00');
 });
 
 test('safety net: early starter is reminded at first clock-in + 11h', () => {
@@ -489,20 +484,6 @@ test('auto clock-out: judged on when it would really run today (11h safety), not
   assert.equal(W.reminderStartsTomorrow(pending, '18:00', at('19:15')), true);
   assert.equal(W.reminderStartsTomorrow(pending, '20:00', at('19:15')), false, "today's own time: nothing deferred");
   assert.equal(W.reminderStartsTomorrow({ everyDay: '18:30' }, '18:30', at('19:15')), false);
-});
-
-test('slider keys: step to the neighbouring half hour; custom times never jump the wrong way', () => {
-  assert.equal(W.sliderStep(18 * 60, 1), 1110);
-  assert.equal(W.sliderStep(18 * 60, -1), 1050);
-  assert.equal(W.sliderStep(18 * 60 + 15, 1), 1110, '6:15 → 6:30');
-  assert.equal(W.sliderStep(18 * 60 + 15, -1), 1080, '6:15 → 6:00');
-  assert.equal(W.sliderStep(18 * 60, 2), 1140);
-  assert.equal(W.sliderStep(21 * 60 + 30, 1), 1290, '9:30 PM → stays');
-  assert.equal(W.sliderStep(21 * 60 + 30, -1), 1200, '9:30 PM ← 8:00 PM');
-  assert.equal(W.sliderStep(11 * 60 + 30, -1), 690, '11:30 AM ← stays');
-  assert.equal(W.sliderStep(11 * 60 + 30, 1), 720, '11:30 AM → 12:00 PM');
-  assert.equal(W.sliderStep(1200, 1), 1200);
-  assert.equal(W.sliderStep(720, -1), 720);
 });
 
 test('auto clock-out: a run keeps its status if it is turned off meanwhile', () => {

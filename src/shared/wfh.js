@@ -6,8 +6,8 @@
  * "WFH Clock-In / Clock-out") means a WFH day, approved or not.
  *
  *  - Reminder at a fixed time of day: 6:30 PM unless the user picks another
- *    time (latest 10 PM), on every WFH day. In the tab it's set with a slider
- *    (12 PM–8 PM in half hours) or a custom time.
+ *    time (latest 10 PM), on every WFH day. In the tab it's set in a pop-up
+ *    with −/+ 15 min (12 PM–10 PM) and a few quick picks.
  *  - Safety net: Keka marks a missed clock-out 12h after the first clock-in,
  *    so if first clock-in + 11h comes earlier, remind then instead.
  *  - Clocked in (or back in from a break) after the reminder time: remind
@@ -201,47 +201,28 @@
     return !!withAutoClockOut(settings, change, now, day).auto.from;
   }
 
-  // ---- The reminder slider: 12 PM–8 PM in half-hour steps (other times via "Custom time").
-  const SLIDER = { min: 12 * 60, max: 20 * 60, step: 30 };
+  // ---- The time pop-up: −/+ 15 min between 12 PM and 10 PM, plus quick picks.
+  const TIME_STEPS = { min: 12 * 60, max: parseTime(LATEST_TIME), step: 15 };
+  const QUICK_TIMES = ['18:00', '18:30', '19:00', '19:30', '20:00'];
 
   /** Minutes since midnight -> 'HH:MM'. */
   function timeFromMinutes(m) {
     return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
   }
 
-  /** Any minute value -> the nearest slider step, kept inside 12 PM–8 PM. */
-  function snapToSlider(minutes) {
-    if (!Number.isFinite(minutes)) return SLIDER.min;
-    const snapped = Math.round((minutes - SLIDER.min) / SLIDER.step) * SLIDER.step + SLIDER.min;
-    return Math.max(SLIDER.min, Math.min(SLIDER.max, snapped));
-  }
-
-  /** A position along the slider (0 = 12 PM, 1 = 8 PM) -> snapped minutes. */
-  function sliderValueAt(fraction) {
-    return snapToSlider(SLIDER.min + fraction * (SLIDER.max - SLIDER.min));
-  }
-
   /**
-   * One keyboard step from `minutes` (+1 / -1 half hour, ±2 an hour) to the
-   * next slider step in that direction. A custom time between steps moves to
-   * its neighbour; one off the scale never jumps the "wrong" way (9:30 PM
-   * with → stays put; with ← it comes onto the scale at 8 PM).
+   * −/+ (dir -1 / +1): to the neighbouring quarter hour, kept between 12 PM
+   * and 10 PM. A time off the quarter hours (6:40 PM) goes to its neighbour
+   * (6:30 / 6:45); one before 12 PM (an old custom 11:30 AM) only moves up.
    */
-  function sliderStep(minutes, steps) {
-    const S = SLIDER;
-    if (steps > 0) {
+  function stepTime(minutes, dir) {
+    const S = TIME_STEPS;
+    if (dir > 0) {
       if (minutes >= S.max) return minutes;
-      const below = Math.floor((minutes - S.min) / S.step) * S.step + S.min;
-      return Math.max(S.min, Math.min(S.max, below + steps * S.step));
+      return Math.min(S.max, Math.floor(minutes / S.step) * S.step + S.step);
     }
     if (minutes <= S.min) return minutes;
-    const above = Math.ceil((minutes - S.min) / S.step) * S.step + S.min;
-    return Math.min(S.max, Math.max(S.min, above + steps * S.step));
-  }
-
-  /** Minutes -> position along the slider (can be < 0 or > 1 for custom times off the scale). */
-  function sliderFraction(minutes) {
-    return (minutes - SLIDER.min) / (SLIDER.max - SLIDER.min);
+    return Math.max(S.min, Math.ceil(minutes / S.step) * S.step - S.step);
   }
 
   function emptyDay(date) {
@@ -541,8 +522,8 @@
     DEFAULT_TIME, LATEST_TIME, SAFETY_MS, CUTOFF_MS, REPEAT_MS, SNOOZE_MS, SNOOZE_STEP_MS,
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, emptyDay, punchState, plan,
-    SLIDER, timeFromMinutes, snapToSlider, sliderValueAt, sliderFraction,
-    nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow, sliderStep,
+    TIME_STEPS, QUICK_TIMES, timeFromMinutes, stepTime,
+    nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoPostponeMinutes, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
