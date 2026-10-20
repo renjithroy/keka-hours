@@ -476,6 +476,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 }
 `;
 
+  /** 1 -> "1 day", 4 -> "4 days" */
+  const dayCount = n => `${n} ${n === 1 ? 'day' : 'days'}`;
+
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function tone(summary) {
@@ -585,7 +588,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>
 
       <div class="section">
-        <div class="meter-head"><span>≥ ${target}<b>${s.daysAtOrAboveTarget}</b></span><span>&lt; ${target}<b>${s.daysBelowTarget}</b></span></div>
+        <div class="meter-head"><span>≥ ${target}<b>${dayCount(s.daysAtOrAboveTarget)}</b></span><span>&lt; ${target}<b>${dayCount(s.daysBelowTarget)}</b></span></div>
         <div class="meter" role="img" aria-label="${s.daysAtOrAboveTarget} of ${total} days at or above ${target}">
           ${s.daysAtOrAboveTarget ? `<span class="above" style="flex:${pct}"></span>` : ''}
           ${s.daysBelowTarget ? `<span class="below" style="flex:${100 - pct}"></span>` : ''}
