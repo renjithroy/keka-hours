@@ -70,3 +70,12 @@ test('confirmed but Keka is slow to show WFH Clock-In: "clicked" (the worker wai
   assert.deepEqual(res, { result: 'clicked' });
   assert.deepEqual(k.clicked, ['WFH Clock-out', 'Clock-out']);
 });
+
+test('gives up on real elapsed time too (laptop slept mid-run), not just poll count', async () => {
+  const k = fakeKeka({ signedOut: true });
+  let t = 0;
+  // Each poll "takes" 20 s of wall-clock time (e.g. the machine was asleep).
+  const res = await clockOut(k.dom, { wait: async () => { t += 20000; }, step: 1000, clock: () => t, timeouts: { card: 45000, confirm: 10000, done: 20000 } });
+  assert.deepEqual(res, { result: 'failed', reason: 'no-clock-out-button' });
+  assert.ok(t <= 60000, `stopped after ~${t / 1000}s of real time, not 45 polls`);
+});

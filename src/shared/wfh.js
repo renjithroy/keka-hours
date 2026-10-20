@@ -6,7 +6,8 @@
  * "WFH Clock-In / Clock-out") means a WFH day, approved or not.
  *
  *  - Reminder at a fixed time of day: 6:30 PM unless the user picks another
- *    time (latest 10 PM), for today only or every WFH day.
+ *    time (latest 10 PM), on every WFH day. In the tab it's set with a slider
+ *    (12 PM–8 PM in half hours) or a custom time.
  *  - Safety net: Keka marks a missed clock-out 12h after the first clock-in,
  *    so if first clock-in + 11h comes earlier, remind then instead.
  *  - Clocked in (or back in from a break) after the reminder time: remind
@@ -27,8 +28,10 @@
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
  *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt,
  *     autoSkip, autoDelay, autoHeadsUpFor, autoStatus, autoStartedAt, autoTabId, autoDoneAt }
- * Settings: { everyDay: 'HH:MM', today: { date, time } | null,
- *             auto: { every: { on, time }, today: { date, on, time } | null } }
+ * Settings: { everyDay: 'HH:MM', auto: { every: { on, time } } }
+ * (Older "today only" overrides are ignored: every setting applies to every WFH day.)
+ * A time picked after it has already passed today starts on the next day; until then today
+ * keeps what it had: { everyDayFrom, prevEveryDay } and auto: { from, prev: { on, time } }.
  */
 (function (root) {
   'use strict';
@@ -49,6 +52,8 @@
   const AUTO_HEADS_UP_MS = 5 * MIN;
   const AUTO_DELAY_STEP_MS = 15 * MIN;
   const AUTO_TIMEOUT_MS = 90 * 1000; // give the background tab this long to clock out
+  // Auto clock-out may run as late as 1 min before the day's end (Keka's cutoff / 10 PM).
+  const AUTO_LAST_MS = MIN;
 
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -92,21 +97,37 @@
     return t == null ? '' : timeLabel(new Date(2000, 0, 1, Math.floor(t / 60), t % 60).getTime());
   }
 
-  /** 125 min -> "2:05", 45 min -> "45m" (toolbar badge, max 4 chars). */
+  /** 125 min -> "2:05", 45 min -> "45m", 630 min -> "10h" (toolbar badge, max 4 chars). */
   function shortLeft(ms) {
     const total = Math.max(0, Math.ceil(ms / MIN));
+    if (total >= 600) return `${Math.floor(total / 60)}h`; // "10h": "10:29" doesn't fit
     return total >= 60 ? `${Math.floor(total / 60)}:${pad2(total % 60)}` : `${total}m`;
   }
 
-  function normalizeSettings(s, todayKey) {
+  const validDate = d => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
+
+  function normalizeSettings(s) {
     const everyDay = validTime(s && s.everyDay) || DEFAULT_TIME;
-    const t = s && s.today;
-    const today = t && t.date === todayKey && validTime(t.time) ? { date: t.date, time: t.time } : null;
+    const from = validDate(s && s.everyDayFrom);
+    const prev = validTime(s && s.prevEveryDay);
     const a = (s && s.auto) || {};
     const every = { on: !!(a.every && a.every.on === true), time: validTime(a.every && a.every.time) };
-    const at = a.today;
-    const autoToday = at && at.date === todayKey && validTime(at.time) ? { date: at.date, on: at.on === true, time: at.time } : null;
-    return { everyDay, today, auto: { every, today: autoToday } };
+    const auto = { every };
+    const aFrom = validDate(a.from);
+    if (aFrom && a.prev) auto.prev = { on: a.prev.on === true, time: validTime(a.prev.time) };
+    if (auto.prev) auto.from = aFrom;
+    return from && prev ? { everyDay, everyDayFrom: from, prevEveryDay: prev, auto } : { everyDay, auto };
+  }
+
+  /** 'YYYY-MM-DD' -> the next calendar day. */
+  function nextDateKey(dateKey) {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    return dateKeyOf(new Date(y, m - 1, d + 1).getTime());
+  }
+
+  /** Has 'HH:MM' already passed today? */
+  function passedToday(hhmm, now) {
+    return atTime(dateKeyOf(now), hhmm) <= now;
   }
 
   /** 'HH:MM' + minutes, capped at 10 PM. */
@@ -115,24 +136,119 @@
     return `${pad2(Math.floor(t / 60))}:${pad2(t % 60)}`;
   }
 
-  /** Auto clock-out settings for `dateKey`: { on, time, scope }. */
+  /**
+   * Auto clock-out on `dateKey`: { on, time } (default time: reminder + 30 min).
+   * If a change starts later, also { next: { on, time }, from } and today keeps the old one.
+   */
   function autoFor(settings, dateKey) {
-    const s = normalizeSettings(settings, dateKey);
-    if (s.auto.today) return { on: s.auto.today.on, time: s.auto.today.time, scope: 'today' };
-    const fallback = addMinutes(s.today ? s.today.time : s.everyDay, AUTO_AFTER_REMINDER_MS / MIN);
-    return { on: s.auto.every.on, time: s.auto.every.time || fallback, scope: 'every' };
+    const s = normalizeSettings(settings);
+    const fallback = addMinutes(timeFor(settings, dateKey).time, AUTO_AFTER_REMINDER_MS / MIN);
+    const current = { on: s.auto.every.on, time: s.auto.every.time || fallback };
+    if (s.auto.from && dateKey && dateKey < s.auto.from) {
+      return { on: s.auto.prev.on, time: s.auto.prev.time || fallback, next: current, from: s.auto.from };
+    }
+    return current;
   }
 
-  /** The reminder time that applies on `dateKey`, and whether it's today's one-off. */
+  /** The reminder time on `dateKey`: { time }, plus { next, from } while a later change waits. */
   function timeFor(settings, dateKey) {
-    const s = normalizeSettings(settings, dateKey);
-    return s.today ? { time: s.today.time, scope: 'today' } : { time: s.everyDay, scope: 'every' };
+    const s = normalizeSettings(settings);
+    if (s.everyDayFrom && dateKey && dateKey < s.everyDayFrom) return { time: s.prevEveryDay, next: s.everyDay, from: s.everyDayFrom };
+    return { time: s.everyDay };
+  }
+
+  /**
+   * Settings with a new reminder time. A time that has already passed today
+   * starts on the next day; today keeps the time it was using.
+   */
+  function withReminderTime(settings, time, now) {
+    const s = normalizeSettings(settings);
+    const today = dateKeyOf(now);
+    const base = { everyDay: time, auto: s.auto };
+    const todays = timeFor(settings, today).time;
+    if (!passedToday(time, now) || todays === time) return base;
+    return { ...base, everyDayFrom: nextDateKey(today), prevEveryDay: todays };
+  }
+
+  /**
+   * Settings with a new auto clock-out. Turning it on when today's run would
+   * already be due starts it on the next day (today keeps what it had). That's
+   * judged on the time it would really run today — the 11h safety time can
+   * be earlier than the time picked — so it never clocks you out by surprise.
+   * Anything else, including turning it off, applies now. `day` is today's
+   * state (punches); without it only the picked time counts.
+   */
+  function withAutoClockOut(settings, { on, time }, now, day) {
+    const s = normalizeSettings(settings);
+    const today = dateKeyOf(now);
+    const next = { on: !!on, time };
+    const base = { ...s, auto: { every: next } };
+    if (!on) return base;
+    const todays = autoFor(settings, today);
+    if (todays.on && todays.time === time) return base; // no change for today
+    const d = day && day.date === today ? day : emptyDay(today);
+    if (autoPlan(d, base, now).at > now) return base;
+    return { ...s, auto: { every: next, prev: { on: todays.on, time: todays.time }, from: nextDateKey(today) } };
+  }
+
+  /** Would saving this reminder time make it start only on the next WFH day? */
+  function reminderStartsTomorrow(settings, time, now) {
+    return !!withReminderTime(settings, time, now).everyDayFrom;
+  }
+
+  /** Would saving this auto clock-out make it start only on the next WFH day? */
+  function autoStartsTomorrow(settings, change, now, day) {
+    return !!withAutoClockOut(settings, change, now, day).auto.from;
+  }
+
+  // ---- The reminder slider: 12 PM–8 PM in half-hour steps (other times via "Custom time").
+  const SLIDER = { min: 12 * 60, max: 20 * 60, step: 30 };
+
+  /** Minutes since midnight -> 'HH:MM'. */
+  function timeFromMinutes(m) {
+    return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+  }
+
+  /** Any minute value -> the nearest slider step, kept inside 12 PM–8 PM. */
+  function snapToSlider(minutes) {
+    if (!Number.isFinite(minutes)) return SLIDER.min;
+    const snapped = Math.round((minutes - SLIDER.min) / SLIDER.step) * SLIDER.step + SLIDER.min;
+    return Math.max(SLIDER.min, Math.min(SLIDER.max, snapped));
+  }
+
+  /** A position along the slider (0 = 12 PM, 1 = 8 PM) -> snapped minutes. */
+  function sliderValueAt(fraction) {
+    return snapToSlider(SLIDER.min + fraction * (SLIDER.max - SLIDER.min));
+  }
+
+  /**
+   * One keyboard step from `minutes` (+1 / -1 half hour, ±2 an hour) to the
+   * next slider step in that direction. A custom time between steps moves to
+   * its neighbour; one off the scale never jumps the "wrong" way (9:30 PM
+   * with → stays put; with ← it comes onto the scale at 8 PM).
+   */
+  function sliderStep(minutes, steps) {
+    const S = SLIDER;
+    if (steps > 0) {
+      if (minutes >= S.max) return minutes;
+      const below = Math.floor((minutes - S.min) / S.step) * S.step + S.min;
+      return Math.max(S.min, Math.min(S.max, below + steps * S.step));
+    }
+    if (minutes <= S.min) return minutes;
+    const above = Math.ceil((minutes - S.min) / S.step) * S.step + S.min;
+    return Math.min(S.max, Math.max(S.min, above + steps * S.step));
+  }
+
+  /** Minutes -> position along the slider (can be < 0 or > 1 for custom times off the scale). */
+  function sliderFraction(minutes) {
+    return (minutes - SLIDER.min) / (SLIDER.max - SLIDER.min);
   }
 
   function emptyDay(date) {
     return {
       date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null,
       autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null,
+      autoSession: null,
     };
   }
 
@@ -183,8 +299,14 @@
       reason = 'late';
     }
     if (remindAt >= end) {
-      remindAt = null;
-      reason = 'too-late';
+      // Back from a break near Keka's cutoff, or a time set at the 10 PM limit: still
+      // remind once, 5 min before the end, if they were clocked in before then.
+      if (ps.lastIn == null || ps.lastIn < end - LAST_CALL_MS) {
+        remindAt = Math.max(end - LAST_CALL_MS, ps.lastIn != null ? ps.lastIn + MIN : 0);
+      } else {
+        remindAt = null;
+        reason = 'too-late';
+      }
     }
 
     const stopped = day.stoppedAt != null;
@@ -200,7 +322,9 @@
       ...ps,
       date: day.date,
       time: chosen.time,
-      scope: chosen.scope,
+      // A different time picked for later days (it had already passed today).
+      nextTime: chosen.next || null,
+      nextFrom: chosen.from || null,
       configured,
       remindAt,
       reason,
@@ -287,13 +411,15 @@
     let at = atTime(day.date, a.time);
     let reason = 'time';
     if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
-    // +15 min / heads-up delays apply on top, but never past the last call before the end.
+    // +15 min / heads-up delays apply on top, but never later than 1 min before the end.
     at += day.autoDelay || 0;
-    if (at > p.end - LAST_CALL_MS) at = p.end - LAST_CALL_MS;
-    const base = { on: a.on, time: a.time, scope: a.scope, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
+    if (at > p.end - AUTO_LAST_MS) at = p.end - AUTO_LAST_MS;
+    const base = { on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null };
     let status;
-    if (!a.on) status = 'off';
-    else if (day.autoStatus === 'done' || day.autoStatus === 'failed' || day.autoStatus === 'running') status = day.autoStatus;
+    // A run that started (or ended) today keeps its status even if auto clock-out was
+    // turned off meanwhile, so it still finishes, closes its tab and reports.
+    if (['running', 'done', 'failed', 'expired'].includes(day.autoStatus)) status = day.autoStatus;
+    else if (!a.on) status = 'off';
     else if (day.autoSkip) status = 'skipped';
     else if (p.state === 'none') status = now >= p.end ? 'ended' : 'waiting';
     else if (p.lastIn != null && p.lastIn >= at) status = 'late-start';
@@ -305,12 +431,19 @@
     return { ...base, status };
   }
 
-  /** Heads-up "+15 min" (never past the last call). */
+  /** Whole minutes a heads-up "+N min" can still add (0 = can't postpone), at most 15. */
+  function autoPostponeMinutes(ap) {
+    const room = (ap.end - AUTO_LAST_MS) - ap.at;
+    return Math.max(0, Math.min(AUTO_DELAY_STEP_MS, room) / MIN | 0);
+  }
+
+  /** Heads-up "+15 min" (or whatever room is left before the end). */
   function autoPostpone(day, settings, now) {
     const ap = autoPlan(day, settings, now);
     if (ap.status !== 'scheduled' && ap.status !== 'heads-up' && ap.status !== 'due') return day;
-    const room = (ap.end - LAST_CALL_MS) - ap.at;
-    return { ...day, autoDelay: (day.autoDelay || 0) + Math.max(0, Math.min(AUTO_DELAY_STEP_MS, room)), autoHeadsUpFor: null };
+    const minutes = autoPostponeMinutes(ap);
+    if (!minutes) return day;
+    return { ...day, autoDelay: (day.autoDelay || 0) + minutes * MIN, autoHeadsUpFor: null };
   }
 
   function autoSkipToday(day) {
@@ -319,27 +452,29 @@
 
   /**
    * Due without a heads-up for this time yet (after a Reset, or waking from
-   * sleep past it): move it 5 min from now so the heads-up comes first.
-   * Returns `day` unchanged when there's no room left before the end.
+   * sleep past it): move it so the heads-up comes first — 5 min from now, or
+   * as much as is left before the end. With under a minute left there's no
+   * time to warn, so it's called off for today ('expired'); the reminder
+   * carries on. It never clocks out without a heads-up.
    */
   function autoDeferForHeadsUp(day, settings, now) {
     const ap = autoPlan(day, settings, now);
     if (ap.status !== 'due' || day.autoHeadsUpFor === ap.at) return day;
-    const target = Math.min(now + AUTO_HEADS_UP_MS, ap.end - LAST_CALL_MS);
-    if (target <= now) return day;
+    const target = Math.min(now + AUTO_HEADS_UP_MS, ap.end - AUTO_LAST_MS);
+    if (target - now < MIN) return { ...day, autoStatus: 'expired' };
     return { ...day, autoDelay: (day.autoDelay || 0) + (target - ap.at) };
   }
 
   /** Is there anything of today's auto clock-out to reset (skip, +15, done, failed)? Not while running. */
   function autoResettable(day) {
     return day.autoStatus !== 'running' &&
-      (day.autoSkip === true || (day.autoDelay || 0) > 0 || day.autoStatus === 'done' || day.autoStatus === 'failed');
+      (day.autoSkip === true || (day.autoDelay || 0) > 0 || ['done', 'failed', 'expired'].includes(day.autoStatus));
   }
 
   /** Tab "Reset": forget today's skip / delay / result, so it runs again at its set time. */
   function autoReset(day) {
     if (day.autoStatus === 'running') return day;
-    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null };
+    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null };
   }
 
   function autoStart(day, now) {
@@ -357,10 +492,11 @@
     return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null };
   }
 
-  function autoHeadsUp(ap) {
+  function autoHeadsUp(ap, now) {
+    const minutes = now == null ? 5 : Math.max(1, Math.round((ap.at - now) / MIN));
     return {
       title: `Auto clock-out at ${timeLabel(ap.at)}`,
-      message: 'Keka Hours will clock you out in 5 minutes.',
+      message: `Keka Hours will clock you out in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
     };
   }
 
@@ -405,9 +541,11 @@
     DEFAULT_TIME, LATEST_TIME, SAFETY_MS, CUTOFF_MS, REPEAT_MS, SNOOZE_MS, SNOOZE_STEP_MS,
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, emptyDay, punchState, plan,
+    SLIDER, timeFromMinutes, snapToSlider, sliderValueAt, sliderFraction,
+    nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow, sliderStep,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoPostponeMinutes, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

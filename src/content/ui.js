@@ -378,8 +378,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .rem-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rem-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; }
 .rem .wfh-today { margin: 0 -14px; padding: 10px 14px 12px; background: var(--surface); }
-.rem .wfh-form, .rem .how { padding-top: 12px; border-top: 1px solid var(--line); }
-.rem .wfh-form { border-top: 0; padding-top: 0; }
+.rem .how { padding-top: 12px; border-top: 1px solid var(--line); }
 .wfh-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wfh-state { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .live-dot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--subtle); }
@@ -395,21 +394,42 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .wfh-in { font-size: 13.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .wfh-sub { margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .wfh-sub b { color: var(--text); font-weight: 600; }
-.day-track { margin-top: 16px; }
-.day-track-bar { position: relative; height: 6px; border-radius: 999px; background: var(--meter-off); }
-.day-track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--brand) 55%, transparent); }
-.day-track-mark { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--brand); }
-.day-track-mark.warn { background: var(--warn); }
-.day-track-now { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2.5px var(--brand); }
-.day-track-hours { position: relative; height: 22px; margin-top: 4px; }
-.day-track-hours span { position: absolute; top: 0; transform: translateX(-50%); padding-top: 6px; font-size: 11.5px; color: var(--subtle); white-space: nowrap; }
-.day-track-hours span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 4px; background: var(--guide); }
-.day-track-hours span.start { transform: none; }
-.day-track-hours span.start::before { left: 0; }
-.day-track-hours span.end { transform: translateX(-100%); }
-.day-track-hours span.end::before { left: auto; right: 0; }
-.day-track-hours span.minor { padding: 0; }
-.day-track-hours span.minor::before { height: 3px; opacity: .6; }
+/* Reminder time slider: 12 PM–8 PM, half-hour steps; shows today's progress when clocked in. */
+.rs-head { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.rs-title { font-size: 13.5px; font-weight: 600; }
+.rs-hint { font-size: 12px; color: var(--subtle); }
+.rs-hint.past { color: var(--warn); font-weight: 600; }
+.rs-note { margin-top: 8px; padding: 8px 10px; border-radius: 9px; background: var(--warn-soft); color: var(--warn); font-size: 12.5px; line-height: 1.45; text-wrap: pretty; }
+.rs-note b { font-weight: 700; }
+.modal-note.past { color: var(--warn); }
+.rs-saved { font-size: 12px; font-weight: 600; color: var(--good); animation: kh-saved 2.2s ease forwards; }
+.rs-head .btn-sm { margin-left: auto; }
+.rs-rail { position: relative; padding: 38px 11px 0; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.rs-track { position: relative; height: 6px; border-radius: 999px; background: var(--meter-off); }
+.rs-fill { position: absolute; top: 0; bottom: 0; border-radius: inherit; background: color-mix(in srgb, var(--guide) 45%, transparent); }
+.rs-now { position: absolute; top: -5px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px; background: var(--text); opacity: .55; }
+.rs-ghost { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: color-mix(in srgb, var(--brand) 30%, transparent); pointer-events: none; opacity: 0; transition: opacity .12s ease; }
+.rs-rail:hover .rs-ghost.on { opacity: 1; }
+.rs.dragging .rs-ghost { opacity: 0 !important; }
+.rs-thumb { position: absolute; top: 50%; z-index: 1; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px var(--bg), 0 1px 5px rgba(15, 23, 42, .35); cursor: grab; outline: none; transition: transform .12s ease, box-shadow .12s ease; }
+.rs-thumb:hover { transform: scale(1.08); }
+.rs-thumb:focus-visible { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--brand); }
+.rs.dragging .rs-thumb { cursor: grabbing; transform: scale(1.15); }
+.rs.dragging .rs-rail { cursor: grabbing; }
+.rs-thumb.off { background: var(--bg); box-shadow: inset 0 0 0 2.5px var(--brand), 0 0 0 3px var(--bg); }
+.rs-bubble { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 7px; background: var(--brand-soft); color: var(--brand-text); font-size: 12px; font-weight: 700; line-height: 16px; white-space: nowrap; pointer-events: none; transition: background .12s ease, color .12s ease; }
+.rs-bubble.l { left: -4px; transform: none; }
+.rs-bubble.r { left: auto; right: -4px; transform: none; }
+.rs.dragging .rs-bubble, .rs-thumb:focus-visible .rs-bubble { background: var(--brand); color: #fff; }
+.rs-ticks { position: relative; height: 22px; margin-top: 7px; pointer-events: none; }
+.rs-tick { position: absolute; top: 0; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--guide); opacity: .55; }
+.rs-tick.hour { width: 1px; height: 5px; margin-left: -.5px; border-radius: 0; opacity: .8; }
+.rs-tick.lab { width: auto; height: auto; margin-left: 0; padding-top: 7px; border-radius: 0; background: none; opacity: 1; transform: translateX(-50%); font-size: 11.5px; color: var(--subtle); white-space: nowrap; }
+.rs-tick.lab::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 5px; background: var(--guide); }
+.rs-tick.lab.start { transform: translateX(-4px); }
+.rs-tick.lab.start::before { left: 4px; }
+.rs-tick.lab.end { transform: translateX(calc(-100% + 4px)); }
+.rs-tick.lab.end::before { left: auto; right: 4px; }
 .wfh-snooze { display: flex; gap: 6px; flex: none; }
 
 /* Auto clock-out: a highlighted card in the tab; set up in a pop-up. */
@@ -433,7 +453,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .auto-fields.off { opacity: .5; }
 .switch.bare { padding: 0 4px; height: 26px; }
 .how b { white-space: nowrap; }
-.modal-note { margin-top: 12px; font-size: 12.5px; line-height: 1.45; color: var(--subtle); }
+.modal-note { margin-top: 12px; font-size: 12.5px; line-height: 1.45; color: var(--subtle); text-wrap: pretty; }
 .modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 22px 16px; border-top: 1px solid var(--line); }
 .modal-actions .btn-sm { height: 36px; padding: 0 14px; }
 
@@ -456,17 +476,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary:disabled { background: var(--meter-off); color: var(--subtle); cursor: default; filter: none; }
 .form-msg { margin-top: 8px; font-size: 12.5px; color: var(--good); }
-/* Reminder form: the time reads as one field, Update sits beside it, scope spans below. */
-.time-line { display: flex; gap: 8px; }
-.time-field { flex: 1; min-width: 0; display: flex; align-items: center; height: 40px; padding: 0 4px 0 2px; border: 1px solid var(--line-hover); border-radius: 10px; background: var(--bg); transition: border-color .14s ease; }
-.time-field:hover { border-color: var(--brand-line); }
-.time-field:focus-within { border-color: var(--brand); }
-.time-field .time-sel { height: 38px; padding: 0 24px 0 11px; border: 0; background-color: transparent; background-position: right 5px center; }
-.time-field .seg { margin-left: auto; padding: 2px; border-radius: 8px; }
-.time-field .seg button { height: 30px; padding: 0 11px; border-radius: 6px; }
-.time-line .btn-primary { height: 40px; padding: 0 18px; border-radius: 10px; }
-.seg.scope { margin-top: 8px; border-radius: 10px; }
-.seg.scope button { height: 32px; }
 .form-msg.err { color: var(--warn); }
 
 /* The rules, in plain words. */
@@ -489,6 +498,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes kh-pop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes kh-pulse { 50% { opacity: .35; } }
+@keyframes kh-saved { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes kh-ping { 0% { transform: scale(1); opacity: .6; } 75%, 100% { transform: scale(2.8); opacity: 0; } }
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -815,42 +825,79 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return m >= 60 ? `in ${Math.floor(m / 60)}h ${pad2(m % 60)}m` : `in ${m} min`;
   }
 
-  /** 7 PM -> "7 PM" (hour labels under the day bar) */
-  function hourLabel(ms) {
-    const h = new Date(ms).getHours();
+  /** 1140 -> "7 PM" (slider hour labels) */
+  function hourLabelOf(minutes) {
+    const h = Math.floor(minutes / 60);
     return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
   }
 
+  /** Minutes since midnight of a timestamp (for placing it on the slider). */
+  function minutesOf(ms) {
+    const d = new Date(ms);
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  }
+
+  /** Thumb / bubble placement for a minute value: { x: '37.50', edge: '' | 'l' | 'r', onScale }. */
+  function sliderPlace(minutes) {
+    const f = Math.max(0, Math.min(1, W.sliderFraction(minutes)));
+    return { x: (f * 100).toFixed(2), edge: f < 0.09 ? 'l' : f > 0.91 ? 'r' : '', onScale: minutes >= W.SLIDER.min && minutes <= W.SLIDER.max };
+  }
+
+  /** "7:00 PM", or "9:30 PM ›" / "‹ 11:30 AM" for a custom time past either end. */
+  function sliderText(minutes) {
+    const label = W.hhmmLabel(W.timeFromMinutes(minutes));
+    if (minutes > W.SLIDER.max) return `${label} ›`;
+    if (minutes < W.SLIDER.min) return `‹ ${label}`;
+    return label;
+  }
+
   /**
-   * Clock-in → now → reminder → limit, as a bar: a tick every hour, labelled
-   * (12-hour) every 2 h, counted back from the limit so the last one marks it.
+   * The reminder time slider (12 PM–8 PM, half hours). The thumb is the set
+   * time; when clocked in, the track also shows the day so far and "now".
+   * A custom time off the scale sits at the nearest end as a hollow thumb.
    */
-  function trackHtml(p, now, markAt, warn) {
-    const span = p.end - p.firstIn;
-    if (!(span > 0)) return '';
-    const pos = ms => Math.max(0, Math.min(100, ((ms - p.firstIn) / span) * 100)).toFixed(1);
-    const HOUR = 3600000;
-    const every = span <= 6 * HOUR ? 1 : 2; // label every Nth hour
-    const top = new Date(p.end);
-    top.setMinutes(0, 0, 0);
-    const hours = [];
-    for (let at = top.getTime(), i = 0; at > p.firstIn; at -= HOUR, i++) {
-      const x = Number(pos(at));
-      if (i % every || at < p.firstIn + 20 * 60000) {
-        hours.unshift(`<span class="minor" style="left:${x}%"></span>`);
-        continue;
+  function sliderHtml(p, now, savedAt) {
+    const S = W.SLIDER;
+    const setting = p.nextTime || p.time; // the saved time (today may still use an earlier one)
+    const value = W.parseTime(setting);
+    const at = sliderPlace(value);
+    const label = W.hhmmLabel(setting);
+    const pct = m => (Math.max(0, Math.min(1, W.sliderFraction(m))) * 100).toFixed(2);
+    const marks = [];
+    for (let m = S.min; m <= S.max; m += S.step) {
+      if (m % 120 === 0) {
+        const edge = m === S.min ? ' start' : m === S.max ? ' end' : '';
+        marks.push(`<span class="rs-tick lab${edge}" style="left:${pct(m)}%">${hourLabelOf(m)}</span>`);
+      } else {
+        marks.push(`<span class="rs-tick${m % 60 === 0 ? ' hour' : ''}" style="left:${pct(m)}%"></span>`);
       }
-      const edge = x < 7 ? ' start' : x > 93 ? ' end' : '';
-      hours.unshift(`<span class="${edge.trim()}" style="left:${x}%">${hourLabel(at)}</span>`);
     }
+    let day = '';
+    if (p.state === 'in' && p.firstIn != null) {
+      const from = Number(pct(minutesOf(p.firstIn)));
+      const to = minutesOf(now);
+      day = `<span class="rs-fill" style="left:${from}%;width:${Math.max(0, Number(pct(to)) - from).toFixed(2)}%"></span>`;
+      if (to >= S.min && to <= S.max) day += `<span class="rs-now" style="left:${pct(to)}%" title="Now, ${W.timeLabel(now)}"></span>`;
+    }
+    const saved = savedAt && Date.now() - savedAt < 2200 ? '<span class="rs-saved" role="status">Saved</span>' : '';
     return `
-      <div class="day-track" aria-hidden="true">
-        <div class="day-track-bar">
-          <span class="day-track-fill" style="width:${pos(now)}%"></span>
-          ${markAt != null ? `<span class="day-track-mark${warn ? ' warn' : ''}" style="left:${pos(markAt)}%"></span>` : ''}
-          <span class="day-track-now" style="left:${pos(now)}%"></span>
+      <div class="rs" data-value="${value}" data-saved="${value}">
+        <div class="rs-head">
+          <span class="rs-title">Reminder time</span>
+          <span class="rs-hint"${saved ? ' hidden' : ''}>drag to change</span>${saved}
+          <button class="btn-sm" type="button" data-act="rem-custom" aria-haspopup="dialog">Custom time</button>
         </div>
-        <div class="day-track-hours">${hours.join('')}</div>
+        <div class="rs-rail">
+          <div class="rs-track">
+            ${day}
+            <span class="rs-ghost"></span>
+            <span class="rs-thumb${at.onScale ? '' : ' off'}" role="slider" tabindex="0" aria-label="Reminder time"
+              aria-valuemin="${S.min}" aria-valuemax="${S.max}" aria-valuenow="${W.snapToSlider(value)}"
+              aria-valuetext="${esc(label)}${at.onScale ? '' : ' (custom)'}" style="left:${at.x}%"><span class="rs-bubble${at.edge ? ` ${at.edge}` : ''}"${at.onScale ? '' : ' title="Custom time, off the 12 PM–8 PM scale"'}>${esc(sliderText(value))}</span></span>
+          </div>
+          <div class="rs-ticks">${marks.join('')}</div>
+        </div>
+        ${p.nextTime ? `<div class="rs-note"><b>${esc(label)}</b> starts on your next WFH day, as it had already passed today. Today's reminder stays at <b>${esc(W.hhmmLabel(p.time))}</b>.</div>` : ''}
       </div>`;
   }
 
@@ -879,12 +926,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   /** The tab's auto clock-out card: what will happen today, Set up / Edit, and Reset for today's state. */
   function autoRowHtml(ap, resettable) {
     const t = W.timeLabel;
+    const upcoming = ap.next && ap.next.on ? ap.next : null; // starts on the next WFH day
+    const on = ap.on || !!upcoming;
     let text;
     let tone = '';
     switch (ap.status) {
       case 'off': text = 'Let Keka Hours clock you out at a set time on WFH days.'; break;
       case 'scheduled': case 'heads-up':
-        text = `Clocks you out at <b>${t(ap.at)}</b>${ap.scope === 'today' ? ' today' : ' on WFH days'}.`; break;
+        text = `Clocks you out at <b>${t(ap.at)}</b>${upcoming ? ' today' : ' on WFH days'}.`; break;
       case 'waiting': text = `On at <b>${t(ap.at)}</b>, once you clock in.`; break;
       case 'standby': text = 'Paused: you\'re clocked out.'; break;
       case 'due': case 'running': text = 'Clocking you out…'; break;
@@ -893,25 +942,27 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       case 'skipped': text = `Skipped today (${t(ap.at)}).`; break;
       case 'late-start': text = `Not today: you clocked in after ${t(ap.at)}.`; break;
       case 'missed': text = `Not today: you weren't clocked in at ${t(ap.at)}.`; break;
+      case 'expired': text = 'Not today: too close to the limit to warn you first.'; break;
       default: text = 'Not today.';
     }
+    if (upcoming && !ap.on) text = `Starts on your next WFH day at <b>${W.hhmmLabel(upcoming.time)}</b>.`;
+    else if (upcoming && upcoming.time !== ap.time) text += ` From your next WFH day: <b>${W.hhmmLabel(upcoming.time)}</b>.`;
     const reset = resettable && ap.on
       ? '<button class="btn-sm quiet" type="button" data-act="wfh-auto-reset" title="Clear today\'s skip, delay or result so it runs again at its time">Reset</button>'
       : '';
-    const open = ap.on
+    const open = on
       ? '<button class="btn-sm" type="button" data-act="auto-open" aria-haspopup="dialog">Edit</button>'
       : '<button class="btn-primary" type="button" data-act="auto-open" aria-haspopup="dialog">Set up</button>';
     return `
-      <section class="auto-card${ap.on ? ' on' : ''}" aria-label="Auto clock-out">
+      <section class="auto-card${on ? ' on' : ''}" aria-label="Auto clock-out">
         <span class="auto-ic">${ICON_AUTO}</span>
         <div class="auto-text"><div class="auto-title">Auto clock-out</div><div class="auto-status ${tone}">${text}</div></div>
         <div class="auto-actions">${reset}${open}</div>
       </section>`;
   }
 
-  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap, scope }. */
-  function autoModalHtml(v, error) {
-    const seg = (value, label, on) => `<button type="button" role="radio" data-act="auto-scope" data-value="${value}" aria-checked="${on}">${label}</button>`;
+  /** Auto clock-out pop-up. `v` = { on, hour, minute, ap }; `past`: it would start tomorrow. */
+  function autoModalHtml(v, error, past) {
     return `
       <div class="modal-head">
         <div><div class="modal-title" id="kh-modal-title">Auto clock-out</div><div class="modal-sub">Clocks you out of Keka at a set time on WFH days.</div></div>
@@ -925,8 +976,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <div class="auto-fields${v.on ? '' : ' off'}">
           <h4 class="wfh-h">Clock me out at</h4>
           ${timePickerHtml(v, 'auto-ap')}
-          <div class="form-row"><div class="seg" role="radiogroup" aria-label="Applies to">${seg('every', 'Every WFH day', v.scope === 'every')}${seg('today', 'Today only', v.scope === 'today')}</div></div>
           ${error ? `<div class="form-msg err" role="status">${esc(error)}</div>` : ''}
+          ${past ? '<div class="modal-note past" role="status">That time has already passed today, so auto clock-out starts on your next WFH day. Today stays as it is.</div>' : ''}
         </div>
         <h4 class="wfh-h">What happens</h4>
         <ul class="how">
@@ -943,14 +994,35 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
+  /** "Custom time" pop-up for the reminder. `v` = { hour, minute, ap }; `past`: it would start tomorrow. */
+  function remTimeModalHtml(v, error, past) {
+    return `
+      <div class="modal-head">
+        <div><div class="modal-title" id="kh-modal-title">Custom reminder time</div><div class="modal-sub">Any time up to ${W.hhmmLabel(W.LATEST_TIME)}, on every WFH day.</div></div>
+        <button class="icon-btn" type="button" data-act="modal-close" aria-label="Close" title="Close">${ICON_CLOSE}</button>
+      </div>
+      <div class="modal-body rem-form">
+        <h4 class="wfh-h">Remind me at</h4>
+        ${timePickerHtml(v, 'rem-ap')}
+        ${error ? `<div class="form-msg err" role="status">${esc(error)}</div>` : ''}
+        <div class="modal-note${past ? ' past' : ''}" role="status">${past
+          ? 'That time has already passed today, so it starts on your next WFH day. Today keeps its current reminder.'
+          : 'The slider covers 12 PM to 8 PM in half hours. Use this for any other time.'}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm" type="button" data-act="modal-close">Cancel</button>
+        <button class="btn-primary" type="button" data-act="rem-save">Save</button>
+      </div>`;
+  }
+
   /**
    * WFH tab. `wfhState` = { settings, day } from storage (the worker owns the
    * day); everything shown is derived with the same rules the worker uses.
-   * `form` = { draft, msg, testMsg } held by the widget between renders.
+   * `form` = { savedAt, testMsg } held by the widget between renders.
    */
   function wfhHtml(wfhState, now, form) {
     const today = W.dateKeyOf(now);
-    const settings = W.normalizeSettings(wfhState && wfhState.settings, today);
+    const settings = W.normalizeSettings(wfhState && wfhState.settings);
     const raw = wfhState && wfhState.day;
     const p = W.plan(raw && raw.date === today ? raw : W.emptyDay(today), settings, now);
     const t = W.timeLabel;
@@ -967,11 +1039,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let right = '';
     let sub = '';
     let extra = '';
-    let markAt = null;
-    let warn = false;
     if (p.state === 'none') {
       label = 'Today\'s reminder';
-      big = `<span class="wfh-time-big">${t(p.configured)}</span>`;
+      big = `<span class="wfh-time-big" data-live="time" data-orig="${t(p.configured)}">${t(p.configured)}</span>`;
       sub = 'Starts when you use WFH Clock-In.';
     } else if (p.state === 'out') {
       label = 'Today\'s reminder';
@@ -990,8 +1060,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       label = 'Snoozed until';
       big = `<span class="wfh-time-big word warn">${t(p.nextAt)}</span>`;
       sub = `Next reminder ${inLabel(p.nextAt - now)}.`;
-      markAt = p.nextAt;
-      warn = true;
       const atCap = p.nextAt >= p.end - 5 * 60000;
       right = `
         <span class="wfh-snooze">
@@ -1004,27 +1072,15 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       sub = p.nextAt != null
         ? `Next at <b>${t(p.nextAt)}</b>, then every 15 min until ${t(p.end)}.`
         : `Reminders ended at the ${t(p.end)} limit.`;
-      markAt = p.remindAt;
-      warn = true;
       if (p.nextAt != null) right = '<button class="btn-sm" type="button" data-act="wfh-stop">Stop for today</button>';
     } else {
       label = 'Reminder at';
-      big = `<span class="wfh-time-big">${t(p.remindAt)}</span>`;
-      right = `<span class="wfh-in">${inLabel(p.remindAt - now)}</span>`;
-      markAt = p.remindAt;
+      // Follows the slider live while it's dragged (previewed with the same rules).
+      big = `<span class="wfh-time-big" data-live="time" data-orig="${t(p.remindAt)}">${t(p.remindAt)}</span>`;
+      right = `<span class="wfh-in" data-live-in data-orig="${inLabel(p.remindAt - now)}">${inLabel(p.remindAt - now)}</span>`;
       if (p.reason === 'late') sub = `You clocked in after ${set}, so it's 30 min after clock-in.`;
     }
     if (p.state === 'in' && p.firstIn == null) sub = 'Couldn\'t read your clock-in time yet. Reload this page to load it.';
-    const track = p.state === 'in' && p.firstIn != null && p.remindAt != null ? trackHtml(p, now, markAt, warn) : '';
-
-    // ---- change the time (12-hour), with an explicit Update
-    const saved = { ...to12(p.time), scope: p.scope };
-    const v = form.draft || saved;
-    const dirty = !!form.draft && (to24(form.draft) !== p.time || form.draft.scope !== p.scope);
-    const seg = (act, value, label, on) => `<button type="button" role="radio" data-act="${act}" data-value="${value}" aria-checked="${on}">${label}</button>`;
-    const tp = timePartsHtml(v, 'wfh-ap');
-    const msg = form.msg ? `<div class="form-msg${form.msg.error ? ' err' : ''}" role="status">${esc(form.msg.text)}</div>` : '';
-
 
     const synced = p.updatedAt ? `Synced with Keka ${fmt.relative(p.updatedAt, now)}.` : 'Not synced with Keka yet today.';
 
@@ -1039,19 +1095,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
             <div class="wfh-label">${label}</div>
             <div class="wfh-big">${big}${right}</div>
             ${sub ? `<div class="wfh-sub">${sub}</div>` : ''}
-            ${track}
             ${extra}
           </div>
 
-          <div class="wfh-form" data-saved-time="${p.time}" data-saved-scope="${p.scope}">
-            <h4 class="wfh-h">Change reminder time</h4>
-            <div class="time-line">
-              <div class="time-field">${tp.selects}${tp.ampm}</div>
-              <button class="btn-primary" type="button" data-act="wfh-update" aria-label="Update reminder"${dirty ? '' : ' disabled'}>Update</button>
-            </div>
-            <div class="seg scope" role="radiogroup" aria-label="Applies to">${seg('wfh-scope', 'every', 'Every WFH day', v.scope === 'every')}${seg('wfh-scope', 'today', 'Today only', v.scope === 'today')}</div>
-            ${msg}
-          </div>
+          ${sliderHtml(p, now, form.savedAt)}
 
           <ul class="how" aria-label="How the reminder works">
             <li>At <b>${set}</b> a Chrome notification reminds you to clock out, and stays until you act on it.</li>
@@ -1171,8 +1218,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let tab = 'overview';
     let wfhState = { settings: null, day: null };
     // WFH tab form, kept across re-renders: unsaved edits, the last Update result, the test result.
-    const wfhForm = { draft: null, msg: null, testMsg: null };
-    let wfhPending = false; // a re-render waiting for a time picker to lose focus
+    const wfhForm = { savedAt: 0, testMsg: null };
+    let wfhPending = false; // a re-render waiting for the slider / a time picker to be let go
     let theme = 'light';
     // The user's own pick, kept only while it differs from Keka's display mode.
     let themeOverride = null;
@@ -1212,15 +1259,27 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const modal = $('.modal');
     const modalCard = $('.modal-card');
     let modalOpen = false;
-    let modalKind = 'daylog'; // 'daylog' (average's ⓘ) | 'auto' (auto clock-out set-up)
+    let modalKind = 'daylog'; // 'daylog' (average's ⓘ) | 'auto' (auto clock-out) | 'remtime' (custom reminder time)
     let autoDraft = null; // the auto clock-out form while the pop-up is open
     let autoError = null;
+    let remDraft = null; // the custom reminder time while its pop-up is open
+    let remError = null;
 
     /** Fill the modal. The day log follows the model (keeping its scroll); the auto form only redraws on its own edits. */
     function renderModal(force) {
       if (!modalOpen) return;
-      if (modalKind === 'auto') {
-        if (force) modalCard.innerHTML = autoModalHtml(autoDraft, autoError);
+      if (modalKind === 'auto' || modalKind === 'remtime') {
+        if (!force) return;
+        const now = Date.now();
+        if (modalKind === 'auto') {
+          const time = to24(autoDraft);
+          const later = autoDraft.on && !!W.validTime(time) && W.autoStartsTomorrow(wfhState.settings, { on: true, time }, now, todayState(now));
+          modalCard.innerHTML = autoModalHtml(autoDraft, autoError, later);
+        } else {
+          const time = to24(remDraft);
+          const later = !!W.validTime(time) && W.reminderStartsTomorrow(wfhState.settings, time, now);
+          modalCard.innerHTML = remTimeModalHtml(remDraft, remError, later);
+        }
         return;
       }
       const s = model && model.summary;
@@ -1245,29 +1304,31 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!modalOpen) return;
       modalOpen = false;
       modal.hidden = true;
-      const back = restoreFocus && content.querySelector(modalKind === 'auto' ? '[data-act="auto-open"]' : '[data-act="avg-info"]');
+      const opener = { auto: '[data-act="auto-open"]', remtime: '[data-act="rem-custom"]' }[modalKind] || '[data-act="avg-info"]';
+      const back = restoreFocus && content.querySelector(opener);
       if (back) back.focus({ preventScroll: true });
     }
 
-    /** Open the auto clock-out pop-up with today's settings. */
+    /** Open the auto clock-out pop-up with the current settings. */
     function openAuto() {
-      const today = W.dateKeyOf(Date.now());
-      const a = W.autoFor(wfhState.settings, today);
-      autoDraft = { on: a.on, ...to12(a.time), scope: a.scope };
+      const a = W.autoFor(wfhState.settings, W.dateKeyOf(Date.now()));
+      const saved = a.next || a; // what's saved, even if today still runs an earlier one
+      autoDraft = { on: saved.on, ...to12(saved.time) };
       autoError = null;
       openModal('auto');
     }
 
-    /** Pull the pop-up's selects into the draft (buttons update it directly). */
-    function readAutoSelects() {
-      const form = modalCard.querySelector('.auto-form');
-      if (!form || !autoDraft) return;
-      autoDraft.hour = Number(form.querySelector('[data-field="hour"]').value);
-      autoDraft.minute = Number(form.querySelector('[data-field="minute"]').value);
+    /** Pull the open pop-up's hour / minute selects into `draft` (buttons update it directly). */
+    function readModalSelects(draft) {
+      const hour = modalCard.querySelector('[data-field="hour"]');
+      const minute = modalCard.querySelector('[data-field="minute"]');
+      if (!draft || !hour || !minute) return;
+      draft.hour = Number(hour.value);
+      draft.minute = Number(minute.value);
     }
 
     function saveAuto() {
-      readAutoSelects();
+      readModalSelects(autoDraft);
       const time = to24(autoDraft);
       if (!W.validTime(time)) {
         autoError = `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.`;
@@ -1275,9 +1336,31 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return;
       }
       // The Auto clock-out card shows the result; no separate message.
-      handlers.onAutoSave({ on: autoDraft.on, time, scope: autoDraft.scope });
+      handlers.onAutoSave({ on: autoDraft.on, time }); // re-renders via setWfh (or once the picker lets go)
       closeModal(true);
-      renderWfh();
+      if (wfhPending) renderWfh(); // focus stays on Edit across it
+    }
+
+    /** "Custom time" for the reminder: the same 12-hour picker, any time up to 10 PM. */
+    function openRemTime() {
+      const t = W.timeFor(wfhState.settings, W.dateKeyOf(Date.now()));
+      remDraft = to12(t.next || t.time);
+      remError = null;
+      openModal('remtime');
+    }
+
+    function saveRemTime() {
+      readModalSelects(remDraft);
+      const time = to24(remDraft);
+      if (!W.validTime(time)) {
+        remError = `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.`;
+        renderModal(true);
+        return;
+      }
+      wfhForm.savedAt = Date.now();
+      handlers.onWfhSaveTime({ time }); // re-renders via setWfh (or once the picker lets go)
+      closeModal(true);
+      if (wfhPending) renderWfh(); // focus stays on Custom time across it
     }
 
     // Click / tap anywhere outside the card collapses it back to the pill.
@@ -1299,12 +1382,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         if (next !== tab) { const prev = tab; tab = next; showTab(prev); }
       }
       else if (act === 'toggle') handlers.onToggleDay(el.getAttribute('data-date'));
-      else if (act === 'wfh-ap' || act === 'wfh-scope') {
-        const group = el.closest('.seg');
-        for (const b of group.querySelectorAll('button')) b.setAttribute('aria-checked', String(b === el));
-        syncWfhForm();
+      else if (act === 'rem-custom') openRemTime();
+      else if (act === 'rem-save') saveRemTime();
+      else if (act === 'rem-ap') {
+        readModalSelects(remDraft);
+        remDraft.ap = el.getAttribute('data-value');
+        remError = null;
+        renderModal(true);
+        const again = modalCard.querySelector(`[data-act="rem-ap"][data-value="${remDraft.ap}"]`);
+        if (again && e.detail === 0) again.focus({ preventScroll: true });
       }
-      else if (act === 'wfh-update') saveWfhForm();
       else if (act === 'wfh-snooze-cancel' || act === 'wfh-snooze-more' || act === 'wfh-stop' || act === 'wfh-resume' || act === 'wfh-auto-reset') handlers.onWfhAction(act);
       else if (act === 'wfh-test') {
         el.disabled = true;
@@ -1330,11 +1417,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       else if (act === 'avg-info') openModal('daylog');
       else if (act === 'auto-open') openAuto();
       else if (act === 'auto-save') saveAuto();
-      else if (act === 'auto-toggle' || act === 'auto-ap' || act === 'auto-scope') {
-        readAutoSelects();
+      else if (act === 'auto-toggle' || act === 'auto-ap') {
+        readModalSelects(autoDraft);
         if (act === 'auto-toggle') autoDraft.on = !autoDraft.on;
-        else if (act === 'auto-ap') autoDraft.ap = el.getAttribute('data-value');
-        else autoDraft.scope = el.getAttribute('data-value');
+        else autoDraft.ap = el.getAttribute('data-value');
         autoError = null;
         renderModal(true);
         const again = modalCard.querySelector(`[data-act="${act}"]${act === 'auto-toggle' ? '' : `[data-value="${el.getAttribute('data-value')}"]`}`);
@@ -1472,6 +1558,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       // Don't yank a time picker away while it's open.
       const editing = editingWfh();
       const keep = editing ? content.querySelector('[data-pane="wfh"]') : null;
+      const key = keep ? null : focusKey(content);
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
@@ -1480,11 +1567,42 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
       showTab();
+      restoreFocus(content, key);
     }
 
+    // ---- Reminder time slider -------------------------------------------
+    // Pointer: press the rail to jump there, or grab the thumb and drag
+    // (a press on the thumb alone changes nothing); snaps to half hours and
+    // saves on release. Keyboard on the thumb: ← → / ↑ ↓ 30 min, PgUp / PgDn
+    // 1 h, Home / End, saved 0.8 s after the last key (or on Enter / blur).
+    // The tab never re-renders mid-edit or between a press and its click.
+    let slide = null; // { rs, track, rail, pointerId, startX, moved } while dragging
+    let slideKeys = null; // { rs, timer } while a keyboard change waits to be saved
+    let pressing = false; // a pointer is down in the card (a click may be on its way)
+
     function editingWfh() {
+      if (slide || slideKeys || pressing) return true;
       const a = shadow.activeElement;
       return !!(a && a.classList && a.classList.contains('time-sel'));
+    }
+
+    /** A selector for the focused control in `root`, to focus its replacement after a re-render. */
+    function focusKey(root) {
+      const a = shadow.activeElement;
+      if (!a || !root.contains(a)) return null;
+      if (a.classList.contains('rs-thumb')) return '.rs-thumb';
+      const act = a.getAttribute('data-act');
+      if (!act) return null;
+      let sel = `[data-act="${act}"]`;
+      for (const attr of ['data-value', 'data-tab', 'data-date']) {
+        if (a.hasAttribute(attr)) sel += `[${attr}="${a.getAttribute(attr)}"]`;
+      }
+      return sel;
+    }
+
+    function restoreFocus(root, key) {
+      const el = key && root.querySelector(key);
+      if (el) el.focus({ preventScroll: true });
     }
 
     /** Re-render only the WFH tab (cheap; leaves the other tabs' scroll / hover alone). */
@@ -1493,7 +1611,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!expanded || !pane) return;
       if (editingWfh()) { wfhPending = true; return; }
       wfhPending = false;
+      const key = focusKey(pane);
       pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhForm);
+      restoreFocus(pane, key);
     }
 
     function setWfh(next) {
@@ -1501,58 +1621,199 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       renderWfh();
     }
 
-    /** The form's current values: { hour, minute, ap, scope }. */
-    function readWfhForm(form) {
-      const val = sel => form.querySelector(sel);
-      const checked = act => {
-        const b = form.querySelector(`[data-act="${act}"][aria-checked="true"]`);
-        return b ? b.getAttribute('data-value') : null;
-      };
-      return {
-        hour: Number(val('[data-field="hour"]').value),
-        minute: Number(val('[data-field="minute"]').value),
-        ap: checked('wfh-ap') || 'PM',
-        scope: checked('wfh-scope') || 'every',
-      };
+    /** Today's day state for the shared rules (an empty day if none yet). */
+    function todayState(now) {
+      const today = W.dateKeyOf(now);
+      const raw = wfhState.day;
+      return raw && raw.date === today ? raw : W.emptyDay(today);
     }
 
-    /** Any edit: remember it, and enable Update only when it differs from what's saved. */
-    function syncWfhForm() {
-      const form = shadow.querySelector('.wfh-form');
-      if (!form) return;
-      const draft = readWfhForm(form);
-      wfhForm.draft = draft;
-      wfhForm.msg = null;
-      const dirty = to24(draft) !== form.getAttribute('data-saved-time') || draft.scope !== form.getAttribute('data-saved-scope');
-      form.querySelector('[data-act="wfh-update"]').disabled = !dirty;
-      const msg = form.querySelector('.form-msg');
-      if (msg) msg.remove();
+    /** The slider's value at a pointer x position. */
+    function slideValueAt(track, clientX) {
+      const r = track.getBoundingClientRect();
+      return W.sliderValueAt(r.width > 0 ? (clientX - r.left) / r.width : 0);
     }
 
-    function saveWfhForm() {
-      const form = shadow.querySelector('.wfh-form');
-      if (!form) return;
-      const draft = readWfhForm(form);
-      const time = to24(draft);
-      if (!W.validTime(time)) {
-        wfhForm.draft = draft;
-        wfhForm.msg = { error: true, text: `Pick a time up to ${W.hhmmLabel(W.LATEST_TIME)}.` };
-        renderWfh();
-        return;
+    /**
+     * Show `minutes` on the slider (thumb, bubble, a11y) and preview it in the
+     * card with the same rules that will apply once it's saved. Doesn't save.
+     */
+    function showSlide(rs, minutes) {
+      const thumb = rs.querySelector('.rs-thumb');
+      const bubble = rs.querySelector('.rs-bubble');
+      const at = sliderPlace(minutes);
+      const label = W.hhmmLabel(W.timeFromMinutes(minutes));
+      rs.dataset.value = String(minutes);
+      thumb.style.left = `${at.x}%`;
+      thumb.classList.toggle('off', !at.onScale);
+      thumb.setAttribute('aria-valuenow', String(W.snapToSlider(minutes)));
+      thumb.setAttribute('aria-valuetext', label);
+      bubble.textContent = sliderText(minutes);
+      bubble.removeAttribute('title');
+      bubble.classList.toggle('l', at.edge === 'l');
+      bubble.classList.toggle('r', at.edge === 'r');
+
+      const now = Date.now();
+      const time = W.timeFromMinutes(minutes);
+      // A time that would only start on the next WFH day: say so, keep today's time.
+      const later = W.reminderStartsTomorrow(wfhState.settings, time, now);
+      const saved = rs.querySelector('.rs-saved');
+      if (saved) saved.remove();
+      const hint = rs.querySelector('.rs-hint');
+      if (hint) {
+        hint.hidden = false;
+        hint.textContent = later ? 'past for today: starts next WFH day' : 'drag to change';
+        hint.classList.toggle('past', later);
       }
-      wfhForm.draft = null;
-      wfhForm.msg = { text: `Reminder updated: ${W.hhmmLabel(time)}, ${draft.scope === 'today' ? 'today only' : 'every WFH day'}.` };
-      handlers.onWfhSaveTime({ time, scope: draft.scope });
-      renderWfh();
+      const pane = rs.closest('[data-pane="wfh"]');
+      const big = pane && pane.querySelector('[data-live="time"]');
+      const until = pane && pane.querySelector('[data-live-in]');
+      let when = null;
+      if (!later) {
+        const p = W.plan(todayState(now), W.withReminderTime(wfhState.settings, time, now), now);
+        when = p.state === 'none' ? p.configured : p.remindAt; // safety net / late clock-in included
+      }
+      const preview = when != null && when > now;
+      if (big) big.textContent = preview ? W.timeLabel(when) : big.dataset.orig;
+      if (until) until.textContent = preview ? inLabel(when - now) : until.dataset.orig;
     }
 
-    shadow.addEventListener('change', e => {
-      if (e.target.closest && e.target.closest('.wfh-form')) syncWfhForm();
-    });
-    shadow.addEventListener('focusout', e => {
-      if (!e.target.classList || !e.target.classList.contains('time-sel')) return;
-      // Apply anything that arrived while a picker was open (after focus has really moved).
+    /** Save the slider's value if it changed; then let the tab re-render. */
+    function commitSlide(rs) {
+      const value = Number(rs.dataset.value);
+      const saved = Number(rs.dataset.saved);
+      if (slideKeys) clearTimeout(slideKeys.timer);
+      slide = null;
+      slideKeys = null;
+      rs.classList.remove('dragging');
+      if (value !== saved && W.validTime(W.timeFromMinutes(value))) {
+        rs.dataset.saved = String(value);
+        wfhForm.savedAt = Date.now();
+        handlers.onWfhSaveTime({ time: W.timeFromMinutes(value) }); // re-renders via setWfh
+      } else if (wfhPending) {
+        renderWfh();
+      }
+    }
+
+    /** Put the slider back to its saved value (a cancelled drag, or a press that didn't move). */
+    function revertSlide(rs) {
+      slide = null;
+      rs.classList.remove('dragging');
+      showSlide(rs, Number(rs.dataset.saved));
+      if (wfhPending) renderWfh();
+    }
+
+    // Any press in the card holds re-renders until its click has been handled,
+    // so a save landing in between can't replace the button being clicked.
+    const releasePress = () => {
+      window.removeEventListener('pointerup', releasePress, true);
+      window.removeEventListener('pointercancel', releasePress, true);
+      pressing = false;
       setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
+    };
+    shadow.addEventListener('pointerdown', () => {
+      if (pressing) return;
+      pressing = true;
+      window.addEventListener('pointerup', releasePress, true);
+      window.addEventListener('pointercancel', releasePress, true);
+    }, true);
+
+    // During a drag only: follow the pointer anywhere on the page and end where it's released.
+    const onSlideMove = e => {
+      if (!slide || e.pointerId !== slide.pointerId) return;
+      if (!slide.moved && Math.abs(e.clientX - slide.startX) < 4) return; // a press, not a drag
+      slide.moved = true;
+      showSlide(slide.rs, slideValueAt(slide.track, e.clientX));
+    };
+    const onSlideEnd = e => {
+      if (!slide || e.pointerId !== slide.pointerId) return;
+      window.removeEventListener('pointermove', onSlideMove, true);
+      window.removeEventListener('pointerup', onSlideEnd, true);
+      window.removeEventListener('pointercancel', onSlideEnd, true);
+      const { rs, rail, moved } = slide;
+      try { rail.releasePointerCapture(e.pointerId); } catch (_) { /* not captured */ }
+      if (e.type === 'pointercancel' || !moved) revertSlide(rs);
+      else commitSlide(rs);
+    };
+
+    shadow.addEventListener('pointerdown', e => {
+      const rail = e.target.closest && e.target.closest('.rs-rail');
+      if (!rail || slide) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const rs = rail.closest('.rs');
+      const track = rs.querySelector('.rs-track');
+      const thumb = rs.querySelector('.rs-thumb');
+      e.preventDefault(); // no text selection / focus jump
+      if (slideKeys) commitSlide(rs); // save a pending keyboard change first
+      // On the rail: jump to the press. On the thumb: only a real drag moves it,
+      // so pressing a custom time (e.g. 9:30 PM ›) doesn't snap it to the scale.
+      const onThumb = !!(e.target.closest && e.target.closest('.rs-thumb'));
+      slide = { rs, track, rail, pointerId: e.pointerId, startX: e.clientX, moved: !onThumb };
+      try { rail.setPointerCapture(e.pointerId); } catch (_) { /* synthetic / already released */ }
+      window.addEventListener('pointermove', onSlideMove, true);
+      window.addEventListener('pointerup', onSlideEnd, true);
+      window.addEventListener('pointercancel', onSlideEnd, true);
+      rs.classList.add('dragging');
+      thumb.focus({ preventScroll: true });
+      if (!onThumb) showSlide(rs, slideValueAt(track, e.clientX));
+    });
+
+    // Mouse hover (not dragging): a faint dot where a click would land.
+    shadow.addEventListener('pointermove', e => {
+      if (slide || e.pointerType !== 'mouse') return;
+      const rail = e.target.closest && e.target.closest('.rs-rail');
+      if (!rail) return;
+      const ghost = rail.querySelector('.rs-ghost');
+      ghost.style.left = `${sliderPlace(slideValueAt(rail.querySelector('.rs-track'), e.clientX)).x}%`;
+      ghost.classList.add('on');
+    });
+
+    const SLIDE_STEPS = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -2, PageUp: 2 };
+    shadow.addEventListener('keydown', e => {
+      const thumb = e.target.classList && e.target.classList.contains('rs-thumb') ? e.target : null;
+      if (!thumb || slide) return;
+      const rs = thumb.closest('.rs');
+      const S = W.SLIDER;
+      const current = Number(rs.dataset.value);
+      let next;
+      if (e.key in SLIDE_STEPS) next = W.sliderStep(current, SLIDE_STEPS[e.key]);
+      else if (e.key === 'Home') next = S.min;
+      else if (e.key === 'End') next = S.max;
+      else if (e.key === 'Enter') { e.preventDefault(); if (slideKeys) commitSlide(rs); return; }
+      else return;
+      e.preventDefault();
+      if (next === current) return; // e.g. → on a custom 9:30 PM: nowhere further to go
+      showSlide(rs, next);
+      if (slideKeys) clearTimeout(slideKeys.timer);
+      slideKeys = { rs, timer: setTimeout(() => commitSlide(rs), 800) };
+    });
+
+    // Pop-up time pickers: keep the draft and the "already passed today" note in step.
+    shadow.addEventListener('change', e => {
+      const el = e.target;
+      if (!modalOpen || !el.classList || !el.classList.contains('time-sel') || !modalCard.contains(el)) return;
+      const draft = modalKind === 'auto' ? autoDraft : modalKind === 'remtime' ? remDraft : null;
+      if (!draft) return;
+      readModalSelects(draft);
+      if (modalKind === 'auto') autoError = null; else remError = null;
+      renderModal(true);
+      const again = modalCard.querySelector(`[data-field="${el.getAttribute('data-field')}"]`);
+      if (again) again.focus({ preventScroll: true });
+    });
+
+    shadow.addEventListener('focusout', e => {
+      const el = e.target;
+      if (!el.classList) return;
+      // Leaving the thumb with a keyboard change pending: save it once focus has
+      // moved (so the next control keeps focus, restored across the re-render).
+      if (el.classList.contains('rs-thumb') && slideKeys && !slide) {
+        const rs = slideKeys.rs;
+        setTimeout(() => { if (slideKeys && slideKeys.rs === rs) commitSlide(rs); }, 0);
+      }
+      // A time picker or the slider let go: apply anything that arrived meanwhile.
+      if (el.classList.contains('time-sel') || el.classList.contains('rs-thumb')) {
+        setTimeout(() => { if (wfhPending) renderWfh(); }, 0);
+      }
     });
 
     const TAB_ORDER = ['overview', 'plan', 'wfh'];

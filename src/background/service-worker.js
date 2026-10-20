@@ -33,11 +33,36 @@ const ICON = 'icons/icon128.png';
 const REMINDER_BUTTONS = [{ title: 'Snooze 30 min' }, { title: 'Stop for today' }];
 const AUTO_SOON_BUTTONS = [{ title: 'Skip today' }, { title: '+15 min' }];
 
+/** Today's state; `stale` is an earlier day's state still stored (a new day has begun). */
 async function load(now) {
   const got = await chrome.storage.local.get({ [DAY_KEY]: null, [SETTINGS_KEY]: null });
   const today = W.dateKeyOf(now);
-  const day = got[DAY_KEY] && got[DAY_KEY].date === today ? got[DAY_KEY] : W.emptyDay(today);
-  return { day, settings: W.normalizeSettings(got[SETTINGS_KEY], today) };
+  const stored = got[DAY_KEY];
+  const fresh = !!(stored && stored.date === today);
+  return { day: fresh ? stored : W.emptyDay(today), stale: stored && !fresh ? stored : null, settings: W.normalizeSettings(got[SETTINGS_KEY]) };
+}
+
+/**
+ * This browser session's id. Tab ids are only unique within a session, so an
+ * auto clock-out tab id from before a browser restart must never be trusted
+ * (it may now belong to some other tab).
+ */
+let sessionIdCache = null;
+async function browserSession() {
+  if (sessionIdCache) return sessionIdCache;
+  try {
+    const got = await chrome.storage.session.get({ sid: null });
+    sessionIdCache = got.sid || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    if (!got.sid) await chrome.storage.session.set({ sid: sessionIdCache });
+  } catch (_) {
+    sessionIdCache = 'no-session-storage';
+  }
+  return sessionIdCache;
+}
+
+/** The auto clock-out tab of `day`, if it was opened in this browser session. */
+async function ownTab(day) {
+  return day.autoTabId != null && day.autoSession === (await browserSession()) ? day.autoTabId : null;
 }
 
 function notify(id, { title, message }, urgent, buttons = urgent ? REMINDER_BUTTONS : undefined) {
@@ -88,18 +113,21 @@ async function stepAuto(day, settings, now) {
   }
   if ((ap.status === 'heads-up' || ap.status === 'due') && day.autoHeadsUpFor !== ap.at && ap.at > now) {
     await chrome.notifications.clear(N_AUTO_SOON);
-    await notify(N_AUTO_SOON, W.autoHeadsUp(ap), true, AUTO_SOON_BUTTONS);
+    // "+N min" only while there's room to postpone before the end.
+    const minutes = W.autoPostponeMinutes(ap);
+    const buttons = minutes ? [AUTO_SOON_BUTTONS[0], { title: `+${minutes} min` }] : [AUTO_SOON_BUTTONS[0]];
+    await notify(N_AUTO_SOON, W.autoHeadsUp(ap, now), true, buttons);
     day = { ...day, autoHeadsUpFor: ap.at };
   } else if (ap.status === 'due') {
     await chrome.notifications.clear(N_AUTO_SOON);
     day = W.autoStart(day, now);
-    day = { ...day, autoTabId: await openKekaInBackground() };
+    day = { ...day, autoSession: await browserSession(), autoTabId: await openKekaInBackground() };
   }
   return day;
 }
 
 async function finishAuto(day, ok, now, note) {
-  await closeTab(day.autoTabId);
+  await closeTab(await ownTab(day));
   const done = W.autoFinish(day, ok, now);
   if (ok) {
     await notify(N_AUTO_RESULT, {
@@ -131,15 +159,29 @@ async function setBadge(b) {
  * Serialized so overlapping events never lose an update.
  */
 let queue = Promise.resolve();
-function run(change) {
-  queue = queue.then(() => step(change)).catch(() => {});
+function run(change, opts) {
+  queue = queue.then(() => step(change, opts)).catch(() => {});
   return queue;
 }
 
-async function step(change) {
+/** opts.quiet: the user changed the time in the tab, so don't announce it back to them. */
+async function step(change, opts = {}) {
   const now = Date.now();
-  let { day, settings } = await load(now);
-  const before = JSON.stringify(day);
+  let { day, settings, stale } = await load(now);
+  let before = JSON.stringify(day);
+  if (stale) {
+    // A new day began. If yesterday's auto clock-out was still running (e.g. the
+    // laptop slept mid-run), close its tab and say it didn't finish.
+    if (stale.autoStatus === 'running') {
+      await closeTab(await ownTab(stale));
+      await notify(N_AUTO_FAILED, {
+        title: 'Auto clock-out didn\'t finish',
+        message: 'It was interrupted yesterday. Check Keka for a missed clock-out. Click to open Keka.',
+      }, true, [{ title: 'Open Keka' }]);
+    }
+    await chrome.notifications.clear(N_AUTO_SOON);
+    before = null; // store today's fresh state even if nothing else changes
+  }
   if (change) day = (await change(day, settings, now)) || day;
   const autoBefore = day.autoStatus;
   day = await stepAuto(day, settings, now);
@@ -155,21 +197,35 @@ async function step(change) {
     day = { ...day, lastShownAt: now, announcedFor: plan.remindAt };
     plan = W.plan(day, settings, now);
   } else if (W.shouldAnnounce(day, plan, now)) {
+    // Any earlier "set for …" notification now states the wrong time.
     await chrome.notifications.clear(N_ARMED);
-    const msg = W.announcement(plan);
-    if (auto.status === 'scheduled' || auto.status === 'heads-up') msg.message += ` Auto clock-out at ${W.timeLabel(auto.at)}.`;
-    await notify(N_ARMED, msg, false);
+    // Changed from the tab: they're looking at it, so don't announce it back.
+    if (!opts.quiet) {
+      const msg = W.announcement(plan);
+      if (auto.status === 'scheduled' || auto.status === 'heads-up') msg.message += ` Auto clock-out at ${W.timeLabel(auto.at)}.`;
+      await notify(N_ARMED, msg, false);
+    }
     day = { ...day, announcedFor: plan.remindAt };
   }
   if (plan.state !== 'in' || plan.stopped) await chrome.notifications.clear(N_REMINDER);
+  // On-screen alerts that no longer apply: a heads-up for a run that isn't
+  // coming (clocked out, skipped, turned off, time changed), and a failure
+  // alert once you've clocked out.
+  if (!['heads-up', 'due', 'running'].includes(auto.status) || day.autoHeadsUpFor !== auto.at) {
+    if (auto.status !== 'running') await chrome.notifications.clear(N_AUTO_SOON);
+  }
+  if (plan.state === 'out') await chrome.notifications.clear(N_AUTO_FAILED);
 
   // The WFH tab re-renders on changes, so only write real ones.
   if (JSON.stringify(day) !== before) await chrome.storage.local.set({ [DAY_KEY]: day });
   const b = W.badge(plan, now);
   await setBadge(b);
 
-  if (plan.nextAt == null) await chrome.alarms.clear(ALARM_NEXT);
-  else await chrome.alarms.create(ALARM_NEXT, { when: Math.max(plan.nextAt, now + 1000) });
+  // While the auto clock-out holds a due reminder back, its own alarm wakes us;
+  // re-arming this one for "now + 1 s" would spin every second.
+  const nextWake = plan.nextAt != null && !(autoBusy && plan.nextAt <= now) ? plan.nextAt : null;
+  if (nextWake == null) await chrome.alarms.clear(ALARM_NEXT);
+  else await chrome.alarms.create(ALARM_NEXT, { when: Math.max(nextWake, now + 1000) });
   const autoAt = auto.status === 'scheduled' ? auto.headsUpAt
     : auto.status === 'heads-up' ? auto.at
       : auto.status === 'running' ? day.autoStartedAt + W.AUTO_TIMEOUT_MS + 1000
@@ -221,15 +277,15 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-auto-tab': {
       // A freshly loaded Keka tab asks: "am I the one opened to clock out?"
       const tabId = sender.tab && sender.tab.id;
-      queue.then(() => load(Date.now())).then(({ day }) => {
-        reply({ run: tabId != null && day.autoStatus === 'running' && day.autoTabId === tabId });
+      queue.then(() => load(Date.now())).then(async ({ day }) => {
+        reply({ run: tabId != null && day.autoStatus === 'running' && (await ownTab(day)) === tabId });
       }, () => reply({ run: false }));
       return true;
     }
     case 'wfh-auto-result': {
       const tabId = sender.tab && sender.tab.id;
       run(async (day, s, now) => {
-        if (day.autoStatus !== 'running' || day.autoTabId !== tabId) return day;
+        if (day.autoStatus !== 'running' || tabId == null || (await ownTab(day)) !== tabId) return day;
         if (msg.result === 'done' || msg.result === 'already-out') return finishAuto(day, true, now, msg.result);
         if (msg.result === 'failed') return finishAuto(day, false, now);
         return day; // 'clicked': wait for Keka's response (or the timeout)
@@ -243,7 +299,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 // Reminder time changed in the WFH tab (any Keka tab).
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[SETTINGS_KEY]) run();
+  if (area === 'local' && changes[SETTINGS_KEY]) run(null, { quiet: true });
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {

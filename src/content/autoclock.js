@@ -20,29 +20,36 @@
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  async function waitFor(check, timeout, wait, step) {
+  /**
+   * Poll `check` until it returns something or `timeout` passes. Time counts
+   * both as polls made and as real time elapsed, so a laptop sleeping
+   * mid-run (or a heavily throttled tab) still gives up on schedule.
+   */
+  async function waitFor(check, timeout, wait, step, clock) {
+    const start = clock();
     for (let waited = 0; ; waited += step) {
       const found = check();
       if (found) return found;
-      if (waited >= timeout) return null;
+      if (Math.max(waited, clock() - start) >= timeout) return null;
       await wait(step);
     }
   }
 
-  async function clockOut(dom, { wait = sleep, step = 1000, timeouts = TIMEOUTS, report = () => {} } = {}) {
+  async function clockOut(dom, { wait = sleep, step = 1000, timeouts = TIMEOUTS, report = () => {}, clock = () => Date.now() } = {}) {
+    const until = (check, timeout) => waitFor(check, timeout, wait, step, clock);
     // Keka may still be loading (or show its sign-in page, where this never appears).
-    const first = await waitFor(() => dom.find(WFH_OUT) || (dom.find(WFH_IN) ? 'already-out' : null), timeouts.card, wait, step);
+    const first = await until(() => dom.find(WFH_OUT) || (dom.find(WFH_IN) ? 'already-out' : null), timeouts.card);
     if (!first) return { result: 'failed', reason: 'no-clock-out-button' };
     if (first === 'already-out') return { result: 'already-out' };
     dom.click(first);
 
-    const confirm = await waitFor(() => dom.find(CONFIRM), timeouts.confirm, wait, step);
+    const confirm = await until(() => dom.find(CONFIRM), timeouts.confirm);
     if (!confirm) return { result: 'failed', reason: 'no-confirm-button' };
     dom.click(confirm);
     report({ result: 'clicked' });
 
     // Keka swaps the buttons back to "WFH Clock-In" once it has recorded it.
-    const done = await waitFor(() => dom.find(WFH_IN), timeouts.done, wait, step);
+    const done = await until(() => dom.find(WFH_IN), timeouts.done);
     return done ? { result: 'done' } : { result: 'clicked' };
   }
 

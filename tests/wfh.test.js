@@ -78,15 +78,40 @@ test('default 6:30 PM; day ends at 10 PM when clocked in at 10:25', () => {
   assert.equal(W.plan(day(REAL), DEFAULTS, at('18:30')).due, true);
 });
 
-test('custom time: today only vs every WFH day; capped at 10 PM', () => {
-  const s = { everyDay: '19:00', today: { date: DATE, time: '20:15' } };
-  assert.equal(W.plan(day(REAL), s, at('12:00')).remindAt, at('20:15'));
-  assert.equal(W.plan(day(REAL), s, at('12:00')).scope, 'today');
+test('the reminder time applies on every WFH day; capped at 10 PM; old "today only" ignored', () => {
+  const s = { everyDay: '19:00' };
+  assert.equal(W.plan(day(REAL), s, at('12:00')).remindAt, at('19:00'));
   const tomorrow = { ...W.emptyDay('2026-10-17'), source: 'api', punches: [{ at: '2026-10-17T10:00:00', in: true }] };
-  assert.equal(W.plan(tomorrow, s, at('12:00', '2026-10-17')).remindAt, at('19:00', '2026-10-17'), 'one-off expired');
+  assert.equal(W.plan(tomorrow, s, at('12:00', '2026-10-17')).remindAt, at('19:00', '2026-10-17'));
+  // A "today only" override saved by an older version no longer applies.
+  const old = { everyDay: '19:00', today: { date: DATE, time: '20:15' } };
+  assert.equal(W.plan(day(REAL), old, at('12:00')).remindAt, at('19:00'));
+  assert.deepEqual(W.normalizeSettings(old), { everyDay: '19:00', auto: { every: { on: false, time: null } } });
   assert.equal(W.validTime('22:00'), '22:00');
   assert.equal(W.validTime('22:01'), null);
-  assert.equal(W.normalizeSettings({ everyDay: '23:30' }, DATE).everyDay, '18:30', 'invalid -> default');
+  assert.equal(W.normalizeSettings({ everyDay: '23:30' }).everyDay, '18:30', 'invalid -> default');
+});
+
+test('slider: 12 PM–8 PM, snaps to half hours, clamps at the ends', () => {
+  assert.deepEqual(W.SLIDER, { min: 720, max: 1200, step: 30 });
+  assert.equal(W.sliderValueAt(0), 720); // 12:00 PM
+  assert.equal(W.sliderValueAt(1), 1200); // 8:00 PM
+  assert.equal(W.sliderValueAt(0.5), 960); // 4:00 PM
+  // 6:14 PM rounds down to 6:00, 6:15 to 6:30.
+  assert.equal(W.snapToSlider(18 * 60 + 14), 1080);
+  assert.equal(W.snapToSlider(18 * 60 + 15), 1110);
+  assert.equal(W.sliderValueAt(-0.3), 720, 'dragged past the left end');
+  assert.equal(W.sliderValueAt(1.4), 1200, 'dragged past the right end');
+  assert.equal(W.snapToSlider(NaN), 720);
+  // Every step is a whole half hour, and there are 17 of them.
+  const steps = new Set(Array.from({ length: 201 }, (_, i) => W.sliderValueAt(i / 200)));
+  assert.equal(steps.size, 17);
+  for (const v of steps) assert.equal(v % 30, 0);
+  // Positions, including custom times off the scale.
+  assert.equal(W.sliderFraction(1080), 0.75);
+  assert.ok(W.sliderFraction(21 * 60 + 30) > 1);
+  assert.equal(W.timeFromMinutes(1110), '18:30');
+  assert.equal(W.timeFromMinutes(W.sliderValueAt(0)), '12:00');
 });
 
 test('safety net: early starter is reminded at first clock-in + 11h', () => {
@@ -113,11 +138,33 @@ test('back from a break after the reminder time: 30 min after re-clock-in', () =
   assert.equal(W.plan(day(REAL), DEFAULTS, at('13:00')).remindAt, at('18:30'));
 });
 
-test('clocked in too late to remind before the end: no reminder', () => {
-  const pl = W.plan(day([p('21:45', true)]), DEFAULTS, at('21:46'));
+test('near the day\'s end: one reminder 5 min before it; none if clocked in even later', () => {
+  // Clocked in at 9:45 PM: 30 min later is past 10 PM, so remind at 9:55 PM instead of never.
+  let pl = W.plan(day([p('21:45', true)]), DEFAULTS, at('21:46'));
+  assert.equal(pl.remindAt, at('21:55'));
+  assert.equal(pl.reason, 'late');
+  // Clocked in at 9:57 PM: no room left.
+  pl = W.plan(day([p('21:57', true)]), DEFAULTS, at('21:58'));
   assert.equal(pl.remindAt, null);
   assert.equal(pl.reason, 'too-late');
   assert.equal(pl.nextAt, null);
+});
+
+test('back from a break near Keka\'s 12h cutoff still gets a reminder before it', () => {
+  // First clock-in 8:00 AM (cutoff 8:00 PM), break 6:00–7:35 PM: 30 min after is past the cutoff.
+  const d = day([p('08:00', true), p('18:00', false), p('19:35', true)]);
+  const pl = W.plan(d, DEFAULTS, at('19:36'));
+  assert.equal(pl.end, at('20:00'));
+  assert.equal(pl.remindAt, at('19:55'));
+  assert.equal(W.badge(pl, at('19:36')).text, '19m');
+});
+
+test('a reminder set at the 10 PM limit fires at 9:55 PM', () => {
+  // (clocked in at 11:00 AM, so the 11h safety net is 10 PM and not in play)
+  const d = day([p('11:00', true)]);
+  const pl = W.plan(d, { everyDay: '22:00' }, at('12:00'));
+  assert.equal(pl.remindAt, at('21:55'));
+  assert.equal(W.plan(d, { everyDay: '22:00' }, at('21:55')).due, true);
 });
 
 test('ignored reminders repeat every 15 min and stop quietly at the end', () => {
@@ -260,14 +307,13 @@ const AUTO_ON = { everyDay: '18:30', auto: { every: { on: true, time: null } } }
 
 test('auto clock-out: off by default; default time is reminder + 30 min (max 10 PM)', () => {
   assert.equal(W.autoPlan(day(REAL), DEFAULTS, at('12:00')).status, 'off');
-  assert.equal(W.autoFor(AUTO_ON, DATE).time, '19:00');
-  assert.equal(W.autoFor({ everyDay: '21:45', auto: { every: { on: true } } }, DATE).time, '22:00');
-  // Today-only override wins for today, not tomorrow.
+  assert.equal(W.autoFor(AUTO_ON).time, '19:00');
+  assert.equal(W.autoFor({ everyDay: '21:45', auto: { every: { on: true } } }).time, '22:00');
+  // An older "today only" auto clock-out is ignored; the every-day setting applies.
   const s = { everyDay: '18:30', auto: { every: { on: false, time: '20:00' }, today: { date: DATE, on: true, time: '21:00' } } };
-  assert.deepEqual(W.autoFor(s, DATE), { on: true, time: '21:00', scope: 'today' });
-  assert.deepEqual(W.autoFor(s, '2026-10-17'), { on: false, time: '20:00', scope: 'every' });
+  assert.deepEqual(W.autoFor(s), { on: false, time: '20:00' });
   // Reminder settings saved without `auto` keep working.
-  assert.equal(W.normalizeSettings({ everyDay: '19:00' }, DATE).auto.every.on, false);
+  assert.equal(W.normalizeSettings({ everyDay: '19:00' }).auto.every.on, false);
 });
 
 test('auto clock-out: scheduled → heads-up 5 min before → due', () => {
@@ -290,9 +336,12 @@ test('auto clock-out: +15 min and skip today', () => {
   assert.equal(ap.status, 'scheduled', 'heads-up shows again 5 min before the new time');
   // Never past the last call before 10 PM.
   const late = { everyDay: '18:30', auto: { every: { on: true, time: '21:50' } } };
-  // (clocked in at 11:00, so the 11h safety cap is 10 PM, not in play)
+  // (clocked in at 11:00, so the 11h safety cap is 10 PM, not in play): only 9 min of room left.
+  assert.equal(W.autoPostponeMinutes(W.autoPlan(day([p('11:00', true)]), late, at('21:46'))), 9);
   d = W.autoPostpone(day([p('11:00', true)]), late, at('21:46'));
-  assert.equal(W.autoPlan(d, late, at('21:46')).at, at('21:55'));
+  assert.equal(W.autoPlan(d, late, at('21:46')).at, at('21:59'));
+  assert.equal(W.autoPostponeMinutes(W.autoPlan(d, late, at('21:46'))), 0, 'no more room: no +15 button');
+  assert.equal(W.autoPostpone(d, late, at('21:47')), d, '+15 with no room changes nothing');
   assert.equal(W.autoPlan(W.autoSkipToday(day(REAL)), AUTO_ON, at('19:00')).status, 'skipped');
 });
 
@@ -365,7 +414,106 @@ test('auto clock-out: never without a heads-up (after Reset, or waking past the 
   const e = W.autoPlan(W.autoDeferForHeadsUp(early, s, at('19:30')), s, at('19:30'));
   assert.equal(e.at, at('19:35'));
   assert.equal(e.status, 'heads-up');
-  // No room left before the end: run now rather than miss it.
-  const last = day([p('11:00', true)]);
-  assert.equal(W.autoDeferForHeadsUp(last, AUTO_ON, at('21:58')), last);
+  // Little room left: a shorter heads-up (here 3 min, running at 9:59 PM).
+  const late = W.autoDeferForHeadsUp(day([p('11:00', true)]), AUTO_ON, at('21:56'));
+  assert.equal(W.autoPlan(late, AUTO_ON, at('21:56')).at, at('21:59'));
+  assert.equal(W.autoHeadsUp(W.autoPlan(late, AUTO_ON, at('21:56')), at('21:56')).message, 'Keka Hours will clock you out in 3 minutes.');
+  // Under a minute left: no time to warn, so it's called off for today (never without a heads-up).
+  const gone = W.autoDeferForHeadsUp(day([p('11:00', true)]), AUTO_ON, at('21:58') + 30000);
+  assert.equal(gone.autoStatus, 'expired');
+  assert.equal(W.autoPlan(gone, AUTO_ON, at('21:59')).status, 'expired');
+  assert.equal(W.autoResettable(gone), true);
+});
+
+// ---------- a time that already passed today starts on the next WFH day ----------
+
+test('reminder: a time picked after it passed today starts tomorrow; today keeps its time', () => {
+  // 7:10 PM, reminder was 8:00 PM; pick 6:00 PM (already past).
+  const s = W.withReminderTime({ everyDay: '20:00' }, '18:00', at('19:10'));
+  assert.deepEqual(s, { everyDay: '18:00', auto: { every: { on: false, time: null } }, everyDayFrom: '2026-10-17', prevEveryDay: '20:00' });
+  const today = W.plan(day(REAL), s, at('19:10'));
+  assert.equal(today.time, '20:00');
+  assert.equal(today.remindAt, at('20:00'), 'no instant reminder today');
+  assert.equal(today.nextTime, '18:00');
+  assert.equal(today.nextFrom, '2026-10-17');
+  const tomorrow = { ...W.emptyDay('2026-10-17'), source: 'api', punches: [{ at: '2026-10-17T10:00:00', in: true }] };
+  assert.equal(W.plan(tomorrow, s, at('12:00', '2026-10-17')).remindAt, at('18:00', '2026-10-17'));
+  // A future time applies today and clears the wait.
+  const later = W.withReminderTime(s, '21:00', at('19:10'));
+  assert.deepEqual(later, { everyDay: '21:00', auto: { every: { on: false, time: null } } });
+  // Picking another past time keeps today's original (8 PM), not the in-between one.
+  const again = W.withReminderTime(s, '17:30', at('19:20'));
+  assert.equal(again.prevEveryDay, '20:00');
+  assert.equal(W.plan(day(REAL), again, at('19:20')).time, '20:00');
+  // Picking today's own time back needs no wait.
+  assert.deepEqual(W.withReminderTime(s, '20:00', at('19:20')), { everyDay: '20:00', auto: { every: { on: false, time: null } } });
+  assert.equal(W.passedToday('19:10', at('19:10')), true);
+  assert.equal(W.passedToday('19:11', at('19:10')), false);
+  assert.equal(W.nextDateKey('2026-10-31'), '2026-11-01');
+});
+
+test('auto clock-out: turning on at a time that already passed starts tomorrow (no surprise clock-out)', () => {
+  // 7:10 PM, auto clock-out was off; turn on for 6:55 PM.
+  const s = W.withAutoClockOut({ everyDay: '19:00' }, { on: true, time: '18:55' }, at('19:10'));
+  const ap = W.autoPlan(day(REAL), s, at('19:10'));
+  assert.equal(ap.status, 'off', 'today stays as it was');
+  assert.deepEqual(ap.next, { on: true, time: '18:55' });
+  assert.equal(ap.from, '2026-10-17');
+  const tomorrow = { ...W.emptyDay('2026-10-17'), source: 'api', punches: [{ at: '2026-10-17T10:00:00', in: true }] };
+  assert.equal(W.autoPlan(tomorrow, s, at('18:00', '2026-10-17')).status, 'scheduled');
+  assert.equal(W.autoPlan(tomorrow, s, at('18:00', '2026-10-17')).at, at('18:55', '2026-10-17'));
+  // Was on for 9:00 PM today; moving it to a past time keeps 9:00 PM for today.
+  const was = { everyDay: '19:00', auto: { every: { on: true, time: '21:00' } } };
+  const moved = W.withAutoClockOut(was, { on: true, time: '18:30' }, at('19:10'));
+  assert.equal(W.autoPlan(day(REAL), moved, at('19:10')).at, at('21:00'));
+  // A future time, or turning it off, applies right away.
+  assert.equal(W.autoPlan(day(REAL), W.withAutoClockOut(was, { on: true, time: '20:00' }, at('19:10')), at('19:10')).at, at('20:00'));
+  assert.equal(W.autoPlan(day(REAL), W.withAutoClockOut(moved, { on: false, time: '18:30' }, at('19:10')), at('19:10')).status, 'off');
+  // The reminder setting is untouched by auto clock-out changes, and vice versa.
+  assert.equal(W.normalizeSettings(moved).everyDay, '19:00');
+  assert.deepEqual(W.normalizeSettings(W.withReminderTime(moved, '20:00', at('19:10'))).auto, W.normalizeSettings(moved).auto);
+});
+
+test('auto clock-out: judged on when it would really run today (11h safety), not just the picked time', () => {
+  // Clocked in 8:00 AM, so today it would run at 7:00 PM (11h). At 7:10 PM, turning it on for 9:00 PM
+  // would make it due at once: it starts tomorrow instead.
+  const early = day([p('08:00', true)]);
+  const s = W.withAutoClockOut({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), early);
+  assert.equal(s.auto.from, '2026-10-17');
+  assert.equal(W.autoPlan(early, s, at('19:10')).status, 'off', 'no surprise clock-out today');
+  assert.equal(W.autoStartsTomorrow({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), early), true);
+  // Clocked in at 10:25 AM (safety 9:25 PM): 9:00 PM is genuinely ahead, so it applies today.
+  assert.equal(W.autoStartsTomorrow({ everyDay: '18:30' }, { on: true, time: '21:00' }, at('19:10'), day(REAL)), false);
+  // The reminder's message helper agrees with what's saved, including picking today's own time back.
+  const pending = W.withReminderTime({ everyDay: '20:00' }, '18:00', at('19:10'));
+  assert.equal(W.reminderStartsTomorrow(pending, '18:00', at('19:15')), true);
+  assert.equal(W.reminderStartsTomorrow(pending, '20:00', at('19:15')), false, "today's own time: nothing deferred");
+  assert.equal(W.reminderStartsTomorrow({ everyDay: '18:30' }, '18:30', at('19:15')), false);
+});
+
+test('slider keys: step to the neighbouring half hour; custom times never jump the wrong way', () => {
+  assert.equal(W.sliderStep(18 * 60, 1), 1110);
+  assert.equal(W.sliderStep(18 * 60, -1), 1050);
+  assert.equal(W.sliderStep(18 * 60 + 15, 1), 1110, '6:15 → 6:30');
+  assert.equal(W.sliderStep(18 * 60 + 15, -1), 1080, '6:15 → 6:00');
+  assert.equal(W.sliderStep(18 * 60, 2), 1140);
+  assert.equal(W.sliderStep(21 * 60 + 30, 1), 1290, '9:30 PM → stays');
+  assert.equal(W.sliderStep(21 * 60 + 30, -1), 1200, '9:30 PM ← 8:00 PM');
+  assert.equal(W.sliderStep(11 * 60 + 30, -1), 690, '11:30 AM ← stays');
+  assert.equal(W.sliderStep(11 * 60 + 30, 1), 720, '11:30 AM → 12:00 PM');
+  assert.equal(W.sliderStep(1200, 1), 1200);
+  assert.equal(W.sliderStep(720, -1), 720);
+});
+
+test('auto clock-out: a run keeps its status if it is turned off meanwhile', () => {
+  const running = W.autoStart(day(REAL), at('19:00'));
+  const off = { everyDay: '18:30', auto: { every: { on: false, time: '19:00' } } };
+  assert.equal(W.autoPlan(running, off, at('19:00') + 20000).status, 'running');
+  const done = W.autoFinish(W.applyObservation(running, { records: [{ date: DATE, punches: [...REAL, p('19:00', false)] }] }, at('19:01')), true, at('19:01'));
+  assert.equal(W.autoPlan(done, off, at('19:02')).status, 'done');
+});
+
+test('badge never overflows: 10h or more shows hours only', () => {
+  assert.equal(W.shortLeft(10 * 60 * 60000 + 29 * 60000), '10h');
+  assert.equal(W.shortLeft(9 * 60 * 60000 + 59 * 60000), '9:59');
 });
