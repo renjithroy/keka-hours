@@ -197,16 +197,19 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
-  /** WFH tab: save the reminder time (every WFH day; a time already past today starts tomorrow). */
-  function saveWfhTime({ time }) {
-    if (!wfh.validTime(time)) return;
-    const next = wfh.withReminderTime(state.wfh.settings, time, Date.now());
+  /**
+   * WFH tab reminder: its switch and / or a new time (every WFH day). A time already past today
+   * starts tomorrow, and so does switching it on when it would remind you at once.
+   */
+  function saveReminder({ on, time }) {
+    if (time != null && !wfh.validTime(time)) return;
+    const next = wfh.withReminder(state.wfh.settings, { on, time }, Date.now(), state.wfh.day);
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
   }
 
-  /** Auto clock-out pop-up: save on/off + time (every WFH day; a time already past today starts tomorrow). */
+  /** WFH tab auto clock-out switch / time: save on/off + time (every WFH day; a time already past today starts tomorrow). */
   function saveAutoClockOut({ on, time }) {
     if (!wfh.validTime(time)) return;
     // Today's punches decide when it would really run today (the 11h safety time can be earlier).
@@ -324,8 +327,8 @@
       onToggleDay: toggleDay,
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
-      onWfhSaveTime: saveWfhTime,
-      onWfhAction: type => toWorker({ type }), // wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-reset
+      onReminderSave: saveReminder,
+      onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-unskip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
     });

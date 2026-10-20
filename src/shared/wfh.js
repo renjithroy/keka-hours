@@ -5,9 +5,10 @@
  * Office attendance is biometric only, so any web punch (Keka's
  * "WFH Clock-In / Clock-out") means a WFH day, approved or not.
  *
- *  - Reminder at a fixed time of day: 6:30 PM unless the user picks another
- *    time (latest 10 PM), on every WFH day. In the tab it's set with a slider
- *    (12 PM–8 PM in half hours) or a custom time.
+ *  - Opt-in (off by default, a switch in the tab). Reminder at a fixed time
+ *    of day: 6:30 PM unless the user picks another time (latest 10 PM), on
+ *    every WFH day. In the tab it's set in a pop-up with −/+ 15 min
+ *    (12 PM–10 PM) and a few quick picks.
  *  - Safety net: Keka marks a missed clock-out 12h after the first clock-in,
  *    so if first clock-in + 11h comes earlier, remind then instead.
  *  - Clocked in (or back in from a break) after the reminder time: remind
@@ -28,10 +29,11 @@
  *   { date: 'YYYY-MM-DD', source: 'api' | 'dom' | null, punches: [{ at, in }],
  *     domIn, updatedAt, snoozeUntil, lastShownAt, announcedFor, stoppedAt,
  *     autoSkip, autoDelay, autoHeadsUpFor, autoStatus, autoStartedAt, autoTabId, autoDoneAt }
- * Settings: { everyDay: 'HH:MM', auto: { every: { on, time } } }
+ * Settings: { reminderOn, everyDay: 'HH:MM', auto: { every: { on, time } } }
  * (Older "today only" overrides are ignored: every setting applies to every WFH day.)
  * A time picked after it has already passed today starts on the next day; until then today
  * keeps what it had: { everyDayFrom, prevEveryDay } and auto: { from, prev: { on, time } }.
+ * Turning the reminder on when it would be due at once waits for the next day: { reminderOnFrom }.
  */
 (function (root) {
   'use strict';
@@ -116,7 +118,18 @@
     const aFrom = validDate(a.from);
     if (aFrom && a.prev) auto.prev = { on: a.prev.on === true, time: validTime(a.prev.time) };
     if (auto.prev) auto.from = aFrom;
-    return from && prev ? { everyDay, everyDayFrom: from, prevEveryDay: prev, auto } : { everyDay, auto };
+    const out = from && prev ? { everyDay, everyDayFrom: from, prevEveryDay: prev, auto } : { everyDay, auto };
+    out.reminderOn = !!(s && s.reminderOn === true);
+    const onFrom = validDate(s && s.reminderOnFrom);
+    if (out.reminderOn && onFrom) out.reminderOnFrom = onFrom;
+    return out;
+  }
+
+  /** Is the reminder on for `dateKey`? { on }, plus { from } while turning it on waits for that day. */
+  function reminderOnFor(settings, dateKey) {
+    const s = normalizeSettings(settings);
+    if (s.reminderOn && s.reminderOnFrom && dateKey && dateKey < s.reminderOnFrom) return { on: false, from: s.reminderOnFrom };
+    return { on: s.reminderOn };
   }
 
   /** 'YYYY-MM-DD' -> the next calendar day. */
@@ -162,9 +175,9 @@
    * starts on the next day; today keeps the time it was using.
    */
   function withReminderTime(settings, time, now) {
-    const s = normalizeSettings(settings);
+    const { everyDayFrom, prevEveryDay, ...s } = normalizeSettings(settings);
     const today = dateKeyOf(now);
-    const base = { everyDay: time, auto: s.auto };
+    const base = { ...s, everyDay: time };
     const todays = timeFor(settings, today).time;
     if (!passedToday(time, now) || todays === time) return base;
     return { ...base, everyDayFrom: nextDateKey(today), prevEveryDay: todays };
@@ -191,6 +204,38 @@
     return { ...s, auto: { every: next, prev: { on: todays.on, time: todays.time }, from: nextDateKey(today) } };
   }
 
+  /**
+   * Settings with the reminder turned on / off. Turning it on when today's
+   * reminder would be due at once (clocked in past its time) starts it on the
+   * next day, so it never pops up the moment you switch it on. Anything else,
+   * including turning it off, applies now. `day` is today's state (punches).
+   */
+  function withReminderOn(settings, on, now, day) {
+    const { reminderOnFrom, ...s } = normalizeSettings(settings);
+    if (!on) return { ...s, reminderOn: false };
+    const today = dateKeyOf(now);
+    const base = { ...s, reminderOn: true };
+    if (reminderOnFor(settings, today).on) return base; // already on today
+    const p = plan(day && day.date === today ? day : emptyDay(today), base, now);
+    if (p.state !== 'in' || p.remindAt == null || p.remindAt > now) return base;
+    return { ...base, reminderOnFrom: nextDateKey(today) };
+  }
+
+  /**
+   * The WFH tab's reminder save: a new time and / or the switch (either may be
+   * left out). Switched on together with a time that only starts on the next
+   * day, the reminder waits for that day too, rather than reminding today at
+   * the old time.
+   */
+  function withReminder(settings, { on, time } = {}, now, day) {
+    const wasOn = reminderOnFor(settings, dateKeyOf(now)).on;
+    let next = time == null ? normalizeSettings(settings) : withReminderTime(settings, time, now);
+    if (on == null) return next;
+    next = withReminderOn(next, on, now, day);
+    if (on && time != null && !wasOn && next.everyDayFrom) next = { ...next, reminderOnFrom: next.everyDayFrom };
+    return next;
+  }
+
   /** Would saving this reminder time make it start only on the next WFH day? */
   function reminderStartsTomorrow(settings, time, now) {
     return !!withReminderTime(settings, time, now).everyDayFrom;
@@ -201,47 +246,28 @@
     return !!withAutoClockOut(settings, change, now, day).auto.from;
   }
 
-  // ---- The reminder slider: 12 PM–8 PM in half-hour steps (other times via "Custom time").
-  const SLIDER = { min: 12 * 60, max: 20 * 60, step: 30 };
+  // ---- The time pop-up: −/+ 15 min between 12 PM and 10 PM, plus quick picks.
+  const TIME_STEPS = { min: 12 * 60, max: parseTime(LATEST_TIME), step: 15 };
+  const QUICK_TIMES = ['18:00', '18:30', '19:00', '19:30', '20:00'];
 
   /** Minutes since midnight -> 'HH:MM'. */
   function timeFromMinutes(m) {
     return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
   }
 
-  /** Any minute value -> the nearest slider step, kept inside 12 PM–8 PM. */
-  function snapToSlider(minutes) {
-    if (!Number.isFinite(minutes)) return SLIDER.min;
-    const snapped = Math.round((minutes - SLIDER.min) / SLIDER.step) * SLIDER.step + SLIDER.min;
-    return Math.max(SLIDER.min, Math.min(SLIDER.max, snapped));
-  }
-
-  /** A position along the slider (0 = 12 PM, 1 = 8 PM) -> snapped minutes. */
-  function sliderValueAt(fraction) {
-    return snapToSlider(SLIDER.min + fraction * (SLIDER.max - SLIDER.min));
-  }
-
   /**
-   * One keyboard step from `minutes` (+1 / -1 half hour, ±2 an hour) to the
-   * next slider step in that direction. A custom time between steps moves to
-   * its neighbour; one off the scale never jumps the "wrong" way (9:30 PM
-   * with → stays put; with ← it comes onto the scale at 8 PM).
+   * −/+ (dir -1 / +1): to the neighbouring quarter hour, kept between 12 PM
+   * and 10 PM. A time off the quarter hours (6:40 PM) goes to its neighbour
+   * (6:30 / 6:45); one before 12 PM (an old custom 11:30 AM) only moves up.
    */
-  function sliderStep(minutes, steps) {
-    const S = SLIDER;
-    if (steps > 0) {
+  function stepTime(minutes, dir) {
+    const S = TIME_STEPS;
+    if (dir > 0) {
       if (minutes >= S.max) return minutes;
-      const below = Math.floor((minutes - S.min) / S.step) * S.step + S.min;
-      return Math.max(S.min, Math.min(S.max, below + steps * S.step));
+      return Math.min(S.max, Math.floor(minutes / S.step) * S.step + S.step);
     }
     if (minutes <= S.min) return minutes;
-    const above = Math.ceil((minutes - S.min) / S.step) * S.step + S.min;
-    return Math.min(S.max, Math.max(S.min, above + steps * S.step));
-  }
-
-  /** Minutes -> position along the slider (can be < 0 or > 1 for custom times off the scale). */
-  function sliderFraction(minutes) {
-    return (minutes - SLIDER.min) / (SLIDER.max - SLIDER.min);
+    return Math.max(S.min, Math.ceil(minutes / S.step) * S.step - S.step);
   }
 
   function emptyDay(date) {
@@ -309,9 +335,10 @@
       }
     }
 
+    const on = reminderOnFor(settings, day.date).on;
     const stopped = day.stoppedAt != null;
     let nextAt = null;
-    if (ps.state === 'in' && remindAt != null && !stopped) {
+    if (on && ps.state === 'in' && remindAt != null && !stopped) {
       nextAt = remindAt;
       if (day.lastShownAt != null && day.lastShownAt >= remindAt) nextAt = day.lastShownAt + REPEAT_MS;
       if (day.snoozeUntil != null && day.snoozeUntil > (day.lastShownAt || 0)) nextAt = day.snoozeUntil;
@@ -321,6 +348,7 @@
     return {
       ...ps,
       date: day.date,
+      on, // the reminder is switched on today
       time: chosen.time,
       // A different time picked for later days (it had already passed today).
       nextTime: chosen.next || null,
@@ -333,8 +361,8 @@
       nextAt,
       stopped,
       due: nextAt != null && nextAt <= now,
-      snoozed: ps.state === 'in' && day.snoozeUntil != null && day.snoozeUntil > now && nextAt === day.snoozeUntil,
-      reminding: ps.state === 'in' && remindAt != null && day.lastShownAt != null && day.lastShownAt >= remindAt,
+      snoozed: on && ps.state === 'in' && day.snoozeUntil != null && day.snoozeUntil > now && nextAt === day.snoozeUntil,
+      reminding: on && ps.state === 'in' && remindAt != null && day.lastShownAt != null && day.lastShownAt >= remindAt,
       updatedAt: day.updatedAt || 0,
     };
   }
@@ -451,6 +479,14 @@
   }
 
   /**
+   * Tab "Undo" on a skip: today's run is back, keeping any +15 min. Its
+   * heads-up shows again (the skip cleared the one on screen).
+   */
+  function autoUnskip(day) {
+    return day.autoSkip ? { ...day, autoSkip: false, autoHeadsUpFor: null } : day;
+  }
+
+  /**
    * Due without a heads-up for this time yet (after a Reset, or waking from
    * sleep past it): move it so the heads-up comes first — 5 min from now, or
    * as much as is left before the end. With under a minute left there's no
@@ -465,13 +501,7 @@
     return { ...day, autoDelay: (day.autoDelay || 0) + (target - ap.at) };
   }
 
-  /** Is there anything of today's auto clock-out to reset (skip, +15, done, failed)? Not while running. */
-  function autoResettable(day) {
-    return day.autoStatus !== 'running' &&
-      (day.autoSkip === true || (day.autoDelay || 0) > 0 || ['done', 'failed', 'expired'].includes(day.autoStatus));
-  }
-
-  /** Tab "Reset": forget today's skip / delay / result, so it runs again at its set time. */
+  /** Tab "Try again": forget today's skip / delay / result, so it runs again at its set time. */
   function autoReset(day) {
     if (day.autoStatus === 'running') return day;
     return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null };
@@ -502,7 +532,7 @@
 
   /** Should we post "reminder set for …"? Once per distinct reminder time, never for one already due. */
   function shouldAnnounce(day, p, now) {
-    return p.state === 'in' && !p.stopped && p.remindAt != null && p.remindAt > now && day.announcedFor !== p.remindAt;
+    return p.on && p.state === 'in' && !p.stopped && p.remindAt != null && p.remindAt > now && day.announcedFor !== p.remindAt;
   }
 
   function announcement(p) {
@@ -531,7 +561,7 @@
    * once due — until clocked out or the day's end.
    */
   function badge(p, now) {
-    if (p.state !== 'in' || p.stopped || p.remindAt == null || now >= p.end) return null;
+    if (!p.on || p.state !== 'in' || p.stopped || p.remindAt == null || now >= p.end) return null;
     if (p.snoozed) return { text: shortLeft(p.nextAt - now), color: '#d97706' };
     if (p.reminding || p.due) return { text: 'OUT', color: '#dc2626' };
     return { text: shortLeft(p.remindAt - now), color: '#1f9d6b' };
@@ -540,12 +570,12 @@
   const api = {
     DEFAULT_TIME, LATEST_TIME, SAFETY_MS, CUTOFF_MS, REPEAT_MS, SNOOZE_MS, SNOOZE_STEP_MS,
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
-    normalizeSettings, timeFor, emptyDay, punchState, plan,
-    SLIDER, timeFromMinutes, snapToSlider, sliderValueAt, sliderFraction,
-    nextDateKey, passedToday, withReminderTime, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow, sliderStep,
+    normalizeSettings, timeFor, reminderOnFor, emptyDay, punchState, plan,
+    TIME_STEPS, QUICK_TIMES, timeFromMinutes, stepTime,
+    nextDateKey, passedToday, withReminderTime, withReminderOn, withReminder, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoPostponeMinutes, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

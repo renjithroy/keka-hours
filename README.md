@@ -4,7 +4,7 @@ A small Chrome extension for Keka (`hatio.keka.com → Me → Attendance`):
 
 - your **average office hours per day** for the month you're viewing, and how long to sit on the
   remaining days to stay at 9h+;
-- a **clock-out reminder on WFH days**, so Keka doesn't mark a missed clock-out;
+- an optional **clock-out reminder on WFH days**, so Keka doesn't mark a missed clock-out;
 - optional **auto clock-out** at a time you choose.
 
 Everything runs locally in your browser. Nothing is sent anywhere.
@@ -18,7 +18,7 @@ Everything runs locally in your browser. Nothing is sent anywhere.
   <tr>
     <td><img src="docs/overview.png" alt="Overview tab: average office hours per day, totals, longest/shortest day and daily-hours chart" width="280"></td>
     <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="280"></td>
-    <td><img src="docs/wfh.png" alt="WFH tab: auto clock-out at 8:30 PM, clock-out reminder at 8:00 PM with a day bar, and the reminder time picker" width="280"></td>
+    <td><img src="docs/wfh.png" alt="WFH tab: Today (clocked in, reminder in 1h 13m, auto clock-out in 1h 43m) and Every WFH day (reminder on at 6:30 PM, auto clock-out on at 7:00 PM)" width="280"></td>
   </tr>
 </table>
 
@@ -56,9 +56,10 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
-- **WFH**: the **Auto clock-out** card on top, then one **Clock-out reminder** box: your clock-in
-  status, today's reminder (with snooze / stop controls), the **reminder time slider**, and the two
-  rules. **Send test reminder** at the bottom. Details below.
+- **WFH**: **Today** shows whether you're clocked in and when the reminder and auto clock-out
+  come, with snooze / stop / skip buttons when they apply. **Every WFH day** has a row for each,
+  with its on / off switch and its time (both are off until you turn them on). Click a row to change
+  its time. **How it works** and **Test notification** are at the bottom. Details below.
 
 ### WFH clock-out reminders
 
@@ -66,14 +67,17 @@ Keka hides the clock-out button 12 hours after your first clock-in and marks a m
 Office attendance is biometric, so a web **WFH Clock-In** means a WFH day, whether or not the WFH
 request is approved yet.
 
+- **On / off:** off by default. Turn it on with its switch under **Every WFH day**. If you switch it
+  on while clocked in and its time has already passed, it starts on your next WFH day, so it never
+  pops up the moment you turn it on.
 - **When:** once you're clocked in via the web, a system notification reminds you at **6:30 PM**. It
   appears whichever tab or app you're in, even with Keka closed. A low-key notification confirms
   when a reminder is set after you clock in.
-- **Setting the time:** drag the slider in the WFH tab (or click anywhere on it): 12 PM to 8 PM in
-  half hours. It saves when you let go. With the keyboard: ← → 30 min, PgUp / PgDn 1 h, Home / End.
-  **Custom time** opens a picker for any other time up to **10:00 PM** (e.g. 8:45 PM); a time past
-  8 PM shows at the slider's end as "9:30 PM ›". The time applies on every WFH day. While you're
-  clocked in, the slider also shows how far into the day you are, with a tick at "now".
+- **Setting the time:** click the reminder's row under **Every WFH day**. In the pop-up, **−** / **+**
+  move it 15 min (12 PM to **10:00 PM**), or click a quick pick (6:00 to 8:00 PM), then **Save**
+  (**Save & turn on** if it's off).
+  With the keyboard on the time: ↑ ↓ 15 min, PgUp / PgDn 1 h, Home / End, Enter saves. The time
+  applies on every WFH day.
 - **A time that has already passed today** (for the reminder or auto clock-out) starts on your next
   WFH day; today keeps the time it had, so you never get an instant reminder or a surprise
   clock-out. The tab and the pop-ups say so as soon as you pick it.
@@ -82,8 +86,9 @@ request is approved yet.
 - **Late clock-in:** if you clock in (or back in from a break) after the reminder time, you're
   reminded 30 min later.
 - **Repeats:** the reminder stays on screen and repeats every 15 min until you clock out. Click it
-  to open Keka. Its buttons: **Snooze 30 min** and **Stop for today**. In the WFH tab, **+15 min**
-  extends a snooze, **Cancel snooze** reminds you now, and **Turn back on** undoes a stop.
+  to open Keka. Its buttons: **Snooze 30 min** and **Stop for today** (also in the WFH tab while it's
+  reminding you). In the tab, **+15 min** extends a snooze, **Cancel snooze** reminds you now, and
+  **Turn back on** undoes a stop.
 - **Hard limit:** 10:00 PM. Reminders can't be set or snoozed past it, and they stop quietly there
   (or at Keka's 12h cutoff if that's earlier). Clocking out stops them at once.
 - **Toolbar badge:** the extension icon counts down to the reminder. It turns amber while snoozed
@@ -91,14 +96,15 @@ request is approved yet.
 
 ### Auto clock-out (optional)
 
-Off by default. Set it up from the **Auto clock-out** card at the top of the WFH tab (**Set up** /
-**Edit** opens a pop-up): a time (default 30 min after your reminder, up to 10:00 PM) that applies
-on every WFH day.
+Off by default. Turn it on with its switch under **Every WFH day**, and click its row to change the
+time (default 30 min after your reminder, up to 10:00 PM). It works whether or not the reminder is
+on, and applies on every WFH day.
 
 - 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
-  heads-up: if the time has already passed (your laptop was asleep, or you pressed Reset), it warns
-  you first and runs 5 min later.
-- **Reset** on the Auto clock-out card clears today's skip, +15 min or result, so it runs again.
+  heads-up: if the time has already passed (your laptop was asleep, or you pressed Undo or Try
+  again), it warns you first and runs 5 min later.
+- **Skip today** in the WFH tab (or in the heads-up) skips just today's run; **Undo** brings it back.
+  If a run fails, **Try again** runs it again, after a fresh heads-up.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
   extension never builds one or reads your login.
@@ -111,8 +117,8 @@ on every WFH day.
 
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and
 whenever a Keka Attendance page loads (so a clock-in from the mobile app is picked up the next time
-you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Send
-test reminder** in the WFH tab to check).
+you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Test
+notification** in the WFH tab to check).
 
 In the **30 DAYS** tab the card shows the current month to date (1st → today), not the rolling
 30 days.
