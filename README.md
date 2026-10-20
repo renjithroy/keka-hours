@@ -56,8 +56,9 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
-- **WFH**: **Today** shows whether you're clocked in and when the reminder and auto clock-out
-  come, with snooze / stop / skip buttons when they apply. **Every WFH day** has a row for each,
+- **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
+  the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
+  when they apply. **Every WFH day** has a row for each,
   with its on / off switch and its time (both are off until you turn them on). Click a row to change
   its time. **How it works** and **Test notification** are at the bottom. Details below.
 
@@ -67,9 +68,10 @@ Keka hides the clock-out button 12 hours after your first clock-in and marks a m
 Office attendance is biometric, so a web **WFH Clock-In** means a WFH day, whether or not the WFH
 request is approved yet.
 
-- **On / off:** off by default. Turn it on with its switch under **Every WFH day**. If you switch it
-  on while clocked in and its time has already passed, it starts on your next WFH day, so it never
-  pops up the moment you turn it on.
+- **On / off:** off by default, including after updating from an older version (switch it on once).
+  Turn it on with its switch under **Every WFH day**. If you switch it on while clocked in and its
+  time has already passed, it starts on your next WFH day, so it never pops up the moment you turn
+  it on.
 - **When:** once you're clocked in via the web, a system notification reminds you at **6:30 PM**. It
   appears whichever tab or app you're in, even with Keka closed. A low-key notification confirms
   when a reminder is set after you clock in.
@@ -91,8 +93,8 @@ request is approved yet.
   **Turn back on** undoes a stop.
 - **Hard limit:** 10:00 PM. Reminders can't be set or snoozed past it, and they stop quietly there
   (or at Keka's 12h cutoff if that's earlier). Clocking out stops them at once.
-- **Toolbar badge:** the extension icon counts down to the reminder. It turns amber while snoozed
-  and red **OUT** once it's time.
+- **Toolbar badge:** while the reminder is on, the extension icon counts down to it. It turns amber
+  while snoozed and red **OUT** once it's time.
 
 ### Auto clock-out (optional)
 
@@ -103,7 +105,8 @@ on, and applies on every WFH day.
 - 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
   heads-up: if the time has already passed (your laptop was asleep, or you pressed Undo or Try
   again), it warns you first and runs 5 min later.
-- **Skip today** in the WFH tab (or in the heads-up) skips just today's run; **Undo** brings it back.
+- **Skip today** in the WFH tab (or in the heads-up) keeps it off for the rest of today; **Undo**
+  brings it back.
   If a run fails, **Try again** runs it again, after a fresh heads-up.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
@@ -111,8 +114,12 @@ on, and applies on every WFH day.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
   (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
   clock out yourself.
-- It runs at most once a day, only if you're clocked in then and clocked in before that time, and
-  never later than 11h after your first clock-in or 10:00 PM.
+- It runs only if you're clocked in then and clocked in before that time, and never later than 11h
+  after your first clock-in or 10:00 PM.
+- **Clocked in again** after it has run (or after its time, e.g. back from a break): it comes back on
+  for that day, 1h after that clock-in, with the same heads-up and limits. A low-key notification
+  says when. Set a time that's still to come and today uses that instead. **Skip today** keeps it
+  off for the rest of the day.
 - It needs Chrome running, your laptop awake, and you signed in to Keka.
 
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and

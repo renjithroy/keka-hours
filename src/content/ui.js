@@ -800,9 +800,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       case 'off': // switched on, but only from the next WFH day
         return ap.next && ap.next.on ? lineHtml(off, `No auto clock-out today${smallHtml('It starts on your next WFH day.')}`, '', 'off') : '';
       case 'waiting': case 'standby': return '';
-      case 'scheduled': case 'heads-up':
-        return lineHtml(bad, `Auto clock-out${smallHtml(ap.reason === 'safety' ? '11h after you clocked in.' : '')}`,
+      case 'scheduled': case 'heads-up': {
+        // Why it isn't at the set time: the 11h limit, or back on after a clock-in past it.
+        const why = ap.reason === 'safety' ? '11h after you clocked in.'
+          : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
+        return lineHtml(bad, `Auto clock-out${smallHtml(why)}`,
           `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${inLabel(ap.at - now)}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
+      }
       case 'due': case 'running': return lineHtml(bad, 'Clocking you out…');
       case 'done': return lineHtml(bad, `Auto clock-out ran at ${t(ap.doneAt || ap.at)}`, '', 'off');
       case 'failed':
@@ -841,8 +845,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (p.firstIn != null) right = p.lastIn !== p.firstIn ? `first in ${t(p.firstIn)}` : `${fmt.duration((p.lastOut - p.firstIn) / 60000)} worked`;
       // Only when auto clock-out made this clock-out (not one of yours after clocking back in).
       if (ap.status === 'done' && !(p.lastIn > (ap.doneAt || ap.at))) lines.push(lineHtml(badgeHtml(ICON_AUTO, 'auto'), 'Done by auto clock-out', '', 'good'));
-      // Auto clock-out picks up again only if it was still to come ('standby'); it runs once a day.
-      if (p.on || ap.status === 'standby') lines.push(note('Nothing runs while you\'re clocked out. Clock in again and it picks up.'));
+      // Clocking back in brings both back (auto clock-out re-arms for today), unless it's skipped or the day is over.
+      if (p.on || (ap.on && !['skipped', 'ended'].includes(ap.status))) lines.push(note('Nothing runs while you\'re clocked out. Clock in again and it picks up.'));
     } else {
       dot = '<span class="live-dot on"></span>';
       // The latest clock-in (back from a break: when you came back), and when the day started.
@@ -997,6 +1001,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           <li>5 min before, a notification lets you <b>Skip today</b> or add <b>15 min</b>.</li>
           <li>Keka opens in a background tab, clicks <b>WFH Clock-out</b> and confirms, then the tab closes.</li>
           <li>If it can't, you get an alert to clock out yourself.</li>
+          <li>Clock in again after it has run, or after its time, and it comes back on for that day: 1h after you clock in, or at your set time if that's still to come.</li>
           <li>Needs Chrome running, your laptop awake, and you signed in to Keka.</li>
         </ul>
         <div class="modal-note">A time that has already passed today starts on your next WFH day.</div>

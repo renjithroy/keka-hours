@@ -573,3 +573,65 @@ test('reminder save: switched on with a time already past today waits for the ne
   assert.deepEqual(W.withReminder({ everyDay: '18:30' }, { on: true }, at('19:00'), d), W.withReminderOn({ everyDay: '18:30' }, true, at('19:00'), d));
   assert.deepEqual(W.withReminder({ reminderOn: true, everyDay: '20:00' }, { time: '18:00' }, at('19:10'), d), W.withReminderTime({ reminderOn: true, everyDay: '20:00' }, '18:00', at('19:10')));
 });
+
+const AUTO_7 = { reminderOn: true, everyDay: '18:30', auto: { every: { on: true, time: '19:00' } } };
+
+test('auto clock-out re-arms after it ran and you clock back in: 1h later, heads-up first', () => {
+  // It ran at 19:00 and clocked you out; you clock back in at 19:40.
+  let d = day([p('09:48', true)]);
+  d = W.autoFinish(W.applyObservation(W.autoStart(d, at('19:00')), { records: [{ date: DATE, punches: [p('09:48', true), p('19:00', false)] }] }, at('19:01')), true, at('19:01'));
+  assert.equal(W.autoPlan(d, AUTO_7, at('19:05')).status, 'done');
+  assert.equal(W.autoRearm(d, AUTO_7, at('19:05')), d, 'clocked out: nothing to re-arm');
+  const back = W.applyObservation(d, { records: [{ date: DATE, punches: [p('09:48', true), p('19:00', false), p('19:40', true)] }] }, at('19:41'));
+  const r = W.autoRearm(back, AUTO_7, at('19:41'));
+  assert.deepEqual(r.autoAgain, { at: at('20:40'), for: at('19:40') });
+  const ap = W.autoPlan(r, AUTO_7, at('19:41'));
+  assert.deepEqual([ap.status, ap.reason, ap.at, ap.headsUpAt], ['scheduled', 'again', at('20:40'), at('20:35')]);
+  assert.equal(W.autoRearm(r, AUTO_7, at('19:42')), r, 'once per clock-in');
+  // It runs again; clock back in once more and it re-arms once more.
+  const ran = W.autoFinish(W.applyObservation(W.autoStart(r, at('20:40')), { records: [{ date: DATE, punches: [p('09:48', true), p('19:00', false), p('19:40', true), p('20:40', false)] }] }, at('20:41')), true, at('20:41'));
+  assert.equal(W.autoPlan(ran, AUTO_7, at('20:42')).status, 'done');
+  const again = W.applyObservation(ran, { records: [{ date: DATE, punches: [p('09:48', true), p('19:00', false), p('19:40', true), p('20:40', false), p('20:44', true)] }] }, at('20:45'));
+  // 20:44 + 1h is past 11h after 09:48 (20:48): capped there; 3 min isn't room for a heads-up.
+  assert.equal(W.autoRearm(again, AUTO_7, at('20:45')), again);
+  const earlier = W.applyObservation(ran, { records: [{ date: DATE, punches: [p('09:48', true), p('19:00', false), p('19:40', true), p('20:40', false), p('20:41', true)] }] }, at('20:41'));
+  assert.equal(W.autoRearm(earlier, AUTO_7, at('20:41')).autoAgain.at, at('20:48'), 'capped at 11h after the first clock-in');
+});
+
+test('auto clock-out re-arms when you clock in after its time without it running', () => {
+  // Clocked out yourself before 19:00, back in at 19:30.
+  const d = day([p('10:00', true), p('18:00', false), p('19:30', true)]);
+  assert.equal(W.autoPlan(d, AUTO_7, at('19:31')).status, 'late-start');
+  assert.equal(W.autoRearm(d, AUTO_7, at('19:31')).autoAgain.at, at('20:30'));
+  // A late first clock-in, too.
+  assert.equal(W.autoRearm(day([p('19:20', true)]), AUTO_7, at('19:21')).autoAgain.at, at('20:20'));
+  // Not when it's skipped for today or switched off, or while you're still before its time.
+  assert.equal(W.autoRearm({ ...d, autoSkip: true }, AUTO_7, at('19:31')).autoAgain, null);
+  assert.equal(W.autoRearm(d, { ...AUTO_7, auto: { every: { on: false, time: '19:00' } } }, at('19:31')).autoAgain, null);
+  assert.equal(W.autoRearm(day([p('10:00', true)]), AUTO_7, at('18:00')).autoAgain, null);
+  // Never past 10 PM: back in at 21:50 runs at 21:59 (heads-up at 21:54); at 21:56 there's no room to warn first.
+  assert.equal(W.autoRearm(day([p('12:00', true), p('18:00', false), p('21:50', true)]), AUTO_7, at('21:51')).autoAgain.at, at('21:59'));
+  assert.equal(W.autoRearm(day([p('12:00', true), p('18:00', false), p('21:56', true)]), AUTO_7, at('21:57')).autoAgain, null);
+});
+
+test('re-armed: your set time wins when it comes after the clock-in', () => {
+  // Back in at 19:42 after a 17:55 run (first in 10:00): re-armed for 20:42.
+  let d = W.autoFinish(W.applyObservation(W.autoStart(day([p('10:00', true)]), at('17:55')), { records: [{ date: DATE, punches: [p('10:00', true), p('17:55', false)] }] }, at('17:56')), true, at('17:56'));
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [p('10:00', true), p('17:55', false), p('19:42', true)] }] }, at('19:43'));
+  const AUTO_555 = { ...AUTO_7, auto: { every: { on: true, time: '17:55' } } };
+  const r = W.autoRearm(d, AUTO_555, at('19:43'));
+  let ap = W.autoPlan(r, AUTO_555, at('19:43'));
+  assert.deepEqual([ap.at, ap.reason, ap.againFor], [at('20:42'), 'again', at('19:42')]);
+  // You set 20:15 at 20:05: today runs at 20:15, as set.
+  const s815 = W.withAutoClockOut(AUTO_555, { on: true, time: '20:15' }, at('20:05'), r);
+  assert.equal(s815.auto.from, undefined, 'applies today');
+  ap = W.autoPlan(r, s815, at('20:05'));
+  assert.deepEqual([ap.at, ap.reason, ap.status], [at('20:15'), 'time', 'scheduled']);
+  // A set time later than the re-arm wins too (21:00 is past 11h after 10:00: capped there).
+  assert.equal(W.autoPlan(r, { ...AUTO_7, auto: { every: { on: true, time: '20:55' } } }, at('20:05')).at, at('20:55'));
+  assert.equal(W.autoPlan(r, { ...AUTO_7, auto: { every: { on: true, time: '21:30' } } }, at('20:05')).at, at('21:00'));
+  // One already behind you starts next WFH day; today stays at 20:42.
+  const past = W.withAutoClockOut(AUTO_555, { on: true, time: '19:50' }, at('20:05'), r);
+  assert.equal(past.auto.from, '2026-10-17');
+  assert.equal(W.autoPlan(r, past, at('20:05')).at, at('20:42'));
+});
