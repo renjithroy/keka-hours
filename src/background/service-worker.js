@@ -207,7 +207,8 @@ async function step(change, opts = {}) {
     }
     day = { ...day, announcedFor: plan.remindAt };
   }
-  if (plan.state !== 'in' || plan.stopped) await chrome.notifications.clear(N_REMINDER);
+  if (plan.state !== 'in' || plan.stopped || !plan.on) await chrome.notifications.clear(N_REMINDER);
+  if (!plan.on) await chrome.notifications.clear(N_ARMED); // "reminder set for …" no longer holds
   // On-screen alerts that no longer apply: a heads-up for a run that isn't
   // coming (clocked out, skipped, turned off, time changed), and a failure
   // alert once you've clocked out.

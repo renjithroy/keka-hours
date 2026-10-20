@@ -197,10 +197,18 @@
     state.overrides = await settings.saveOverrides(state.overrides);
   }
 
-  /** WFH tab: save the reminder time (every WFH day; a time already past today starts tomorrow). */
-  function saveWfhTime({ time }) {
-    if (!wfh.validTime(time)) return;
-    const next = wfh.withReminderTime(state.wfh.settings, time, Date.now());
+  /**
+   * WFH tab reminder: its switch and / or a new time (every WFH day). A time already past today
+   * starts tomorrow, and so does switching it on when it would remind you at once.
+   */
+  function saveReminder({ on, time }) {
+    const now = Date.now();
+    let next = state.wfh.settings;
+    if (time != null) {
+      if (!wfh.validTime(time)) return;
+      next = wfh.withReminderTime(next, time, now);
+    }
+    if (on != null) next = wfh.withReminderOn(next, on, now, state.wfh.day);
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
@@ -324,7 +332,7 @@
       onToggleDay: toggleDay,
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
-      onWfhSaveTime: saveWfhTime,
+      onReminderSave: saveReminder,
       onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,

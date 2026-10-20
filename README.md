@@ -4,7 +4,7 @@ A small Chrome extension for Keka (`hatio.keka.com → Me → Attendance`):
 
 - your **average office hours per day** for the month you're viewing, and how long to sit on the
   remaining days to stay at 9h+;
-- a **clock-out reminder on WFH days**, so Keka doesn't mark a missed clock-out;
+- an optional **clock-out reminder on WFH days**, so Keka doesn't mark a missed clock-out;
 - optional **auto clock-out** at a time you choose.
 
 Everything runs locally in your browser. Nothing is sent anywhere.
@@ -18,7 +18,7 @@ Everything runs locally in your browser. Nothing is sent anywhere.
   <tr>
     <td><img src="docs/overview.png" alt="Overview tab: average office hours per day, totals, longest/shortest day and daily-hours chart" width="280"></td>
     <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="280"></td>
-    <td><img src="docs/wfh.png" alt="WFH tab: Today (clocked in, reminder in 1h 13m, auto clock-out in 1h 43m) and Every WFH day (reminder 6:30 PM, auto clock-out on at 7:00 PM)" width="280"></td>
+    <td><img src="docs/wfh.png" alt="WFH tab: Today (clocked in, reminder in 1h 13m, auto clock-out in 1h 43m) and Every WFH day (reminder on at 6:30 PM, auto clock-out on at 7:00 PM)" width="280"></td>
   </tr>
 </table>
 
@@ -57,9 +57,9 @@ can't be read, the card follows your OS setting.
   (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
   a single punch, it also shows the time you can clock out.
 - **WFH**: **Today** shows whether you're clocked in and when the reminder and auto clock-out
-  come, with snooze / stop / skip buttons when they apply. **Every WFH day** holds the two settings:
-  the reminder time, and auto clock-out on / off with its time. **How it works** and **Test
-  notification** are at the bottom. Details below.
+  come, with snooze / stop / skip buttons when they apply. **Every WFH day** has a row for each,
+  with its on / off switch and its time (both are off until you turn them on). Click a row to change
+  its time. **How it works** and **Test notification** are at the bottom. Details below.
 
 ### WFH clock-out reminders
 
@@ -67,11 +67,15 @@ Keka hides the clock-out button 12 hours after your first clock-in and marks a m
 Office attendance is biometric, so a web **WFH Clock-In** means a WFH day, whether or not the WFH
 request is approved yet.
 
+- **On / off:** off by default. Turn it on with its switch under **Every WFH day**. If you switch it
+  on while clocked in and its time has already passed, it starts on your next WFH day, so it never
+  pops up the moment you turn it on.
 - **When:** once you're clocked in via the web, a system notification reminds you at **6:30 PM**. It
   appears whichever tab or app you're in, even with Keka closed. A low-key notification confirms
   when a reminder is set after you clock in.
-- **Setting the time:** tap the reminder time under **Every WFH day**. In the pop-up, **−** / **+**
-  move it 15 min (12 PM to **10:00 PM**), or tap a quick pick (6:00 to 8:00 PM), then **Save**.
+- **Setting the time:** click the reminder's row under **Every WFH day**. In the pop-up, **−** / **+**
+  move it 15 min (12 PM to **10:00 PM**), or click a quick pick (6:00 to 8:00 PM), then **Save**
+  (**Save & turn on** if it's off).
   With the keyboard on the time: ↑ ↓ 15 min, PgUp / PgDn 1 h, Home / End, Enter saves. The time
   applies on every WFH day.
 - **A time that has already passed today** (for the reminder or auto clock-out) starts on your next
@@ -92,8 +96,9 @@ request is approved yet.
 
 ### Auto clock-out (optional)
 
-Off by default. Turn it on with its switch under **Every WFH day**, and tap its time to change it
-(default 30 min after your reminder, up to 10:00 PM). It applies on every WFH day.
+Off by default. Turn it on with its switch under **Every WFH day**, and click its row to change the
+time (default 30 min after your reminder, up to 10:00 PM). It works whether or not the reminder is
+on, and applies on every WFH day.
 
 - 5 min before, a notification lets you **Skip today** or add **+15 min**. There's always this
   heads-up: if the time has already passed (your laptop was asleep, or you pressed Undo or Try
