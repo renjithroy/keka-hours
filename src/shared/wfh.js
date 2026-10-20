@@ -221,6 +221,21 @@
     return { ...base, reminderOnFrom: nextDateKey(today) };
   }
 
+  /**
+   * The WFH tab's reminder save: a new time and / or the switch (either may be
+   * left out). Switched on together with a time that only starts on the next
+   * day, the reminder waits for that day too, rather than reminding today at
+   * the old time.
+   */
+  function withReminder(settings, { on, time } = {}, now, day) {
+    const wasOn = reminderOnFor(settings, dateKeyOf(now)).on;
+    let next = time == null ? normalizeSettings(settings) : withReminderTime(settings, time, now);
+    if (on == null) return next;
+    next = withReminderOn(next, on, now, day);
+    if (on && time != null && !wasOn && next.everyDayFrom) next = { ...next, reminderOnFrom: next.everyDayFrom };
+    return next;
+  }
+
   /** Would saving this reminder time make it start only on the next WFH day? */
   function reminderStartsTomorrow(settings, time, now) {
     return !!withReminderTime(settings, time, now).everyDayFrom;
@@ -464,6 +479,14 @@
   }
 
   /**
+   * Tab "Undo" on a skip: today's run is back, keeping any +15 min. Its
+   * heads-up shows again (the skip cleared the one on screen).
+   */
+  function autoUnskip(day) {
+    return day.autoSkip ? { ...day, autoSkip: false, autoHeadsUpFor: null } : day;
+  }
+
+  /**
    * Due without a heads-up for this time yet (after a Reset, or waking from
    * sleep past it): move it so the heads-up comes first — 5 min from now, or
    * as much as is left before the end. With under a minute left there's no
@@ -478,13 +501,7 @@
     return { ...day, autoDelay: (day.autoDelay || 0) + (target - ap.at) };
   }
 
-  /** Is there anything of today's auto clock-out to reset (skip, +15, done, failed)? Not while running. */
-  function autoResettable(day) {
-    return day.autoStatus !== 'running' &&
-      (day.autoSkip === true || (day.autoDelay || 0) > 0 || ['done', 'failed', 'expired'].includes(day.autoStatus));
-  }
-
-  /** Tab "Reset": forget today's skip / delay / result, so it runs again at its set time. */
+  /** Tab "Try again": forget today's skip / delay / result, so it runs again at its set time. */
   function autoReset(day) {
     if (day.autoStatus === 'running') return day;
     return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null };
@@ -555,10 +572,10 @@
     dateKeyOf, parseTime, validTime, atTime, timeLabel, hhmmLabel, shortLeft,
     normalizeSettings, timeFor, reminderOnFor, emptyDay, punchState, plan,
     TIME_STEPS, QUICK_TIMES, timeFromMinutes, stepTime,
-    nextDateKey, passedToday, withReminderTime, withReminderOn, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow,
+    nextDateKey, passedToday, withReminderTime, withReminderOn, withReminder, withAutoClockOut, reminderStartsTomorrow, autoStartsTomorrow,
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge,
-    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoDeferForHeadsUp, autoPostponeMinutes, autoResettable, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

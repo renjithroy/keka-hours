@@ -202,13 +202,8 @@
    * starts tomorrow, and so does switching it on when it would remind you at once.
    */
   function saveReminder({ on, time }) {
-    const now = Date.now();
-    let next = state.wfh.settings;
-    if (time != null) {
-      if (!wfh.validTime(time)) return;
-      next = wfh.withReminderTime(next, time, now);
-    }
-    if (on != null) next = wfh.withReminderOn(next, on, now, state.wfh.day);
+    if (time != null && !wfh.validTime(time)) return;
+    const next = wfh.withReminder(state.wfh.settings, { on, time }, Date.now(), state.wfh.day);
     state.wfh = { ...state.wfh, settings: next };
     if (widget) widget.setWfh(state.wfh);
     settings.saveWfhSettings(next);
@@ -333,7 +328,7 @@
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
       onReminderSave: saveReminder,
-      onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-reset
+      onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-unskip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
     });

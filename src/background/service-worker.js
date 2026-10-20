@@ -275,6 +275,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     case 'wfh-auto-skip':
       run(day => W.autoSkipToday(day)); // clears any heads-up still on screen
       return false;
+    case 'wfh-auto-unskip':
+      run(day => W.autoUnskip(day));
+      return false;
     case 'wfh-auto-reset':
       chrome.notifications.clear(N_AUTO_SOON);
       chrome.notifications.clear(N_AUTO_FAILED);

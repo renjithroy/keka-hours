@@ -797,15 +797,18 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const bad = badgeHtml(ICON_AUTO, 'auto');
     const off = badgeHtml(ICON_AUTO, 'off');
     switch (ap.status) {
-      case 'off': case 'waiting': case 'standby': return '';
+      case 'off': // switched on, but only from the next WFH day
+        return ap.next && ap.next.on ? lineHtml(off, `No auto clock-out today${smallHtml('It starts on your next WFH day.')}`, '', 'off') : '';
+      case 'waiting': case 'standby': return '';
       case 'scheduled': case 'heads-up':
         return lineHtml(bad, `Auto clock-out${smallHtml(ap.reason === 'safety' ? '11h after you clocked in.' : '')}`,
           `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${inLabel(ap.at - now)}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
       case 'due': case 'running': return lineHtml(bad, 'Clocking you out…');
       case 'done': return lineHtml(bad, `Auto clock-out ran at ${t(ap.doneAt || ap.at)}`, '', 'off');
       case 'failed':
-        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml('Clock out in Keka yourself.')}`, btnHtml('wfh-auto-reset', 'Try again'), 'warn');
-      case 'skipped': return lineHtml(off, 'Auto clock-out skipped today', btnHtml('wfh-auto-reset', 'Undo'), 'off');
+        // "Try again" only while it's still switched on (turned off, a reset would just end it).
+        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml('Clock out in Keka yourself.')}`, ap.on ? btnHtml('wfh-auto-reset', 'Try again') : '', 'warn');
+      case 'skipped': return lineHtml(off, 'Auto clock-out skipped today', btnHtml('wfh-auto-unskip', 'Undo'), 'off');
       case 'late-start': return lineHtml(off, `No auto clock-out today${smallHtml(`You clocked in after ${t(ap.at)}.`)}`, '', 'off');
       case 'missed': return lineHtml(off, `No auto clock-out today${smallHtml(`You weren't clocked in at ${t(ap.at)}.`)}`, '', 'off');
       case 'expired': return lineHtml(off, `No auto clock-out today${smallHtml('Too close to the limit to warn you first.')}`, '', 'off');
@@ -813,8 +816,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     }
   }
 
-  /** The Today card: clock-in status, then the reminder and auto clock-out in relative times. */
-  function wfhTodayHtml(p, ap, now) {
+  /**
+   * The Today card: clock-in status, then the reminder and auto clock-out in relative times.
+   * `remWaits`: the reminder is switched on, but only from the next WFH day.
+   */
+  function wfhTodayHtml(p, ap, now, remWaits) {
     const t = W.timeLabel;
     const lines = [];
     let dot = '<span class="live-dot"></span>';
@@ -827,18 +833,24 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       title = 'Not clocked in';
       if (p.on) lines.push(note('Reminders start when you use <b>WFH Clock-In</b> on Keka.'));
       else if (ap.on) lines.push(note('Auto clock-out starts when you use <b>WFH Clock-In</b> on Keka.'));
+      else if (remWaits || (ap.next && ap.next.on)) lines.push(note('Starts on your next WFH day.'));
       else lines.push(note(nothingOn));
     } else if (p.state === 'out') {
       title = `Clocked out at ${t(p.lastOut)}`;
-      if (p.firstIn != null) right = `${fmt.duration((p.lastOut - p.firstIn) / 60000)} worked`;
-      if (ap.status === 'done') lines.push(lineHtml(badgeHtml(ICON_AUTO, 'auto'), 'Done by auto clock-out', '', 'good'));
-      if (p.on || ap.on) lines.push(note('Nothing runs while you\'re clocked out. Clock in again and it picks up.'));
+      // After a break, "worked" would count the break: show when the day started instead.
+      if (p.firstIn != null) right = p.lastIn !== p.firstIn ? `first in ${t(p.firstIn)}` : `${fmt.duration((p.lastOut - p.firstIn) / 60000)} worked`;
+      // Only when auto clock-out made this clock-out (not one of yours after clocking back in).
+      if (ap.status === 'done' && !(p.lastIn > (ap.doneAt || ap.at))) lines.push(lineHtml(badgeHtml(ICON_AUTO, 'auto'), 'Done by auto clock-out', '', 'good'));
+      // Auto clock-out picks up again only if it was still to come ('standby'); it runs once a day.
+      if (p.on || ap.status === 'standby') lines.push(note('Nothing runs while you\'re clocked out. Clock in again and it picks up.'));
     } else {
       dot = '<span class="live-dot on"></span>';
-      title = p.firstIn != null ? `Clocked in at ${t(p.firstIn)}` : 'Clocked in';
-      if (p.firstIn != null) right = `${fmt.duration((now - p.firstIn) / 60000)} so far`;
+      // The latest clock-in (back from a break: when you came back), and when the day started.
+      title = p.lastIn != null ? `Clocked in at ${t(p.lastIn)}` : 'Clocked in';
+      if (p.firstIn != null) right = p.lastIn !== p.firstIn ? `first in ${t(p.firstIn)}` : `${fmt.duration((now - p.firstIn) / 60000)} so far`;
       if (!p.on) {
-        // Switched off: no reminder line.
+        // Switched off: no reminder line (unless it's switched on from the next WFH day).
+        if (remWaits) lines.push(lineHtml(badgeHtml(ICON_BELL, 'off'), `No reminder today${smallHtml('It starts on your next WFH day.')}`, '', 'off'));
       } else if (p.remindAt == null) {
         lines.push(lineHtml(badgeHtml(ICON_BELL, 'off'), `No reminder today${smallHtml(`You clocked in too late to be reminded before ${t(p.end)}.`)}`, '', 'off'));
       } else if (p.stopped) {
@@ -875,17 +887,25 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </section>`;
   }
 
+  /**
+   * What's saved for every WFH day, including a change that waits for the next day:
+   * { remOn, remTime, auto: { on, time }, autoWaits }.
+   */
+  function savedSetup(settings, today) {
+    const r = W.timeFor(settings, today);
+    const a = W.autoFor(settings, today);
+    return { remOn: W.normalizeSettings(settings).reminderOn, remTime: r.next || r.time, auto: a.next || a, autoWaits: !!a.next };
+  }
+
   /** Every WFH day: one row per feature, each with its switch and time. Clicking a row opens its time pop-up. */
   function settingsHtml(settings, p, now) {
     const today = W.dateKeyOf(now);
-    const remOn = W.normalizeSettings(settings).reminderOn; // what's saved, even if it waits for the next day
-    const a = W.autoFor(settings, today);
-    const auto = a.next || a;
+    const { remOn, remTime, auto, autoWaits } = savedSetup(settings, today);
     const next = '<small class="next">From your next WFH day</small>';
     let remNote = remOn ? '<small>Repeats until you clock out</small>' : '<small>Reminds you to clock out</small>';
     if (remOn && (p.nextTime || W.reminderOnFor(settings, today).from)) remNote = next;
     let autoNote = auto.on ? '<small>Heads-up 5 min before</small>' : '<small>Clocks you out at a set time</small>';
-    if (auto.on && a.next) autoNote = next;
+    if (auto.on && autoWaits) autoNote = next;
     const row = (r) => `
         <div class="set-row${r.on ? '' : ' off'}" data-act="${r.edit}">
           ${badgeHtml(r.icon, r.on ? r.badge : `${r.badge} off`)}
@@ -895,7 +915,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
     return `
       <section class="set-list" aria-label="Every WFH day">
-        ${row({ edit: 'rem-edit', toggle: 'rem-switch', on: remOn, icon: ICON_BELL, badge: 'lg', name: 'Clock-out reminder', note: remNote, time: W.hhmmLabel(p.nextTime || p.time) })}
+        ${row({ edit: 'rem-edit', toggle: 'rem-switch', on: remOn, icon: ICON_BELL, badge: 'lg', name: 'Clock-out reminder', note: remNote, time: W.hhmmLabel(remTime) })}
         ${row({ edit: 'auto-edit', toggle: 'auto-switch', on: auto.on, icon: ICON_AUTO, badge: 'auto lg', name: 'Auto clock-out', note: autoNote, time: W.hhmmLabel(auto.time) })}
       </section>`;
   }
@@ -914,7 +934,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `
       <div class="wfh">
         <div class="wfh-sec"><h3>Today</h3><span>${esc(syncedLabel(p.updatedAt, now))}</span></div>
-        ${wfhTodayHtml(p, W.autoPlan(day, settings, now), now)}
+        ${wfhTodayHtml(p, W.autoPlan(day, settings, now), now, !!W.reminderOnFor(settings, today).from)}
         <div class="wfh-sec next"><h3>Every WFH day</h3></div>
         ${settingsHtml(settings, p, now)}
         ${form.testMsg ? `<div class="wfh-note" role="status">${esc(form.testMsg)}</div>` : ''}
@@ -985,7 +1005,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   }
 
   // WFH tab buttons the worker handles (today's reminder / auto clock-out).
-  const WFH_ACTIONS = ['wfh-snooze', 'wfh-snooze-cancel', 'wfh-snooze-more', 'wfh-stop', 'wfh-resume', 'wfh-auto-skip', 'wfh-auto-reset'];
+  const WFH_ACTIONS = ['wfh-snooze', 'wfh-snooze-cancel', 'wfh-snooze-more', 'wfh-stop', 'wfh-resume', 'wfh-auto-skip', 'wfh-auto-unskip', 'wfh-auto-reset'];
 
   const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
 
@@ -1169,25 +1189,17 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!modalOpen) return;
       modalOpen = false;
       modal.hidden = true;
-      const opener = modalKind === 'time' ? `[data-act="${timeDraft && timeDraft.which === 'auto' ? 'auto-edit' : 'rem-edit'}"]`
-        : modalKind === 'how' ? '[data-act="wfh-how"]' : '[data-act="avg-info"]';
-      const back = restoreFocus && content.querySelector(opener);
+      const opener = modalKind === 'time' ? (timeDraft && timeDraft.which === 'auto' ? 'auto-edit' : 'rem-edit')
+        : modalKind === 'how' ? 'wfh-how' : 'avg-info';
+      // The button: a WFH row also carries its data-act (a click anywhere on it), but can't take focus.
+      const back = restoreFocus && content.querySelector(`button[data-act="${opener}"]`);
       if (back) back.focus({ preventScroll: true });
     }
 
     /** The time pop-up, starting at the saved time (even if today still uses an earlier one). */
     function openTime(which) {
-      const today = W.dateKeyOf(Date.now());
-      let time;
-      let on;
-      if (which === 'auto') {
-        const a = W.autoFor(wfhState.settings, today);
-        ({ time, on } = a.next || a);
-      } else {
-        const r = W.timeFor(wfhState.settings, today);
-        time = r.next || r.time;
-        on = W.normalizeSettings(wfhState.settings).reminderOn;
-      }
+      const s = savedSetup(wfhState.settings, W.dateKeyOf(Date.now()));
+      const { time, on } = which === 'auto' ? s.auto : { time: s.remTime, on: s.remOn };
       timeDraft = { which, minutes: W.parseTime(time), on };
       openModal('time');
     }
@@ -1197,23 +1209,22 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const settings = wfhState.settings;
       const today = W.dateKeyOf(now);
       const time = W.timeFromMinutes(d.minutes);
-      const r = W.timeFor(settings, today);
-      const rem = r.next || r.time;
-      const a = W.autoFor(settings, today);
-      const auto = a.next || a;
+      const { remOn, remTime, auto } = savedSetup(settings, today);
       const end = W.hhmmLabel(W.LATEST_TIME);
       const passed = 'That has already passed today, so it starts on your next WFH day.';
       if (d.which === 'auto') {
         if (W.autoStartsTomorrow(settings, { on: true, time }, now, todayState(now))) return { warn: true, text: `${passed} Today stays as it is.` };
-        const remAt = W.parseTime(rem);
-        if (d.minutes < remAt) return { warn: true, text: `That's before your reminder (${W.hhmmLabel(rem)}).` };
-        if (d.minutes === remAt) return { warn: true, text: 'That\'s the same time as your reminder.' };
+        // Only next to a reminder that's switched on.
+        const remAt = W.parseTime(remTime);
+        if (remOn && d.minutes < remAt) return { warn: true, text: `That's before your reminder (${W.hhmmLabel(remTime)}).` };
+        if (remOn && d.minutes === remAt) return { warn: true, text: 'That\'s the same time as your reminder.' };
         return { warn: false, text: `A heads-up comes 5 min before. Up to ${end}.` };
       }
-      const later = W.reminderStartsTomorrow(settings, time, now);
-      if (d.on && later) return { warn: true, text: `${passed} Today stays at ${W.hhmmLabel(r.time)}.` };
-      if (!d.on && (later || W.withReminderOn(W.withReminderTime(settings, time, now), true, now, todayState(now)).reminderOnFrom)) {
-        return { warn: true, text: passed };
+      // Judged on exactly what saving stores (main.js saves with the same W.withReminder).
+      const next = W.withReminder(settings, { on: true, time }, now, todayState(now));
+      const onToday = W.reminderOnFor(next, today).on;
+      if (W.reminderStartsTomorrow(settings, time, now) || !onToday) {
+        return { warn: true, text: onToday ? `${passed} Today stays at ${W.hhmmLabel(W.timeFor(next, today).time)}.` : passed };
       }
       if (auto.on) {
         const autoAt = W.parseTime(auto.time);
@@ -1274,12 +1285,12 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       else if (act === 'wfh-how') openModal('how');
       else if (act === 'rem-switch' || act === 'auto-switch') {
         const on = el.getAttribute('aria-checked') !== 'true';
-        const a = W.autoFor(wfhState.settings, W.dateKeyOf(Date.now()));
+        const { time } = savedSetup(wfhState.settings, W.dateKeyOf(Date.now())).auto;
         // Let the switch slide first; the re-render replaces it with the same state.
         el.setAttribute('aria-checked', String(on));
         setTimeout(() => {
           if (act === 'rem-switch') handlers.onReminderSave({ on });
-          else handlers.onAutoSave({ on, time: (a.next || a).time });
+          else handlers.onAutoSave({ on, time });
         }, reduceMotion() ? 0 : 180);
       }
       else if (WFH_ACTIONS.includes(act)) handlers.onWfhAction(act);
@@ -1435,8 +1446,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return;
       }
       // Don't replace the WFH tab between a press and its click.
-      const editing = editingWfh();
-      const keep = editing ? content.querySelector('[data-pane="wfh"]') : null;
+      const keep = pressing ? content.querySelector('[data-pane="wfh"]') : null;
       const key = keep ? null : focusKey(content);
       content.innerHTML = `
         <div class="panes">
@@ -1452,17 +1462,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     // The WFH tab never re-renders between a press and its click.
     let pressing = false; // a pointer is down in the card (a click may be on its way)
 
-    function editingWfh() {
-      return pressing;
-    }
-
     /** A selector for the focused control in `root`, to focus its replacement after a re-render. */
     function focusKey(root) {
       const a = shadow.activeElement;
       if (!a || !root.contains(a)) return null;
       const act = a.getAttribute('data-act');
       if (!act) return null;
-      let sel = `[data-act="${act}"]`;
+      // Tag-qualified: a WFH row shares its time button's data-act but can't take focus.
+      let sel = `${a.localName}[data-act="${act}"]`;
       for (const attr of ['data-value', 'data-dir', 'data-tab', 'data-date']) {
         if (a.hasAttribute(attr)) sel += `[${attr}="${a.getAttribute(attr)}"]`;
       }
@@ -1478,7 +1485,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function renderWfh() {
       const pane = content.querySelector('[data-pane="wfh"]');
       if (!expanded || !pane) return;
-      if (editingWfh()) { wfhPending = true; return; }
+      if (pressing) { wfhPending = true; return; }
       wfhPending = false;
       const key = focusKey(pane);
       pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhForm);

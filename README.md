@@ -117,7 +117,7 @@ on, and applies on every WFH day.
 
 The extension sees clock-ins and clock-outs when you click WFH Clock-In / Clock-out on Keka web, and
 whenever a Keka Attendance page loads (so a clock-in from the mobile app is picked up the next time
-you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Send
+you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Test
 notification** in the WFH tab to check).
 
 In the **30 DAYS** tab the card shows the current month to date (1st → today), not the rolling
