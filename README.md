@@ -59,8 +59,8 @@ can't be read, the card follows your OS setting.
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
   stepping out for lunch doesn't count as a short finished day. Either way, on an office day the
   strip above the calendar shows how long to sit today and, once you've clocked in, when you can
-  clock out (your first clock-in plus that time) with a countdown: "Today · sit 8h 39m · out at
-  6:39 PM · 1h 22m left". Breaks don't move it: Keka's gross hours run from the first clock-in.
+  clock out (your first clock-in plus that time) with a countdown: "Today · sit 8h 39m · clock out
+  at 6:39 PM · 1h 22m left". Breaks don't move it: Keka's gross hours run from the first clock-in.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,

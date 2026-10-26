@@ -341,7 +341,7 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
+.today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
 .today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
 .today-strip b { font-weight: 700; white-space: nowrap; }
 .today-strip .ttext { flex: 1; min-width: 0; }
@@ -734,7 +734,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
     let left = '';
     if (td.leaveAt) {
-      text += ` · out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
+      text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
       const ms = td.leaveAt - Date.now();
       left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
     }
