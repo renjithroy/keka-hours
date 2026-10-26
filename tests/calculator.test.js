@@ -149,6 +149,10 @@ test('month-to-date header range', () => {
   assert.equal(fmt.monthToDateRange('2026-10-05'), '1 Oct – 5 Oct 2026');
   assert.equal(fmt.monthToDateRange('2026-10-28'), '1 Oct – 28 Oct 2026');
   assert.equal(fmt.monthToDateRange('2026-10-01'), '1 Oct 2026');
+  // Include today off: up to yesterday.
+  assert.equal(fmt.monthToDateRange('2026-10-26', true), '1 Oct – 25 Oct 2026');
+  assert.equal(fmt.monthToDateRange('2026-10-02', true), '1 Oct 2026');
+  assert.equal(fmt.monthToDateRange('2026-10-01', true), 'Oct 2026', 'nothing counted yet on the 1st');
   assert.equal(fmt.monthToDateRange('bad'), '');
 });
 

@@ -342,7 +342,10 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
 .today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
-.today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
+.today-strip .tdot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
+/* While the clock-out countdown runs, the dot pulses like the WFH tab's clocked-in dot. */
+.today-strip.live .tdot { box-shadow: none; }
+.today-strip.live .tdot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--brand); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
 .today-strip b { font-weight: 700; white-space: nowrap; }
 .today-strip .ttext { flex: 1; min-width: 0; }
 .today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
@@ -533,7 +536,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
     }).join('');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey) : (m.label || '');
+    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey, !m.includeToday) : (m.label || '');
     const notes = ['Counted: days with office time. WFH, leave, holidays and week-offs without work aren\'t counted.'];
     if (m.todayInView && !m.includeToday) notes.push('Today isn\'t listed: Include today is off.');
 
@@ -672,7 +675,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   function planHeroHtml(p, sw) {
     const top = text => (sw ? `<div class="hero-top"><div class="eyebrow">${text}</div>${sw}</div>` : `<div class="eyebrow">${text}</div>`);
     const month = fmt.monthName(p.monthKey);
-    const mon = month.slice(0, 3);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
     const soFar = {
@@ -716,8 +718,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         ${top('Sit on each remaining office day')}
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
           <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
-      </div>
-      ${statsCard(soFar, { label: 'Still needed', value: fmt.duration(p.neededMinutes), sub: `to end ${esc(mon)} at ${target}` })}`;
+      </div>`;
   }
 
   /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
@@ -733,12 +734,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (!td) return '';
     let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
     let left = '';
+    let live = false;
     if (td.leaveAt) {
       text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
       const ms = td.leaveAt - Date.now();
+      live = ms > 0;
       left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
     }
-    return `<div class="today-strip"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
+    return `<div class="today-strip${live ? ' live' : ''}"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
   }
 
   function cellHtml(c, p) {
@@ -1456,7 +1459,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const s = m.summary;
       const ok = m.state === 'ok' && s;
       $('.month').textContent = ok && m.monthToDate && m.todayKey
-        ? fmt.monthToDateRange(m.todayKey)
+        ? fmt.monthToDateRange(m.todayKey, !m.includeToday) // to yesterday unless Include today is on
         : (m.label || 'Attendance');
       tabs.hidden = !ok;
       for (const b of tabs.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === tab));
@@ -1525,6 +1528,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         const ms = Number(el.getAttribute('data-until')) - Date.now();
         el.textContent = leftLabel(ms);
         el.classList.toggle('done', ms <= 0);
+        const strip = el.closest('.today-strip');
+        if (strip) strip.classList.toggle('live', ms > 0); // the dot stops pulsing once it's time
       }
       renderWfh();
     }

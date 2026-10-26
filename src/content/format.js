@@ -53,12 +53,16 @@
     return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
   }
 
-  /** Month-to-date range: ('2026-10-05') -> "1 Oct – 5 Oct 2026" ("1 Oct 2026" on the 1st). */
-  function monthToDateRange(todayKey) {
+  /**
+   * Month-to-date range: ('2026-10-05') -> "1 Oct – 5 Oct 2026" ("1 Oct 2026" on the 1st).
+   * `beforeToday` (Include today off): up to yesterday, "1 Oct – 4 Oct 2026" ("Oct 2026" on the 1st: no days yet).
+   */
+  function monthToDateRange(todayKey, beforeToday = false) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(todayKey || ''));
     if (!m) return '';
     const mon = MONTHS_SHORT[Number(m[2]) - 1];
-    const day = Number(m[3]);
+    const day = Number(m[3]) - (beforeToday ? 1 : 0);
+    if (day < 1) return `${mon} ${m[1]}`;
     return day === 1 ? `1 ${mon} ${m[1]}` : `1 ${mon} – ${day} ${mon} ${m[1]}`;
   }
 
