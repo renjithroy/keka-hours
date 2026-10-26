@@ -536,7 +536,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>`;
     }).join('');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey) : (m.label || '');
+    const period = m.monthToDate && m.todayKey ? fmt.monthToDateRange(m.todayKey, !m.includeToday) : (m.label || '');
     const notes = ['Counted: days with office time. WFH, leave, holidays and week-offs without work aren\'t counted.'];
     if (m.todayInView && !m.includeToday) notes.push('Today isn\'t listed: Include today is off.');
 
@@ -1459,7 +1459,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const s = m.summary;
       const ok = m.state === 'ok' && s;
       $('.month').textContent = ok && m.monthToDate && m.todayKey
-        ? fmt.monthToDateRange(m.todayKey)
+        ? fmt.monthToDateRange(m.todayKey, !m.includeToday) // to yesterday unless Include today is on
         : (m.label || 'Attendance');
       tabs.hidden = !ok;
       for (const b of tabs.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === tab));

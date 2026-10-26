@@ -132,8 +132,8 @@ whenever a Keka Attendance page loads (so a clock-in from the mobile app is pick
 you open Keka web). Chrome must be running, and your OS must allow Chrome notifications (use **Test
 notification** in the WFH tab to check).
 
-In the **30 DAYS** tab the card shows the current month to date (1st → today), not the rolling
-30 days.
+In the **30 DAYS** tab the card shows the current month to date (1st → today, or → yesterday while
+**Include today** is off, as in the header), not the rolling 30 days.
 
 ## What counts
 
