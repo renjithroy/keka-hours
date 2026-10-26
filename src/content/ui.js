@@ -675,7 +675,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   function planHeroHtml(p, sw) {
     const top = text => (sw ? `<div class="hero-top"><div class="eyebrow">${text}</div>${sw}</div>` : `<div class="eyebrow">${text}</div>`);
     const month = fmt.monthName(p.monthKey);
-    const mon = month.slice(0, 3);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
     const soFar = {
@@ -719,8 +718,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         ${top('Sit on each remaining office day')}
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
           <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
-      </div>
-      ${statsCard(soFar, { label: 'Still needed', value: fmt.duration(p.neededMinutes), sub: `to end ${esc(mon)} at ${target}` })}`;
+      </div>`;
   }
 
   /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
