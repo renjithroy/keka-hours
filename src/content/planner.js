@@ -60,7 +60,8 @@
 
     const cells = [];
     let remaining = 0;
-    let today = null;
+    let todayOffice = null; // today as a remaining office day: { firstIn }
+    let todayCounted = null; // today counted (Include today on): { minutes, firstIn }
 
     for (let dd = 1; dd <= daysInMonth; dd += 1) {
       const date = `${p.monthKey}-${pad2(dd)}`;
@@ -76,7 +77,9 @@
 
       if (settled) {
         const state = settledState(day, weekend);
-        cells.push({ date, day: dd, isToday, state, minutes: state === 'worked' ? calc.wholeMinutes(day.grossMinutes) : null });
+        const minutes = state === 'worked' ? calc.wholeMinutes(day.grossMinutes) : null;
+        cells.push({ date, day: dd, isToday, state, minutes });
+        if (isToday && state === 'worked' && !isPastMonth) todayCounted = { minutes, firstIn: day.firstIn || null };
         continue;
       }
 
@@ -95,14 +98,7 @@
         overridden: plan !== def,
         reason: holiday ? 'Holiday' : knownOff || weekend ? 'Off' : '',
       });
-      if (isToday) {
-        today = {
-          date,
-          planned: plan === 'office',
-          soFarMinutes: day && day.grossMinutes > 0 ? calc.wholeMinutes(day.grossMinutes) : 0,
-          openSince: (day && day.openSince) || null,
-        };
-      }
+      if (isToday && plan === 'office') todayOffice = { firstIn: (day && day.firstIn) || null };
     }
 
     const counted = summary.trackedDays;
@@ -116,11 +112,26 @@
     else if (neededMinutes <= remaining) status = 'secured'; // 1 minute per day is enough
     else status = 'needed';
 
-    if (today && today.planned && requiredPerDay) {
-      today.moreMinutes = Math.max(0, requiredPerDay - today.soFarMinutes);
-      // Exact clock-out time is only known for a single open punch (no breaks yet).
-      const start = today.openSince ? Date.parse(today.openSince) : NaN;
-      today.leaveAt = Number.isFinite(start) && today.soFarMinutes === 0 ? start + requiredPerDay * 60000 : null;
+    // Today's own plan, Include today on or off: the time to sit today as one of the
+    // remaining office days (not "so far / more"), and, from the first clock-in, when
+    // that's reached. Gross hours run from the first clock-in, so breaks don't move it.
+    let today = null;
+    const t = todayOffice || todayCounted;
+    if (t) {
+      const days = counted - (todayCounted ? 1 : 0);
+      const minutes = countedMinutes - (todayCounted ? todayCounted.minutes : 0);
+      const left = remaining + (todayCounted ? 1 : 0);
+      const need = target * (days + left) - minutes;
+      if (need > left) { // more than a minute a day: there's something to sit
+        const requiredMinutes = Math.ceil(need / left);
+        const start = t.firstIn ? Date.parse(t.firstIn) : NaN;
+        today = {
+          date: p.todayKey,
+          requiredMinutes,
+          firstIn: Number.isFinite(start) ? start : null,
+          leaveAt: Number.isFinite(start) ? start + requiredMinutes * 60000 : null,
+        };
+      }
     }
 
     return {

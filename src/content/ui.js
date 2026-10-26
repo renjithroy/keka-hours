@@ -343,7 +343,10 @@ svg { width: 100%; height: 100%; display: block; }
 .hero-value.word { font-size: 34px; }
 .today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
 .today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
-.today-strip b { font-weight: 700; }
+.today-strip b { font-weight: 700; white-space: nowrap; }
+.today-strip .ttext { flex: 1; min-width: 0; }
+.today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
+.today-strip .tleft.done { color: var(--good); }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
 .cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
@@ -717,15 +720,25 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       ${statsCard(soFar, { label: 'Still needed', value: fmt.duration(p.neededMinutes), sub: `to end ${esc(mon)} at ${target}` })}`;
   }
 
+  /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
+  function leftLabel(ms) {
+    const m = Math.ceil(ms / 60000);
+    if (m <= 0) return 'done';
+    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m left` : `${m}m left`;
+  }
+
+  /** Today in the Plan: the time to sit today and, once clocked in, when you can clock out and how long that is. */
   function todayHtml(p) {
     const td = p.today;
-    if (!td || !td.planned || p.status !== 'needed') return '';
-    let text;
-    if (td.leaveAt) text = `Today · clock out after <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
-    else if (td.soFarMinutes && !td.moreMinutes) text = `Today · <b>${fmt.duration(td.soFarMinutes)}</b> so far, enough for today`;
-    else if (td.soFarMinutes) text = `Today · <b>${fmt.duration(td.soFarMinutes)}</b> so far, <b>${fmt.duration(td.moreMinutes)}</b> more`;
-    else text = `Today · sit <b>${fmt.duration(p.requiredPerDay)}</b>`;
-    return `<div class="today-strip"><span class="tdot"></span><span>${text}</span></div>`;
+    if (!td) return '';
+    let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
+    let left = '';
+    if (td.leaveAt) {
+      text += ` · out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
+      const ms = td.leaveAt - Date.now();
+      left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
+    }
+    return `<div class="today-strip"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
   }
 
   function cellHtml(c, p) {
@@ -1506,6 +1519,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       restoreFocus(pane, key);
     }
 
+    /** Once a minute: the Plan's "2h 05m left" countdown, and the WFH tab. */
+    function tick() {
+      for (const el of content.querySelectorAll('[data-until]')) {
+        const ms = Number(el.getAttribute('data-until')) - Date.now();
+        el.textContent = leftLabel(ms);
+        el.classList.toggle('done', ms <= 0);
+      }
+      renderWfh();
+    }
+
     function setWfh(next) {
       wfhState = next || { settings: null, day: null };
       renderWfh();
@@ -1633,7 +1656,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, tick, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }

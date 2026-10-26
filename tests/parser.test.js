@@ -248,14 +248,15 @@ test('network hook: leaveDayStatus 1 = full day, 2/3 = half day', () => {
   assert.equal(trimSummaryRecord({ ...base, leaveDayStatuses: [], leaveDetails: [] }).leave, false);
 });
 
-test('open punch today exposes the clock-in time (for "clock out after")', () => {
+test('today exposes its first clock-in (for the clock-out time), breaks or not', () => {
   const ctx = ctxFor('October, 2026');
   const rec = { ...apiRec('2026-10-05', { inT: '10:00:00', outT: null, lastPunch: 0 }), entryCount: 1, grossHours: 0 };
-  const d = P.normalizeApiRecord(rec, ctx);
-  assert.equal(d.openSince, '2026-10-05T10:00:00');
-  const afterBreak = P.normalizeApiRecord({ ...rec, entryCount: 3, pairs: [['2026-10-05T10:00:00', '2026-10-05T13:00:00'], ['2026-10-05T14:00:00', null]] }, ctx);
-  assert.equal(afterBreak.openSince, null); // breaks make the exact clock-out time ambiguous
-  assert.equal(P.normalizeApiRecord({ ...rec, date: '2026-10-04' }, ctx).openSince, null);
+  assert.equal(P.normalizeApiRecord(rec, ctx).firstIn, '2026-10-05T10:00:00');
+  // Gross hours run from the first clock-in, so a break doesn't change it.
+  const afterBreak = { ...rec, entryCount: 3, pairs: [['2026-10-05T10:00:00', '2026-10-05T13:00:00'], ['2026-10-05T14:00:00', null]] };
+  assert.equal(P.normalizeApiRecord(afterBreak, ctx).firstIn, '2026-10-05T10:00:00');
+  assert.equal(P.normalizeApiRecord({ ...afterBreak, firstLog: null }, ctx).firstIn, '2026-10-05T10:00:00', 'from the first pair');
+  assert.equal(P.normalizeApiRecord({ ...rec, date: '2026-10-04' }, ctx).firstIn, null, 'today only');
 });
 
 test('Actions card labels -> WFH clock state (from the saved Keka pages)', () => {

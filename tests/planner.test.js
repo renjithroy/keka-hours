@@ -83,26 +83,36 @@ test('past cells: worked minutes, WFH, holiday, weekly-off', () => {
   assert.equal(p.cells.length, 31);
 });
 
-test('today: open punch gives clock-out time; done today is not remaining; WFH today is settled', () => {
+test('today: the time to sit today, and first clock-in + that = when you can clock out, breaks or not', () => {
   const base = octoberDays();
+  const tenAm = Date.parse('2026-10-28T10:00:00');
+  // Not clocked in yet: the time to sit, no clock-out time.
+  const morning = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: base });
+  assert.deepEqual([morning.today.requiredMinutes, morning.today.leaveAt], [597, null]);
+
   const open = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28',
-    days: [...base, day('2026-10-28', 0, { openSince: '2026-10-28T10:00:00' })] });
-  assert.equal(open.today.planned, true);
-  assert.equal(open.today.leaveAt, Date.parse('2026-10-28T10:00:00') + 597 * 60000);
+    days: [...base, day('2026-10-28', 0, { firstIn: '2026-10-28T10:00:00' })] });
+  assert.deepEqual([open.today.requiredMinutes, open.today.firstIn, open.today.leaveAt], [597, tenAm, tenAm + 597 * 60000]);
 
+  // Back from a break: still first clock-in + the time to sit (not "so far / more").
   const partial = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28',
-    days: [...base, day('2026-10-28', 200, { isIncomplete: true })] });
+    days: [...base, day('2026-10-28', 200, { isIncomplete: true, firstIn: '2026-10-28T10:00:00' })] });
   assert.equal(partial.remainingDays, 3);
-  assert.equal(partial.today.moreMinutes, 597 - 200);
-  assert.equal(partial.today.leaveAt, null);
+  assert.deepEqual([partial.today.requiredMinutes, partial.today.leaveAt], [597, tenAm + 597 * 60000]);
 
-  const done = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 600)], includeToday: true });
+  // Counted (Include today on): the rest of the month moves on, today's own figure stays.
+  const done = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28',
+    days: [...base, day('2026-10-28', 600, { firstIn: '2026-10-28T10:00:00' })], includeToday: true });
   assert.equal(done.remainingDays, 2);
   assert.equal(done.cells.find(c => c.date === '2026-10-28').state, 'worked');
+  assert.deepEqual([done.today.requiredMinutes, done.today.leaveAt], [597, tenAm + 597 * 60000]);
 
+  // WFH, or marked away: nothing to sit today.
   const wfh = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 300, { isWFH: true })] });
   assert.equal(wfh.remainingDays, 2);
   assert.equal(wfh.cells.find(c => c.date === '2026-10-28').state, 'wfh');
+  assert.equal(wfh.today, null);
+  assert.equal(planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: base, overrides: { '2026-10-28': 'away' } }).today, null);
 });
 
 test('statuses: secured, no-days, complete', () => {
@@ -130,15 +140,13 @@ test('Include today off: a last OUT punch (lunch) leaves today in progress, not 
   assert.equal(lunch.requiredPerDay, before.requiredPerDay);
   assert.equal(lunch.countedDays, before.countedDays);
   assert.equal(lunch.cells.find(c => c.date === '2026-10-28').state, 'plan-office');
-  assert.deepEqual([lunch.today.soFarMinutes, lunch.today.moreMinutes], [190, before.requiredPerDay - 190]);
+  assert.equal(lunch.today.requiredMinutes, before.requiredPerDay);
   // The same day with Include today on counts as a finished 3h 10m day (after clock-out, that's right).
   const counted = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190)], includeToday: true });
   assert.equal(counted.remainingDays, before.remainingDays - 1);
   assert.equal(counted.countedDays, before.countedDays + 1);
   assert.ok(counted.requiredPerDay > before.requiredPerDay);
-  // Done for the day with more than enough, switch still off: "enough for today", nothing more.
-  const long = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 700)] });
-  assert.equal(long.today.moreMinutes, 0);
+  assert.equal(counted.today.requiredMinutes, before.requiredPerDay, "today's own figure doesn't depend on the switch");
   // Still clocked in: never counted, either way.
   const open = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190, { isIncomplete: true })], includeToday: true });
   assert.equal(open.remainingDays, before.remainingDays);

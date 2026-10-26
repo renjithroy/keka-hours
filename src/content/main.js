@@ -369,7 +369,7 @@
     intervalId = setInterval(() => {
       if (document.visibilityState !== 'visible' || !onRoute()) return;
       refresh();
-      widget.renderWfh(); // "updated 3 min ago", snooze countdown
+      widget.tick(); // the Plan's "… left" countdown; the WFH tab's "synced 3 min ago", snooze countdown
     }, SAFETY_INTERVAL_MS);
 
     refresh();
