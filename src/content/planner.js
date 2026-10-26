@@ -10,6 +10,8 @@
  *
  * Remaining office days default to weekdays that aren't a known holiday /
  * weekly-off; the user can flip any upcoming day (WFH, leave, extra office day).
+ * Today counts as a finished office day only with Include today on (the same
+ * switch as the Overview): a last punch that's an OUT may just be a break.
  */
 (function (root) {
   'use strict';
@@ -38,6 +40,7 @@
    * @param {Map}    [p.dayTypes] date -> Keka dayType (0 working, 1 holiday, 2 weekly-off)
    * @param {object} [p.overrides] date -> 'office' | 'away'
    * @param {number} [p.targetMinutes]
+   * @param {boolean} [p.includeToday] count today's office time as a finished day (else it's still in progress)
    */
   function planMonth(p) {
     const target = calc.sanitizeTarget(p.targetMinutes);
@@ -49,13 +52,16 @@
     const overrides = p.overrides || {};
     const dayTypes = p.dayTypes || new Map();
 
+    const includeToday = p.includeToday === true;
     const inMonth = calc.dedupe(p.days).filter(d => d.date.slice(0, 7) === p.monthKey);
     const byDate = new Map(inMonth.map(d => [d.date, d]));
-    const summary = calc.calculateSummary(inMonth, target);
+    // Without Include today, today's hours are "so far", not a counted day.
+    const summary = calc.calculateSummary(includeToday ? inMonth : inMonth.filter(d => d.date !== p.todayKey), target);
 
     const cells = [];
     let remaining = 0;
-    let today = null;
+    let todayOffice = null; // today as a remaining office day: { firstIn }
+    let todayCounted = null; // today counted (Include today on): { minutes, firstIn }
 
     for (let dd = 1; dd <= daysInMonth; dd += 1) {
       const date = `${p.monthKey}-${pad2(dd)}`;
@@ -64,14 +70,16 @@
       const day = byDate.get(date);
       const kind = day ? calc.classify(day) : null;
       const isToday = date === p.todayKey;
-      // Today is settled once it's counted or excluded (WFH / leave);
-      // while it's still open (or not started) it's a remaining day.
+      // Today is settled once it's excluded (WFH / leave), or counted with Include
+      // today on; while it's still open, on a break, or not started it's a remaining day.
       const settled = isPastMonth || date < p.todayKey ||
-        (isToday && kind && kind !== 'incomplete' && kind !== 'no-time');
+        (isToday && kind && kind !== 'incomplete' && kind !== 'no-time' && (kind !== 'included' || includeToday));
 
       if (settled) {
         const state = settledState(day, weekend);
-        cells.push({ date, day: dd, isToday, state, minutes: state === 'worked' ? calc.wholeMinutes(day.grossMinutes) : null });
+        const minutes = state === 'worked' ? calc.wholeMinutes(day.grossMinutes) : null;
+        cells.push({ date, day: dd, isToday, state, minutes });
+        if (isToday && state === 'worked' && !isPastMonth) todayCounted = { minutes, firstIn: day.firstIn || null };
         continue;
       }
 
@@ -90,14 +98,7 @@
         overridden: plan !== def,
         reason: holiday ? 'Holiday' : knownOff || weekend ? 'Off' : '',
       });
-      if (isToday) {
-        today = {
-          date,
-          planned: plan === 'office',
-          soFarMinutes: day && day.grossMinutes > 0 ? calc.wholeMinutes(day.grossMinutes) : 0,
-          openSince: (day && day.openSince) || null,
-        };
-      }
+      if (isToday && plan === 'office') todayOffice = { firstIn: (day && day.firstIn) || null };
     }
 
     const counted = summary.trackedDays;
@@ -111,11 +112,26 @@
     else if (neededMinutes <= remaining) status = 'secured'; // 1 minute per day is enough
     else status = 'needed';
 
-    if (today && today.planned && requiredPerDay) {
-      today.moreMinutes = Math.max(0, requiredPerDay - today.soFarMinutes);
-      // Exact clock-out time is only known for a single open punch (no breaks yet).
-      const start = today.openSince ? Date.parse(today.openSince) : NaN;
-      today.leaveAt = Number.isFinite(start) && today.soFarMinutes === 0 ? start + requiredPerDay * 60000 : null;
+    // Today's own plan, Include today on or off: the time to sit today as one of the
+    // remaining office days (not "so far / more"), and, from the first clock-in, when
+    // that's reached. Gross hours run from the first clock-in, so breaks don't move it.
+    let today = null;
+    const t = todayOffice || todayCounted;
+    if (t) {
+      const days = counted - (todayCounted ? 1 : 0);
+      const minutes = countedMinutes - (todayCounted ? todayCounted.minutes : 0);
+      const left = remaining + (todayCounted ? 1 : 0);
+      const need = target * (days + left) - minutes;
+      if (need > left) { // more than a minute a day: there's something to sit
+        const requiredMinutes = Math.ceil(need / left);
+        const start = t.firstIn ? Date.parse(t.firstIn) : NaN;
+        today = {
+          date: p.todayKey,
+          requiredMinutes,
+          firstIn: Number.isFinite(start) ? start : null,
+          leaveAt: Number.isFinite(start) ? start + requiredMinutes * 60000 : null,
+        };
+      }
     }
 
     return {

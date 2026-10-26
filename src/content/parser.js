@@ -146,12 +146,9 @@
     const isToday = rec.date === ctx.todayKey;
     const pairs = rec.pairs || [];
     const openPair = pairs.some(p => p && p[0] && !p[1]);
-    // Clocked in once today and not out yet: the clock-in time (for "leave at").
-    let openSince = null;
-    if (isToday && rec.lastPunch === 0) {
-      if (rec.entryCount === 1 && rec.firstLog) openSince = rec.firstLog;
-      else if (pairs.length === 1 && pairs[0] && pairs[0][0] && !pairs[0][1]) openSince = pairs[0][0];
-    }
+    // Today's first clock-in (Keka's first log of the day), breaks or not: gross hours run from
+    // it, so it plus the time to sit is when you can clock out.
+    const firstIn = isToday ? (rec.firstLog || (pairs[0] && pairs[0][0]) || null) : null;
     const [y, mo, d] = rec.date.split('-').map(Number);
     return {
       date: rec.date,
@@ -170,7 +167,7 @@
       isToday,
       // Still clocked in today (last punch is an IN, or an open pair).
       isIncomplete: isToday && grossMinutes > 0 && (rec.lastPunch === 0 || openPair),
-      openSince,
+      firstIn,
       sourcePrecision: precise != null ? 'precise' : 'display-rounded',
     };
   }
@@ -196,7 +193,7 @@
       isWeeklyOff: domDay.isWeeklyOff || apiDay.isWeeklyOff,
       isPresent: domDay.isPresent || apiDay.isPresent,
       isIncomplete: apiDay.isIncomplete,
-      openSince: apiDay.openSince || null,
+      firstIn: apiDay.firstIn || null,
     };
   }
 
@@ -266,7 +263,7 @@
     return `${view.label}|${view.monthToDate ? 'mtd' : ''}|${view.source}|` + view.days.map(d => [
       d.date,
       d.isWFH ? 'w' : '', d.isLeave ? 'l' : '', d.isHalfLeave ? 'hl' : '', d.isHoliday ? 'h' : '', d.isWeeklyOff ? 'o' : '',
-      d.isIncomplete ? 'a' : '', d.openSince || '',
+      d.isIncomplete ? 'a' : '', d.firstIn || '',
       Math.round(d.grossMinutes * 60),
       d.sourcePrecision === 'precise' ? 'p' : 'r',
     ].join(',')).join(';');

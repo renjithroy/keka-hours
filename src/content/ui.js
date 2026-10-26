@@ -219,6 +219,8 @@ svg { width: 100%; height: 100%; display: block; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* Plan is the tallest tab: its switch overlaps the hero's padding, so the card doesn't grow. */
+.pane[data-pane="plan"] .hero-top { margin: -4px 0; }
 
 /* Hover tooltip (Include today switch). */
 .has-tip { position: relative; display: inline-flex; border-radius: 8px; }
@@ -339,9 +341,12 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13.5px; color: var(--brand-text); }
+.today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
 .today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
-.today-strip b { font-weight: 700; }
+.today-strip b { font-weight: 700; white-space: nowrap; }
+.today-strip .ttext { flex: 1; min-width: 0; }
+.today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
+.today-strip .tleft.done { color: var(--good); }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
 .cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
@@ -488,13 +493,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   const WEEK_HEAD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  function includeSwitchHtml(on) {
+  /** The "Include today" switch: one setting, shown on Overview and Plan (`tab` keeps the tooltip ids apart). */
+  function includeSwitchHtml(on, tab = 'overview') {
     return `
       <div class="has-tip">
-        <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip">
+        <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip-${tab}">
           <span>Include today</span><span class="track"><span class="thumb"></span></span>
         </button>
-        <div class="tip end" role="tooltip" id="include-tip">Use after clock-out, once today shows in the table</div>
+        <div class="tip end" role="tooltip" id="include-tip-${tab}">Use after clock-out, once today shows in the table</div>
       </div>`;
   }
 
@@ -662,7 +668,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `<div class="plan-stats">${cell(left)}${cell(right)}</div>`;
   }
 
-  function planHeroHtml(p) {
+  /** The plan's headline. `sw`: the Include today switch, beside the heading ('' when today isn't in this month). */
+  function planHeroHtml(p, sw) {
+    const top = text => (sw ? `<div class="hero-top"><div class="eyebrow">${text}</div>${sw}</div>` : `<div class="eyebrow">${text}</div>`);
     const month = fmt.monthName(p.monthKey);
     const mon = month.slice(0, 3);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
@@ -688,7 +696,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (p.status === 'no-days') {
       return `
         <div class="hero">
-          <div class="eyebrow">No office days left in ${esc(month)}</div>
+          ${top(`No office days left in ${esc(month)}`)}
           <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span></div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: '0', sub: 'tap a day to add' })}`;
@@ -696,7 +704,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (p.status === 'secured') {
       return `
         <div class="hero">
-          <div class="eyebrow">To end ${esc(month)} at ${target}+ average</div>
+          ${top(`To end ${esc(month)} at ${target}+ average`)}
           <div class="hero-row"><span class="hero-value word">You're set</span></div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: p.remainingDays, tone: 'good', sub: `any time keeps ${target}+` })}`;
@@ -705,21 +713,32 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const t = p.requiredPerDay <= p.targetMinutes ? 'good' : 'warn';
     return `
       <div class="hero">
-        <div class="eyebrow">Sit on each remaining office day</div>
+        ${top('Sit on each remaining office day')}
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
           <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
       </div>
       ${statsCard(soFar, { label: 'Still needed', value: fmt.duration(p.neededMinutes), sub: `to end ${esc(mon)} at ${target}` })}`;
   }
 
+  /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
+  function leftLabel(ms) {
+    const m = Math.ceil(ms / 60000);
+    if (m <= 0) return 'done';
+    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m left` : `${m}m left`;
+  }
+
+  /** Today in the Plan: the time to sit today and, once clocked in, when you can clock out and how long that is. */
   function todayHtml(p) {
     const td = p.today;
-    if (!td || !td.planned || p.status !== 'needed') return '';
-    let text;
-    if (td.leaveAt) text = `Today · clock out after <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
-    else if (td.soFarMinutes) text = `Today · <b>${fmt.duration(td.soFarMinutes)}</b> so far, <b>${fmt.duration(td.moreMinutes)}</b> more`;
-    else text = `Today · sit <b>${fmt.duration(p.requiredPerDay)}</b>`;
-    return `<div class="today-strip"><span class="tdot"></span><span>${text}</span></div>`;
+    if (!td) return '';
+    let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
+    let left = '';
+    if (td.leaveAt) {
+      text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
+      const ms = td.leaveAt - Date.now();
+      left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
+    }
+    return `<div class="today-strip"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
   }
 
   function cellHtml(c, p) {
@@ -755,13 +774,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       : `<div class="${cls.join(' ')}" title="${esc(title)}">${inner}</div>`;
   }
 
-  function planHtml(p) {
+  function planHtml(p, includeToday) {
     if (!p) return '<div class="waiting"><div class="msg">Open a month (or <b>30 DAYS</b>) in the Attendance Log to plan.</div></div>';
     const blanks = Array.from({ length: p.firstWeekday }, () => '<div></div>').join('');
     const editable = p.cells.some(c => c.state === 'plan-office' || c.state === 'plan-away');
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     return `
-      ${planHeroHtml(p)}
+      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
       ${todayHtml(p)}
       <div class="cal" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.map(h => `<div class="cal-h">${h}</div>`).join('')}
@@ -1319,7 +1338,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         el.setAttribute('aria-checked', String(on));
         setTimeout(() => {
           handlers.onIncludeTodayChange(on);
-          const next = $('[data-act="include-today"]');
+          const next = content.querySelector('.pane:not(.off) [data-act="include-today"]'); // the tab you're on
           if (viaKeyboard && next) next.focus({ preventScroll: true });
         }, reduceMotion() ? 0 : 180);
       }
@@ -1459,7 +1478,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
-          <div class="pane" data-pane="plan">${planHtml(m.plan)}</div>
+          <div class="pane" data-pane="plan">${planHtml(m.plan, m.includeToday)}</div>
           <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhForm)}</div>
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
@@ -1498,6 +1517,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const key = focusKey(pane);
       pane.innerHTML = wfhHtml(wfhState, Date.now(), wfhForm);
       restoreFocus(pane, key);
+    }
+
+    /** Once a minute: the Plan's "2h 05m left" countdown, and the WFH tab. */
+    function tick() {
+      for (const el of content.querySelectorAll('[data-until]')) {
+        const ms = Number(el.getAttribute('data-until')) - Date.now();
+        el.textContent = leftLabel(ms);
+        el.classList.toggle('done', ms <= 0);
+      }
+      renderWfh();
     }
 
     function setWfh(next) {
@@ -1627,7 +1656,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, tick, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }

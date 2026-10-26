@@ -39,7 +39,7 @@
     apiRecords: new Map(),
     apiVersion: 0,
     overrides: {}, // planner: { 'YYYY-MM': { date: 'office' | 'away' } }
-    includeToday: false, // Overview only: today is left out of every figure unless switched on
+    includeToday: false, // Overview + Plan: today's office time isn't counted as a finished day unless switched on
     wfh: { settings: null, day: null }, // WFH tab: reminder time + today's state from the worker
     clockState: null, // last Actions-card state sent to the worker
     signature: null,
@@ -124,7 +124,8 @@
         if (sig !== state.signature || !state.model.visible) {
           state.signature = sig;
           const todayInView = view.days.some(d => d.date === todayKey);
-          // The switch only affects the Overview (and the pill, which mirrors it); Plan always sees today.
+          // Overview (and the pill, which mirrors it) leaves today out entirely; Plan still shows it,
+          // as a day in progress unless the switch is on.
           const overviewDays = state.includeToday ? view.days : view.days.filter(d => d.date !== todayKey);
           state.model = {
             visible: true,
@@ -143,6 +144,7 @@
               dayTypes: dayTypes(view.monthKey),
               overrides: monthOverrides,
               targetMinutes: state.targetMinutes,
+              includeToday: state.includeToday,
             }) : null,
             verifiedAt,
             targetMinutes: state.targetMinutes,
@@ -367,7 +369,7 @@
     intervalId = setInterval(() => {
       if (document.visibilityState !== 'visible' || !onRoute()) return;
       refresh();
-      widget.renderWfh(); // "updated 3 min ago", snooze countdown
+      widget.tick(); // the Plan's "… left" countdown; the WFH tab's "synced 3 min ago", snooze countdown
     }, SAFETY_INTERVAL_MS);
 
     refresh();
