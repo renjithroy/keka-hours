@@ -10,6 +10,8 @@
  *
  * Remaining office days default to weekdays that aren't a known holiday /
  * weekly-off; the user can flip any upcoming day (WFH, leave, extra office day).
+ * Today counts as a finished office day only with Include today on (the same
+ * switch as the Overview): a last punch that's an OUT may just be a break.
  */
 (function (root) {
   'use strict';
@@ -38,6 +40,7 @@
    * @param {Map}    [p.dayTypes] date -> Keka dayType (0 working, 1 holiday, 2 weekly-off)
    * @param {object} [p.overrides] date -> 'office' | 'away'
    * @param {number} [p.targetMinutes]
+   * @param {boolean} [p.includeToday] count today's office time as a finished day (else it's still in progress)
    */
   function planMonth(p) {
     const target = calc.sanitizeTarget(p.targetMinutes);
@@ -49,9 +52,11 @@
     const overrides = p.overrides || {};
     const dayTypes = p.dayTypes || new Map();
 
+    const includeToday = p.includeToday === true;
     const inMonth = calc.dedupe(p.days).filter(d => d.date.slice(0, 7) === p.monthKey);
     const byDate = new Map(inMonth.map(d => [d.date, d]));
-    const summary = calc.calculateSummary(inMonth, target);
+    // Without Include today, today's hours are "so far", not a counted day.
+    const summary = calc.calculateSummary(includeToday ? inMonth : inMonth.filter(d => d.date !== p.todayKey), target);
 
     const cells = [];
     let remaining = 0;
@@ -64,10 +69,10 @@
       const day = byDate.get(date);
       const kind = day ? calc.classify(day) : null;
       const isToday = date === p.todayKey;
-      // Today is settled once it's counted or excluded (WFH / leave);
-      // while it's still open (or not started) it's a remaining day.
+      // Today is settled once it's excluded (WFH / leave), or counted with Include
+      // today on; while it's still open, on a break, or not started it's a remaining day.
       const settled = isPastMonth || date < p.todayKey ||
-        (isToday && kind && kind !== 'incomplete' && kind !== 'no-time');
+        (isToday && kind && kind !== 'incomplete' && kind !== 'no-time' && (kind !== 'included' || includeToday));
 
       if (settled) {
         const state = settledState(day, weekend);

@@ -96,7 +96,7 @@ test('today: open punch gives clock-out time; done today is not remaining; WFH t
   assert.equal(partial.today.moreMinutes, 597 - 200);
   assert.equal(partial.today.leaveAt, null);
 
-  const done = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 600)] });
+  const done = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 600)], includeToday: true });
   assert.equal(done.remainingDays, 2);
   assert.equal(done.cells.find(c => c.date === '2026-10-28').state, 'worked');
 
@@ -119,4 +119,27 @@ test('statuses: secured, no-days, complete', () => {
   assert.equal(sep.status, 'complete');
   assert.equal(sep.remainingDays, 0);
   assert.equal(sep.currentAverage, 541);
+});
+
+test('Include today off: a last OUT punch (lunch) leaves today in progress, not a short finished day', () => {
+  const base = octoberDays();
+  const before = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: base });
+  // Out for lunch after 3h 10m: the plan doesn't move, and today shows its hours so far.
+  const lunch = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190)] });
+  assert.equal(lunch.remainingDays, before.remainingDays);
+  assert.equal(lunch.requiredPerDay, before.requiredPerDay);
+  assert.equal(lunch.countedDays, before.countedDays);
+  assert.equal(lunch.cells.find(c => c.date === '2026-10-28').state, 'plan-office');
+  assert.deepEqual([lunch.today.soFarMinutes, lunch.today.moreMinutes], [190, before.requiredPerDay - 190]);
+  // The same day with Include today on counts as a finished 3h 10m day (after clock-out, that's right).
+  const counted = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190)], includeToday: true });
+  assert.equal(counted.remainingDays, before.remainingDays - 1);
+  assert.equal(counted.countedDays, before.countedDays + 1);
+  assert.ok(counted.requiredPerDay > before.requiredPerDay);
+  // Done for the day with more than enough, switch still off: "enough for today", nothing more.
+  const long = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 700)] });
+  assert.equal(long.today.moreMinutes, 0);
+  // Still clocked in: never counted, either way.
+  const open = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190, { isIncomplete: true })], includeToday: true });
+  assert.equal(open.remainingDays, before.remainingDays);
 });

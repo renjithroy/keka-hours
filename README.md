@@ -50,12 +50,16 @@ can't be read, the card follows your OS setting.
   total ÷ counted days. The list scrolls for long months.
   Today is left out of every Overview figure, the chart, and the minimised pill unless you turn on
   **Include today** (off by default). Only turn it on once you've clocked out and today's hours show in
-  the attendance table (hovering the switch reminds you). The Plan tab always uses today. The setting is remembered.
+  the attendance table (hovering the switch reminds you). It's one setting, also on the Plan tab, and it's
+  remembered.
 - **Plan**: a month calendar showing how long to sit on each remaining office day to end the
   month at a 9h+ average. Weekdays count as office days by default, and weekends and
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
-  (WFH / leave / off). Your choices are saved locally per month. If you're clocked in today with
-  a single punch, it also shows the time you can clock out.
+  (WFH / leave / off). Your choices are saved locally per month. Today stays a day in progress,
+  with your hours so far and how much more to sit, until you turn on **Include today** (the same
+  switch as Overview's) after clocking out, so stepping out for lunch doesn't count as a short
+  finished day. If you're clocked in today with a single punch, it also shows the time you can
+  clock out.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,
