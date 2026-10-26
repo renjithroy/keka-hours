@@ -342,7 +342,10 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
 .today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
-.today-strip .tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
+.today-strip .tdot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
+/* While the clock-out countdown runs, the dot pulses like the WFH tab's clocked-in dot. */
+.today-strip.live .tdot { box-shadow: none; }
+.today-strip.live .tdot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--brand); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
 .today-strip b { font-weight: 700; white-space: nowrap; }
 .today-strip .ttext { flex: 1; min-width: 0; }
 .today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
@@ -733,12 +736,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (!td) return '';
     let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
     let left = '';
+    let live = false;
     if (td.leaveAt) {
       text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
       const ms = td.leaveAt - Date.now();
+      live = ms > 0;
       left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
     }
-    return `<div class="today-strip"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
+    return `<div class="today-strip${live ? ' live' : ''}"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
   }
 
   function cellHtml(c, p) {
@@ -1525,6 +1530,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         const ms = Number(el.getAttribute('data-until')) - Date.now();
         el.textContent = leftLabel(ms);
         el.classList.toggle('done', ms <= 0);
+        const strip = el.closest('.today-strip');
+        if (strip) strip.classList.toggle('live', ms > 0); // the dot stops pulsing once it's time
       }
       renderWfh();
     }
