@@ -4,6 +4,7 @@
  * Shape: { planOverrides: { 'YYYY-MM': { 'YYYY-MM-DD': 'office' | 'away' } } }
  * Also stores the widget's colour theme: { theme: 'light' | 'dark' }
  * and the Overview's "include today" switch: { includeToday: boolean }
+ * and the Plan's "hide weekends" switch: { planHideWeekends: boolean }
  * WFH clock-out reminder time (wfhSettings) and today's reminder state
  * (wfhDay, written by the background worker; read-only here).
  */
@@ -13,6 +14,7 @@
   const KEY = 'planOverrides';
   const THEME_KEY = 'theme';
   const INCLUDE_TODAY_KEY = 'includeToday';
+  const HIDE_WEEKENDS_KEY = 'planHideWeekends';
   const WFH_SETTINGS_KEY = 'wfhSettings';
   const WFH_DAY_KEY = 'wfhDay';
   const KEEP_MONTHS = 3;
@@ -112,6 +114,33 @@
     } catch (_) { /* storage unavailable */ }
   }
 
+  /** Plan's "Hide weekends" (Monday to Friday only); off unless turned on. */
+  async function loadHideWeekends() {
+    const s = storage();
+    if (!s) return false;
+    try {
+      const got = await s.get({ [HIDE_WEEKENDS_KEY]: false });
+      return got[HIDE_WEEKENDS_KEY] === true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function saveHideWeekends(value) {
+    const s = storage();
+    if (!s) return;
+    try { await s.set({ [HIDE_WEEKENDS_KEY]: value === true }); } catch (_) { /* extension reloaded; keep in memory */ }
+  }
+
+  /** Calls back when "hide weekends" changes (e.g. toggled in another Keka tab). */
+  function onHideWeekendsChange(callback) {
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes[HIDE_WEEKENDS_KEY]) callback(changes[HIDE_WEEKENDS_KEY].newValue === true);
+      });
+    } catch (_) { /* storage unavailable */ }
+  }
+
   /** { settings, day } for the WFH tab (raw; normalised by KekaHours.wfh). */
   async function loadWfh() {
     const s = storage();
@@ -146,6 +175,7 @@
   root.KekaHours.settings = {
     loadOverrides, saveOverrides, onChange, loadTheme, saveTheme, onThemeChange,
     loadIncludeToday, saveIncludeToday, onIncludeTodayChange,
+    loadHideWeekends, saveHideWeekends, onHideWeekendsChange,
     loadWfh, saveWfhSettings, onWfhChange,
   };
 })(globalThis);

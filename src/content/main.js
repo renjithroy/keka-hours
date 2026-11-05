@@ -331,8 +331,8 @@
   }
 
   async function start() {
-    const [overrides, savedTheme, includeToday, wfhState] = await Promise.all([
-      settings.loadOverrides(), settings.loadTheme(), settings.loadIncludeToday(), settings.loadWfh(),
+    const [overrides, savedTheme, includeToday, wfhState, hideWeekends] = await Promise.all([
+      settings.loadOverrides(), settings.loadTheme(), settings.loadIncludeToday(), settings.loadWfh(), settings.loadHideWeekends(),
     ]);
     state.overrides = overrides;
     state.includeToday = includeToday;
@@ -344,12 +344,14 @@
       onToggleDay: toggleDay,
       onThemeChange: settings.saveTheme,
       onIncludeTodayChange: setIncludeToday,
+      onHideWeekendsChange: settings.saveHideWeekends, // a view choice: the widget re-draws, we only remember it
       onReminderSave: saveReminder,
       onWfhAction: type => toWorker({ type }), // wfh-snooze | wfh-snooze-cancel | wfh-snooze-more | wfh-stop | wfh-resume | wfh-auto-skip | wfh-auto-unskip | wfh-auto-reset
       onWfhTest: () => toWorker({ type: 'wfh-test' }),
       onAutoSave: saveAutoClockOut,
     });
     widget.setWfh(state.wfh);
+    widget.setHideWeekends(hideWeekends);
     // Before the first render, so the widget never flashes the wrong theme.
     widget.setTheme(savedTheme);
 
@@ -362,6 +364,7 @@
       state.wfh = { ...state.wfh, ...next };
       widget.setWfh(state.wfh);
     });
+    settings.onHideWeekendsChange(next => widget.setHideWeekends(next));
     settings.onIncludeTodayChange(next => {
       if (next === state.includeToday) return;
       state.includeToday = next;

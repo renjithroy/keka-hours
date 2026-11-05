@@ -65,7 +65,8 @@ can't be read, the card follows your OS setting.
   (WFH / leave / off). Your choices are saved locally per month. Today stays a remaining office
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
   stepping out for lunch doesn't count as a short finished day. Today's clock-out time is on the
-  Overview.
+  Overview. **Hide weekends** (bottom right, remembered) shows Monday to Friday only; weekend hours
+  still count.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,
@@ -190,7 +191,7 @@ only as accurate as the calendar, so mark WFH / leave days.
 ## Privacy
 
 - Permissions: `storage` (which upcoming days you marked away/office in Plan, your theme override,
-  Include today, your reminder and auto clock-out settings, and today's WFH punch times), `alarms`
+  Include today, Hide weekends, your reminder and auto clock-out settings, and today's WFH punch times), `alarms`
   and `notifications` (clock-out reminders), `idle` (whether you're at the computer, so a missed
   auto clock-out waits for you) and `power` (keeps the laptop awake around an auto clock-out). No
   `tabs`, `cookies`, `webRequest`, or host permissions. Auto clock-out opens and closes its own Keka

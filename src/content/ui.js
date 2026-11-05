@@ -229,6 +229,8 @@ svg { width: 100%; height: 100%; display: block; }
 .pane.off { visibility: hidden; pointer-events: none; }
 .pane[data-pane="overview"] { display: flex; flex-direction: column; }
 .pane[data-pane="wfh"] { display: flex; flex-direction: column; }
+/* Plan: the calendar's rows share whatever height the card has (it's as tall as the tallest tab). */
+.pane[data-pane="plan"] { display: flex; flex-direction: column; }
 
 /* ---------- Overview: the average, then cards ---------- */
 .ov-hero { position: relative; padding: 6px 0 26px; }
@@ -417,9 +419,9 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto; grid-auto-rows: minmax(var(--cell-h, 48px), 1fr); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
-.cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
+.cal-cell { position: relative; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
 .cal-d { font-size: 13.5px; font-weight: 600; line-height: 1; }
 .cal-v { font-size: 10.5px; line-height: 1; color: var(--muted); white-space: nowrap; }
 .s-worked.good { background: var(--good-soft); }
@@ -433,8 +435,8 @@ svg { width: 100%; height: 100%; display: block; }
 .s-plan-office { border: 1.5px dashed var(--plan-line); background: var(--plan-bg); }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
-/* A month spanning six weeks gets shorter cells, so the card stays its usual height. */
-.cal.six .cal-cell { height: 39px; }
+/* A month spanning six weeks starts from shorter rows, so the card stays its usual height. */
+.cal.six { --cell-h: 44px; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 /* Today: the date in a filled circle (the cell keeps its own colour). */
 .cal-cell.today .cal-d { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-weight: 700; }
@@ -447,6 +449,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .lx { background: var(--off-soft); box-shadow: inset 0 0 0 1.5px var(--legend-off); }
 .legend .lp { border: 1.5px dashed var(--plan-line); }
 .legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1.5px var(--legend-away-a); }
+/* Hide weekends: the legend's last slot, right-aligned. */
+.legend .legend-sw { grid-column: 3; justify-self: end; }
+.cal.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
 /* ---------- WFH: today first, then the settings for every WFH day ---------- */
@@ -550,7 +555,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
-  .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal-cell { height: 44px; } .cal.six .cal-cell { height: 36px; }
+  .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal { --cell-h: 44px; } .cal.six { --cell-h: 38px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
   .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
@@ -899,23 +904,36 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       : `<div class="${cls.join(' ')}" title="${esc(title)}">${inner}</div>`;
   }
 
-  function planHtml(p, includeToday) {
+  /** Plan's "Hide weekends": Monday to Friday only (a view choice; weekend hours still count). */
+  function hideWeekendsSwitchHtml(on) {
+    return `<span class="legend-sw"><button class="switch mini" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button></span>`;
+  }
+
+  function planHtml(p, includeToday, hideWeekends = false) {
     if (!p) return '<div class="waiting"><div class="msg">Open a month (or <b>30 DAYS</b>) in the Attendance Log to plan.</div></div>';
-    const blanks = Array.from({ length: p.firstWeekday }, () => '<div></div>').join('');
     const editable = p.cells.some(c => c.state === 'plan-office' || c.state === 'plan-away');
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
+    // Hide weekends: five columns, no Saturday / Sunday cells; a month starting on one starts on Monday.
+    const [y, mo] = p.monthKey.split('-').map(Number);
+    const weekend = c => { const d = new Date(y, mo - 1, c.day).getDay(); return d === 0 || d === 6; };
+    const cells = hideWeekends ? p.cells.filter(c => !weekend(c)) : p.cells;
+    const cols = hideWeekends ? 5 : 7;
+    const lead = hideWeekends && p.firstWeekday >= 5 ? 0 : p.firstWeekday;
+    const rows = Math.ceil((lead + cells.length) / cols);
+    const blanks = Array.from({ length: lead }, () => '<div></div>').join('');
     return `
       ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
-      <div class="cal${p.firstWeekday + p.daysInMonth > 35 ? ' six' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
-        ${WEEK_HEAD.map(h => `<div class="cal-h">${h}</div>`).join('')}
-        ${blanks}${p.cells.map(c => cellHtml(c, p)).join('')}
+      <div class="cal${rows > 5 ? ' six' : ''}${hideWeekends ? ' five' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
+        ${WEEK_HEAD.slice(0, cols).map(h => `<div class="cal-h">${h}</div>`).join('')}
+        ${blanks}${cells.map(c => cellHtml(c, p)).join('')}
       </div>
       <div class="legend">
         <span><i class="lw"></i>≥ ${target}</span>
         <span><i class="lu"></i>&lt; ${target}</span>
         <span><i class="lx"></i>WFH / Leave</span>
-        ${editable ? `<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>
-        <span class="hint">Tap an upcoming day to switch office / away</span>` : ''}
+        ${editable ? '<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>' : ''}
+        ${hideWeekendsSwitchHtml(!!hideWeekends)}
+        ${editable ? '<span class="hint">Tap an upcoming day to switch office / away</span>' : ''}
       </div>`;
   }
 
@@ -1270,6 +1288,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let closing = null; // running close animation, if any
     let tab = 'overview';
     let wfhState = { settings: null, day: null };
+    let hideWeekends = false; // Plan: Monday to Friday only
     // WFH tab form, kept across re-renders: the test notification's result.
     const wfhForm = { testMsg: null };
     let wfhPending = false; // a re-render waiting for a press to become its click
@@ -1474,6 +1493,18 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           if (viaKeyboard && next) next.focus({ preventScroll: true });
         }, reduceMotion() ? 0 : 180);
       }
+      else if (act === 'hide-weekends') {
+        const on = el.getAttribute('aria-checked') !== 'true';
+        const viaKeyboard = e.detail === 0;
+        el.setAttribute('aria-checked', String(on)); // let the switch slide first
+        setTimeout(() => {
+          hideWeekends = on;
+          renderPanel();
+          handlers.onHideWeekendsChange(on);
+          const next = content.querySelector('[data-act="hide-weekends"]');
+          if (viaKeyboard && next) next.focus({ preventScroll: true });
+        }, reduceMotion() ? 0 : 180);
+      }
       else if (act === 'avg-info') openModal('daylog');
       else if (act === 'modal-close') closeModal(e.detail === 0);
       else if (act === 'theme') {
@@ -1610,7 +1641,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       content.innerHTML = `
         <div class="panes">
           <div class="pane" data-pane="overview">${overviewHtml(s, m)}</div>
-          <div class="pane" data-pane="plan">${planHtml(m.plan, m.includeToday)}</div>
+          <div class="pane" data-pane="plan">${planHtml(m.plan, m.includeToday, hideWeekends)}</div>
           <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhForm)}</div>
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
@@ -1656,6 +1687,13 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     function tick() {
       paintToday();
       renderWfh();
+    }
+
+    /** Plan's Hide weekends, as remembered (or changed in another Keka tab). */
+    function setHideWeekends(on) {
+      if (hideWeekends === (on === true)) return;
+      hideWeekends = on === true;
+      renderPanel();
     }
 
     function setWfh(next) {
@@ -1800,7 +1838,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
     }
 
-    const api = { render, mount, applyTheme, setTheme, setWfh, renderWfh, tick, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
+    const api = { render, mount, applyTheme, setTheme, setWfh, setHideWeekends, renderWfh, tick, contains: node => host === node || host.contains(node), isExpanded: () => expanded, host };
     host.__kekaHours = api;
     return api;
   }
