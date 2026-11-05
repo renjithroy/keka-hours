@@ -79,12 +79,16 @@
   --tab-ind-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04);
   --meter-off: #e6ebf1;
   --plan-bg: #fff;
-  --away-a: #f4f6f9;
+  --away-a: #e6eaf0;
   --away-b: #fff;
-  --legend-good: #bfe5cf;
+  --plan-line: color-mix(in srgb, var(--brand) 78%, #fff);
+  --off-soft: #eaf2fe;
+  --off-text: #2f6bd0;
+  --legend-good: #8fcfaa;
   --legend-warn: #f2d3ad;
-  --legend-neutral: #e1e7ee;
-  --legend-away-a: #e9edf2;
+  --swatch-warn: #efbb7d;
+  --legend-off: #93b8ee;
+  --legend-away-a: #cfd6df;
   --legend-away-b: #fff;
   font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14.5px;
@@ -136,12 +140,16 @@
   --tab-ind-shadow: 0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
   --meter-off: #2f3944;
   --plan-bg: var(--bg);
-  --away-a: #232a33;
+  --away-a: #2c343e;
   --away-b: #161b22;
-  --legend-good: #276846;
+  --plan-line: color-mix(in srgb, var(--brand) 85%, #fff);
+  --off-soft: #172a45;
+  --off-text: #84b3ff;
+  --legend-good: #3a8a5e;
   --legend-warn: #7a5524;
-  --legend-neutral: #38424f;
-  --legend-away-a: #38424f;
+  --swatch-warn: #a8742f;
+  --legend-off: #416fae;
+  --legend-away-a: #4a5563;
   --legend-away-b: #161b22;
 }
 button { font: inherit; color: inherit; background: none; border: 0; margin: 0; padding: 0; cursor: pointer; }
@@ -382,25 +390,27 @@ svg { width: 100%; height: 100%; display: block; }
 .s-worked.good .cal-v { color: var(--good); font-weight: 600; }
 .s-worked.warn { background: var(--warn-soft); }
 .s-worked.warn .cal-v { color: var(--warn); font-weight: 600; }
-.s-wfh, .s-leave { background: var(--surface); }
+.s-wfh, .s-leave { background: var(--off-soft); }
+.s-wfh .cal-v, .s-leave .cal-v { color: var(--off-text); font-weight: 600; }
 .s-off, .s-holiday, .s-none, .s-absent { color: var(--subtle); }
 .s-off .cal-v, .s-holiday .cal-v, .s-absent .cal-v { color: var(--subtle); }
-.s-plan-office { border: 1.5px dashed var(--brand-line); background: var(--plan-bg); }
+.s-plan-office { border: 1.5px dashed var(--plan-line); background: var(--plan-bg); }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
 /* A month spanning six weeks gets shorter cells, so the card stays its usual height. */
 .cal.six .cal-cell { height: 39px; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
-.cal-cell.today::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--text); border-radius: 11px; pointer-events: none; }
+/* Today: the date in a filled circle (the cell keeps its own colour). */
+.cal-cell.today .cal-d { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-weight: 700; }
 .cal-cell.overridden::before { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-warn); }
 .legend { display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; gap: 8px 22px; margin-top: 14px; font-size: 13.5px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; }
-.legend i { display: inline-block; flex: none; width: 14px; height: 14px; margin-right: 7px; border-radius: 4px; }
-.legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1px var(--legend-good); }
-.legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1px var(--legend-warn); }
-.legend .lx { background: var(--surface); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
-.legend .lp { border: 1.5px dashed var(--brand-line); }
-.legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1px var(--legend-neutral); }
+.legend i { display: inline-block; flex: none; width: 15px; height: 15px; margin-right: 8px; border-radius: 4px; }
+.legend .lw { background: var(--good-soft); box-shadow: inset 0 0 0 1.5px var(--legend-good); }
+.legend .lu { background: var(--warn-soft); box-shadow: inset 0 0 0 1.5px var(--swatch-warn); }
+.legend .lx { background: var(--off-soft); box-shadow: inset 0 0 0 1.5px var(--legend-off); }
+.legend .lp { border: 1.5px dashed var(--plan-line); }
+.legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1.5px var(--legend-away-a); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
 /* ---------- WFH: today first, then the settings for every WFH day ---------- */
