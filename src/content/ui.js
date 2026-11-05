@@ -229,6 +229,8 @@ svg { width: 100%; height: 100%; display: block; }
 .pane.off { visibility: hidden; pointer-events: none; }
 .pane[data-pane="overview"] { display: flex; flex-direction: column; }
 .pane[data-pane="wfh"] { display: flex; flex-direction: column; }
+/* Plan: the calendar's rows share whatever height the card has (it's as tall as the tallest tab). */
+.pane[data-pane="plan"] { display: flex; flex-direction: column; }
 
 /* ---------- Overview: the average, then cards ---------- */
 .ov-hero { position: relative; padding: 6px 0 26px; }
@@ -417,9 +419,9 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto; grid-auto-rows: minmax(var(--cell-h, 48px), 1fr); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
-.cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
+.cal-cell { position: relative; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
 .cal-d { font-size: 13.5px; font-weight: 600; line-height: 1; }
 .cal-v { font-size: 10.5px; line-height: 1; color: var(--muted); white-space: nowrap; }
 .s-worked.good { background: var(--good-soft); }
@@ -433,8 +435,8 @@ svg { width: 100%; height: 100%; display: block; }
 .s-plan-office { border: 1.5px dashed var(--plan-line); background: var(--plan-bg); }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
-/* A month spanning six weeks gets shorter cells, so the card stays its usual height. */
-.cal.six .cal-cell { height: 39px; }
+/* A month spanning six weeks starts from shorter rows, so the card stays its usual height. */
+.cal.six { --cell-h: 44px; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 /* Today: the date in a filled circle (the cell keeps its own colour). */
 .cal-cell.today .cal-d { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-weight: 700; }
@@ -550,7 +552,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
-  .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal-cell { height: 44px; } .cal.six .cal-cell { height: 36px; }
+  .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal { --cell-h: 44px; } .cal.six { --cell-h: 38px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
   .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
