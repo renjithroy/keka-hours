@@ -333,10 +333,32 @@
     return clockStateFromLabels([...card.querySelectorAll('button, a')].map(el => el.textContent));
   }
 
+  /**
+   * Keka's table marks a WFH day only once a manager approves it ("Work From
+   * Home Pending approval", no hours, until then). Today's WFH punches (from
+   * Keka's day requests, pending or approved) settle it: today is a WFH day,
+   * its hours from the first clock-in to the last clock-out (or now, while
+   * still clocked in). `punches` = [{ at: 'YYYY-MM-DDTHH:MM:SS', in }].
+   * Returns `days` unchanged when there's no clock-in or today isn't listed.
+   */
+  function applyWfhPunches(days, todayKey, punches, now) {
+    const list = (Array.isArray(punches) ? punches : [])
+      .map(p => ({ at: Date.parse(p && p.at), in: !!(p && p.in === true) }))
+      .filter(p => Number.isFinite(p.at))
+      .sort((a, b) => a.at - b.at);
+    const firstIn = list.find(p => p.in);
+    if (!firstIn || !Array.isArray(days) || !days.some(d => d.date === todayKey)) return days;
+    const last = list[list.length - 1];
+    const minutes = Math.max(0, ((last.in ? now : last.at) - firstIn.at) / 60000);
+    return days.map(d => (d.date === todayKey
+      ? { ...d, isWFH: true, isIncomplete: last.in, grossMinutes: Math.max(d.grossMinutes || 0, minutes) }
+      : d));
+  }
+
   const api = {
     parseHeader, resolveRowDate, parseMinutes, classifyRow, preciseSeconds,
     normalizeApiRecord, mergeDay, buildView, signature, snapshot, localDateKey,
-    clockStateFromLabels, readClockState,
+    clockStateFromLabels, readClockState, applyWfhPunches,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).parser = api;

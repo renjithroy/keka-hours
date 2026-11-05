@@ -114,15 +114,15 @@
     } catch (_) { /* storage unavailable */ }
   }
 
-  /** Plan's "Hide weekends" (Monday to Friday only); off unless turned on. */
+  /** Plan's "Hide weekends" (Monday to Friday only); on unless turned off. */
   async function loadHideWeekends() {
     const s = storage();
-    if (!s) return false;
+    if (!s) return true;
     try {
-      const got = await s.get({ [HIDE_WEEKENDS_KEY]: false });
-      return got[HIDE_WEEKENDS_KEY] === true;
+      const got = await s.get({ [HIDE_WEEKENDS_KEY]: true });
+      return got[HIDE_WEEKENDS_KEY] !== false;
     } catch (_) {
-      return false;
+      return true;
     }
   }
 
@@ -136,7 +136,7 @@
   function onHideWeekendsChange(callback) {
     try {
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes[HIDE_WEEKENDS_KEY]) callback(changes[HIDE_WEEKENDS_KEY].newValue === true);
+        if (area === 'local' && changes[HIDE_WEEKENDS_KEY]) callback(changes[HIDE_WEEKENDS_KEY].newValue !== false);
       });
     } catch (_) { /* storage unavailable */ }
   }

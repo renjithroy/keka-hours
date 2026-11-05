@@ -249,13 +249,13 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-card { position: relative; border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); }
 /* Tracked | Total hours over WFH | Leave: one card, four cells. */
 .ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ov-cell { min-width: 0; padding: 12px 14px; }
+.ov-cell { min-width: 0; padding: 9px 14px; }
 .ov-cell:nth-child(odd) { border-right: 1px solid var(--cell-line); }
 .ov-cell:nth-child(-n+2) { border-bottom: 1px solid var(--cell-line); }
 .ov-k { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-k svg { flex: none; width: 15px; height: 15px; color: var(--subtle); }
-.ov-v { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
-.ov-v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.ov-v { margin-top: 2px; font-size: 18px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
+.ov-v small { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
 /* Today: In | Clock out | Left, with progress along the bottom edge. */
 .ov-day { position: relative; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); --tone: var(--brand); --tone-text: var(--brand-text); --tone-mid: color-mix(in srgb, var(--brand) 6%, var(--card)); }
 .ov-day.idle { --tone: var(--stub-hover); --tone-text: var(--subtle); --tone-mid: var(--card); }
@@ -287,7 +287,7 @@ svg { width: 100%; height: 100%; display: block; }
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
 .ov-empty { flex: 1; display: grid; place-items: center; min-height: 68px; font-size: 13px; color: var(--subtle); }
 .spark-head b { font-size: 14px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
-.spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
+.spark { position: relative; flex: 1; min-height: 89px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
 .spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
 .spark .bar.warn { background: var(--bar-warn); }
 .spark .bar:hover { background: var(--bar-hover); }
@@ -449,8 +449,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .lx { background: var(--off-soft); box-shadow: inset 0 0 0 1.5px var(--legend-off); }
 .legend .lp { border: 1.5px dashed var(--plan-line); }
 .legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1.5px var(--legend-away-a); }
-/* Hide weekends: the legend's last slot, right-aligned. */
-.legend .legend-sw { grid-column: 3; justify-self: end; }
+/* Hide weekends: at the right end of the Plan's number row (wraps under it if a long chip needs the room). */
+.hero-row .plan-wk { margin-left: auto; align-self: baseline; transform: translateY(-6px); }
 .cal.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
@@ -557,7 +557,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @media (max-width: 480px) {
   .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal { --cell-h: 44px; } .cal.six { --cell-h: 38px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
-  .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
+  .ov-cell { padding: 8px 12px; } .ov-v { font-size: 17px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
@@ -771,8 +771,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `<div class="plan-stats">${cell(left)}${cell(right)}</div>`;
   }
 
-  /** The plan's headline. `sw`: the Include today switch, beside the heading ('' when today isn't in this month). */
-  function planHeroHtml(p, sw) {
+  /**
+   * The plan's headline. `sw`: the Include today switch, beside the heading ('' when
+   * today isn't in this month); `wk`: Hide weekends, at the end of the number row.
+   */
+  function planHeroHtml(p, sw, wk = '') {
     const top = text => (sw ? `<div class="hero-top"><div class="eyebrow">${text}</div>${sw}</div>` : `<div class="eyebrow">${text}</div>`);
     const month = fmt.monthName(p.monthKey);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
@@ -789,7 +792,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <div class="hero">
           <div class="eyebrow">${esc(month)} finished at</div>
           <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span>
-            ${p.currentAverage == null ? '' : `<span class="chip ${ok ? 'good' : 'warn'}">${ok ? `≥ ${target}` : `${fmt.delta(p.currentAverage - p.targetMinutes)} vs ${target}`}</span>`}</div>
+            ${p.currentAverage == null ? '' : `<span class="chip ${ok ? 'good' : 'warn'}">${ok ? `≥ ${target}` : `${fmt.delta(p.currentAverage - p.targetMinutes)} vs ${target}`}</span>`}${wk}</div>
         </div>
         ${statsCard(
           { label: 'Office days', value: p.countedDays, sub: '' },
@@ -799,7 +802,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       return `
         <div class="hero">
           ${top(`No office days left in ${esc(month)}`)}
-          <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span></div>
+          <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span>${wk}</div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: '0', sub: 'tap a day to add' })}`;
     }
@@ -807,7 +810,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       return `
         <div class="hero">
           ${top(`To end ${esc(month)} at ${target}+ average`)}
-          <div class="hero-row"><span class="hero-value word">You're set</span></div>
+          <div class="hero-row"><span class="hero-value word">You're set</span>${wk}</div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: p.remainingDays, tone: 'good', sub: `any time keeps ${target}+` })}`;
     }
@@ -817,7 +820,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="hero">
         ${top('Sit on each remaining office day')}
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
-          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
+          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `for ${plural(p.remainingDays, 'day')}`}</span>${wk}</div>
       </div>`;
   }
 
@@ -906,7 +909,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   /** Plan's "Hide weekends": Monday to Friday only (a view choice; weekend hours still count). */
   function hideWeekendsSwitchHtml(on) {
-    return `<span class="legend-sw"><button class="switch mini" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button></span>`;
+    return `<button class="switch mini plan-wk" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button>`;
   }
 
   function planHtml(p, includeToday, hideWeekends = false) {
@@ -922,7 +925,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const rows = Math.ceil((lead + cells.length) / cols);
     const blanks = Array.from({ length: lead }, () => '<div></div>').join('');
     return `
-      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
+      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '', hideWeekendsSwitchHtml(!!hideWeekends))}
       <div class="cal${rows > 5 ? ' six' : ''}${hideWeekends ? ' five' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.slice(0, cols).map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${cells.map(c => cellHtml(c, p)).join('')}
@@ -931,9 +934,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <span><i class="lw"></i>≥ ${target}</span>
         <span><i class="lu"></i>&lt; ${target}</span>
         <span><i class="lx"></i>WFH / Leave</span>
-        ${editable ? '<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>' : ''}
-        ${hideWeekendsSwitchHtml(!!hideWeekends)}
-        ${editable ? '<span class="hint">Tap an upcoming day to switch office / away</span>' : ''}
+        ${editable ? `<span><i class="lp"></i>Office (plan)</span><span><i class="la"></i>Away</span>
+        <span class="hint">Tap an upcoming day to switch office / away</span>` : ''}
       </div>`;
   }
 
@@ -1288,7 +1290,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let closing = null; // running close animation, if any
     let tab = 'overview';
     let wfhState = { settings: null, day: null };
-    let hideWeekends = false; // Plan: Monday to Friday only
+    let hideWeekends = true; // Plan: Monday to Friday only (on unless turned off)
     // WFH tab form, kept across re-renders: the test notification's result.
     const wfhForm = { testMsg: null };
     let wfhPending = false; // a re-render waiting for a press to become its click

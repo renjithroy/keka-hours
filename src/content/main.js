@@ -110,11 +110,13 @@
 
       reportClockState();
       const now = new Date();
-      const view = parser.buildView(parser.snapshot(document), state.apiRecords, {
-        today: now,
-        todayKey: parser.localDateKey(now),
-      });
       const todayKey = parser.localDateKey(now);
+      const read = parser.buildView(parser.snapshot(document), state.apiRecords, { today: now, todayKey });
+      // A WFH day pending approval shows no hours in Keka's table: today's WFH punches settle it.
+      const wfhDay = state.wfh && state.wfh.day;
+      const view = wfhDay && wfhDay.date === todayKey && Array.isArray(read.days)
+        ? { ...read, days: parser.applyWfhPunches(read.days, todayKey, wfhDay.punches, now.getTime()) }
+        : read;
       const monthOverrides = (view.monthKey && state.overrides[view.monthKey]) || {};
       const sig = `${parser.signature(view)}#${todayKey}#${state.apiVersion}#${JSON.stringify(monthOverrides)}#${state.includeToday}`;
       const verifiedAt = Date.now();
@@ -363,6 +365,7 @@
     settings.onWfhChange(next => {
       state.wfh = { ...state.wfh, ...next };
       widget.setWfh(state.wfh);
+      if (next.day) refresh(); // a WFH punch makes today a WFH day (Overview, chart, Plan)
     });
     settings.onHideWeekendsChange(next => widget.setHideWeekends(next));
     settings.onIncludeTodayChange(next => {
