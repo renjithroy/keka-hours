@@ -436,7 +436,7 @@ svg { width: 100%; height: 100%; display: block; }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
 /* A month spanning six weeks starts from shorter rows, so the card stays its usual height. */
-.cal.six { --cell-h: 42px; }
+.cal.six { --cell-h: 44px; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 /* Today: the date in a filled circle (the cell keeps its own colour). */
 .cal-cell.today .cal-d { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: #fff; font-weight: 700; }
@@ -449,8 +449,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 .legend .lx { background: var(--off-soft); box-shadow: inset 0 0 0 1.5px var(--legend-off); }
 .legend .lp { border: 1.5px dashed var(--plan-line); }
 .legend .la { background: repeating-linear-gradient(135deg, var(--legend-away-a) 0 2px, var(--legend-away-b) 2px 4px); box-shadow: inset 0 0 0 1.5px var(--legend-away-a); }
-/* Hide weekends: a slim row right above the calendar, right-aligned. */
-.cal-tools { display: flex; justify-content: flex-end; margin: -2px 0 4px; }
+/* Hide weekends: at the right end of the Plan's number row (wraps under it if a long chip needs the room). */
+.hero-row .plan-wk { margin-left: auto; align-self: baseline; transform: translateY(-6px); }
 .cal.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .legend .hint { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--subtle); }
 
@@ -771,8 +771,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `<div class="plan-stats">${cell(left)}${cell(right)}</div>`;
   }
 
-  /** The plan's headline. `sw`: the Include today switch, beside the heading ('' when today isn't in this month). */
-  function planHeroHtml(p, sw) {
+  /**
+   * The plan's headline. `sw`: the Include today switch, beside the heading ('' when
+   * today isn't in this month); `wk`: Hide weekends, at the end of the number row.
+   */
+  function planHeroHtml(p, sw, wk = '') {
     const top = text => (sw ? `<div class="hero-top"><div class="eyebrow">${text}</div>${sw}</div>` : `<div class="eyebrow">${text}</div>`);
     const month = fmt.monthName(p.monthKey);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
@@ -789,7 +792,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <div class="hero">
           <div class="eyebrow">${esc(month)} finished at</div>
           <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span>
-            ${p.currentAverage == null ? '' : `<span class="chip ${ok ? 'good' : 'warn'}">${ok ? `≥ ${target}` : `${fmt.delta(p.currentAverage - p.targetMinutes)} vs ${target}`}</span>`}</div>
+            ${p.currentAverage == null ? '' : `<span class="chip ${ok ? 'good' : 'warn'}">${ok ? `≥ ${target}` : `${fmt.delta(p.currentAverage - p.targetMinutes)} vs ${target}`}</span>`}${wk}</div>
         </div>
         ${statsCard(
           { label: 'Office days', value: p.countedDays, sub: '' },
@@ -799,7 +802,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       return `
         <div class="hero">
           ${top(`No office days left in ${esc(month)}`)}
-          <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span></div>
+          <div class="hero-row"><span class="hero-value">${fmt.duration(p.currentAverage)}</span>${wk}</div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: '0', sub: 'tap a day to add' })}`;
     }
@@ -807,7 +810,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       return `
         <div class="hero">
           ${top(`To end ${esc(month)} at ${target}+ average`)}
-          <div class="hero-row"><span class="hero-value word">You're set</span></div>
+          <div class="hero-row"><span class="hero-value word">You're set</span>${wk}</div>
         </div>
         ${statsCard(soFar, { label: 'Days left', value: p.remainingDays, tone: 'good', sub: `any time keeps ${target}+` })}`;
     }
@@ -817,7 +820,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       <div class="hero">
         ${top('Sit on each remaining office day')}
         <div class="hero-row"><span class="hero-value">${fmt.duration(p.requiredPerDay)}</span>
-          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `avg · ${plural(p.remainingDays, 'office day')}`}</span></div>
+          <span class="chip ${hard ? 'warn' : t}">${hard ? 'Tough — check your away days' : `for ${plural(p.remainingDays, 'day')}`}</span>${wk}</div>
       </div>`;
   }
 
@@ -906,7 +909,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
   /** Plan's "Hide weekends": Monday to Friday only (a view choice; weekend hours still count). */
   function hideWeekendsSwitchHtml(on) {
-    return `<div class="cal-tools"><button class="switch mini" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button></div>`;
+    return `<button class="switch mini plan-wk" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button>`;
   }
 
   function planHtml(p, includeToday, hideWeekends = false) {
@@ -922,8 +925,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const rows = Math.ceil((lead + cells.length) / cols);
     const blanks = Array.from({ length: lead }, () => '<div></div>').join('');
     return `
-      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
-      ${hideWeekendsSwitchHtml(!!hideWeekends)}
+      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '', hideWeekendsSwitchHtml(!!hideWeekends))}
       <div class="cal${rows > 5 ? ' six' : ''}${hideWeekends ? ' five' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.slice(0, cols).map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${cells.map(c => cellHtml(c, p)).join('')}
@@ -1288,7 +1290,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     let closing = null; // running close animation, if any
     let tab = 'overview';
     let wfhState = { settings: null, day: null };
-    let hideWeekends = false; // Plan: Monday to Friday only
+    let hideWeekends = true; // Plan: Monday to Friday only (on unless turned off)
     // WFH tab form, kept across re-renders: the test notification's result.
     const wfhForm = { testMsg: null };
     let wfhPending = false; // a re-render waiting for a press to become its click
