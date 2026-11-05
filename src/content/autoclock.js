@@ -6,7 +6,9 @@
  * changed or unexpected UI stops it (and the worker falls back to a reminder).
  *
  * clockOut(dom, opts) with dom = { find(regex) -> element | null, click(el) }
- * resolves to { result: 'done' | 'clicked' | 'already-out' | 'failed', reason? }.
+ * resolves to { result: 'done' | 'clicked' | 'already-out' | 'failed' | 'cancelled', reason? }.
+ * opts.beforeClick() -> false stops it before any click ('cancelled'): the
+ * worker saw a newer clock-in in Keka's data, so this session isn't ours to end.
  */
 (function (root) {
   'use strict';
@@ -35,12 +37,13 @@
     }
   }
 
-  async function clockOut(dom, { wait = sleep, step = 1000, timeouts = TIMEOUTS, report = () => {}, clock = () => Date.now() } = {}) {
+  async function clockOut(dom, { wait = sleep, step = 1000, timeouts = TIMEOUTS, report = () => {}, clock = () => Date.now(), beforeClick = null } = {}) {
     const until = (check, timeout) => waitFor(check, timeout, wait, step, clock);
     // Keka may still be loading (or show its sign-in page, where this never appears).
     const first = await until(() => dom.find(WFH_OUT) || (dom.find(WFH_IN) ? 'already-out' : null), timeouts.card);
     if (!first) return { result: 'failed', reason: 'no-clock-out-button' };
     if (first === 'already-out') return { result: 'already-out' };
+    if (beforeClick && (await beforeClick()) === false) return { result: 'cancelled', reason: 'new-clock-in' };
     dom.click(first);
 
     const confirm = await until(() => dom.find(CONFIRM), timeouts.confirm);

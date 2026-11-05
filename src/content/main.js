@@ -229,7 +229,12 @@
     const res = await toWorker({ type: 'wfh-auto-tab' });
     if (!res || !res.run) return;
     const report = r => toWorker({ type: 'wfh-auto-result', ...r });
-    const out = await autoclock.clockOut(autoclock.kekaDom(document), { report });
+    // Last check before clicking: Keka's data (just loaded here) may show a newer clock-in.
+    const beforeClick = async () => {
+      const r = await toWorker({ type: 'wfh-auto-go' });
+      return !(r && r.go === false);
+    };
+    const out = await autoclock.clockOut(autoclock.kekaDom(document), { report, beforeClick });
     report(out);
   }
 

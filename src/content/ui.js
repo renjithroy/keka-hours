@@ -855,17 +855,23 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return ap.next && ap.next.on ? lineHtml(off, `No auto clock-out today${smallHtml('It starts on your next WFH day.')}`, '', 'off') : '';
       case 'waiting': case 'standby': return '';
       case 'scheduled': case 'heads-up': {
+        // Back after a run that couldn't happen while you were away: the 10-second notice.
+        const soon = ap.retry && ap.at - now <= 60000;
         // Why it isn't at the set time: the 11h limit, or back on after a clock-in past it.
-        const why = ap.reason === 'safety' ? '11h after you clocked in.'
-          : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
+        const why = soon ? 'Trying again: it couldn\'t run while you were away.'
+          : ap.reason === 'safety' ? '11h after you clocked in.'
+            : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
+        const when = soon ? `in ${Math.max(1, Math.ceil((ap.at - now) / 1000))} sec` : inLabel(ap.at - now);
         return lineHtml(bad, `Auto clock-out${smallHtml(why)}`,
-          `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${inLabel(ap.at - now)}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
+          `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${when}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
       }
+      case 'away':
+        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out will try again${smallHtml('It couldn\'t run while you were away. It tries again once you\'re back online.')}`, btnHtml('wfh-auto-skip', 'Skip today'), 'warn');
       case 'due': case 'running': return lineHtml(bad, 'Clocking you out…');
       case 'done': return lineHtml(bad, `Auto clock-out ran at ${t(ap.doneAt || ap.at)}`, '', 'off');
       case 'failed':
         // "Try again" only while it's still switched on (turned off, a reset would just end it).
-        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml('Clock out in Keka yourself.')}`, ap.on ? btnHtml('wfh-auto-reset', 'Try again') : '', 'warn');
+        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml(`${W.autoFailText(ap.fail)} Clock out in Keka yourself.`.trim())}`, ap.on ? btnHtml('wfh-auto-reset', 'Try again') : '', 'warn');
       case 'skipped': return lineHtml(off, 'Auto clock-out skipped today', btnHtml('wfh-auto-unskip', 'Undo'), 'off');
       case 'late-start': return lineHtml(off, `No auto clock-out today${smallHtml(`You clocked in after ${t(ap.at)}.`)}`, '', 'off');
       case 'missed': return lineHtml(off, `No auto clock-out today${smallHtml(`You weren't clocked in at ${t(ap.at)}.`)}`, '', 'off');
@@ -1054,9 +1060,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <ul class="how">
           <li>5 min before, a notification lets you <b>Skip today</b> or add <b>15 min</b>.</li>
           <li>Keka opens in a background tab, clicks <b>WFH Clock-out</b> and confirms, then the tab closes.</li>
-          <li>If it can't, you get an alert to clock out yourself.</li>
+          <li>Laptop asleep, or screen locked or off, when it should run? It tries again once you're back, after a 10-second notice, if you're still clocked in and there's time before the limit (up to 3 tries a day).</li>
+          <li>From 30 min before, it keeps your laptop from going to sleep on its own (the screen can still turn off). Closing the lid still puts it to sleep.</li>
+          <li>If it can't clock you out, you get an alert to clock out yourself.</li>
           <li>Clock in again after it has run, or after its time, and it comes back on for that day: 1h after you clock in, or at your set time if that's still to come.</li>
-          <li>Needs Chrome running, your laptop awake, and you signed in to Keka.</li>
+          <li>Needs Chrome running and you signed in to Keka.</li>
         </ul>
         <div class="modal-note">A time that has already passed today starts on your next WFH day.</div>
       </div>

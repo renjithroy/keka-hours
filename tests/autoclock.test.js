@@ -79,3 +79,16 @@ test('gives up on real elapsed time too (laptop slept mid-run), not just poll co
   assert.deepEqual(res, { result: 'failed', reason: 'no-clock-out-button' });
   assert.ok(t <= 60000, `stopped after ~${t / 1000}s of real time, not 45 polls`);
 });
+
+test('worker says no just before the first click (a newer clock-in): clicks nothing', async () => {
+  const k = fakeKeka();
+  let asked = 0;
+  const res = await clockOut(k.dom, { wait: k.wait, beforeClick: async () => { asked += 1; return false; } });
+  assert.deepEqual(res, { result: 'cancelled', reason: 'new-clock-in' });
+  assert.equal(asked, 1);
+  assert.deepEqual(k.clicked, []);
+  // A yes (or no answer at all) carries on as usual.
+  const k2 = fakeKeka();
+  assert.deepEqual(await clockOut(k2.dom, { wait: k2.wait, beforeClick: async () => true }), { result: 'done' });
+  assert.deepEqual(k2.clicked, ['WFH Clock-out', 'Clock-out']);
+});

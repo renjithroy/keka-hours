@@ -6,7 +6,9 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "idle",
+    "power"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"

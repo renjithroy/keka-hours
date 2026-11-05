@@ -120,6 +120,17 @@ on, and applies on every WFH day.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
   (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
   clock out yourself.
+- **Away when it should run** (laptop asleep, screen locked or off): no failure alert. When you're
+  back, a notice says **Initiating auto clock-out** and it runs 10 seconds later (Skip today / +15 min
+  from the notice). It retries only if you're still clocked in, it's the same day, there's time
+  before the limit, and it hasn't tried 3 times today. Woken up the next day, it tells you to check
+  Keka for a missed clock-out instead.
+- Just before clicking, it checks Keka's latest data: if you clocked in again after its time (say,
+  from the phone while away), it leaves that session alone and comes back on 1h after that clock-in.
+- **Keeps your laptop awake** from 30 min before until the run ends, so it doesn't go to sleep on its
+  own (the screen can still turn off). Works on Windows, macOS and Linux (GNOME / KDE). A closed lid
+  or a manual sleep still sleeps; on battery, Windows laptops with Modern Standby allow this for
+  about 5 min only.
 - It runs only if you're clocked in then and clocked in before that time, and never later than 11h
   after your first clock-in or 10:00 PM.
 - **Clocked in again** after it has run (or after its time, e.g. back from a break): it comes back on
@@ -175,8 +186,10 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 - Permissions: `storage` (which upcoming days you marked away/office in Plan, your theme override,
   Include today, your reminder and auto clock-out settings, and today's WFH punch times), `alarms`
-  and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host
-  permissions. Auto clock-out opens and closes its own Keka tab, which needs no extra permission.
+  and `notifications` (clock-out reminders), `idle` (whether you're at the computer, so a missed
+  auto clock-out waits for you) and `power` (keeps the laptop awake around an auto clock-out). No
+  `tabs`, `cookies`, `webRequest`, or host permissions. Auto clock-out opens and closes its own Keka
+  tab, which needs no extra permission.
 - Runs only on `https://hatio.keka.com/*`.
 - Never makes network requests. It doesn't read credentials, tokens, or cookies. If you turn on
   auto clock-out, it clicks Keka's own WFH Clock-out / Clock-out buttons in a background tab it
