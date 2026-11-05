@@ -136,6 +136,8 @@
             monthKey: view.monthKey || null,
             summary: calculator.calculateSummary(overviewDays, state.targetMinutes),
             todayInView,
+            // Today's own row (office time so far, first clock-in): Overview's Today card.
+            todayDay: view.days.find(d => d.date === todayKey) || null,
             includeToday: state.includeToday,
             plan: view.monthKey ? planner.planMonth({
               monthKey: view.monthKey,
@@ -229,7 +231,20 @@
     const res = await toWorker({ type: 'wfh-auto-tab' });
     if (!res || !res.run) return;
     const report = r => toWorker({ type: 'wfh-auto-result', ...r });
-    const out = await autoclock.clockOut(autoclock.kekaDom(document), { report });
+    const trace = step => report({ result: 'trace', step });
+    let geo = 'unknown';
+    try { geo = (await navigator.permissions.query({ name: 'geolocation' })).state; } catch (_) { /* not supported */ }
+    trace(`asked ${document.visibilityState} geo:${geo}`);
+    // Last check before clicking: Keka's data (just loaded here) may show a newer clock-in.
+    const beforeClick = async () => {
+      const r = await toWorker({ type: 'wfh-auto-go' });
+      return !(r && r.go === false);
+    };
+    // Stalled while hidden: the worker brings this tab to the front (once).
+    const show = () => toWorker({ type: 'wfh-auto-show' });
+    const dom = autoclock.kekaDom(document);
+    const out = await autoclock.clockOut(dom, { report, beforeClick, show, trace });
+    if (out.result !== 'done' && out.result !== 'already-out') trace(`${out.result} ${document.visibilityState} card: ${dom.text()}`);
     report(out);
   }
 

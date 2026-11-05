@@ -16,7 +16,7 @@ Everything runs locally in your browser. Nothing is sent anywhere.
     <th>WFH</th>
   </tr>
   <tr>
-    <td><img src="docs/overview.png" alt="Overview tab: average office hours per day (9h 28m, up 28m vs 9h), tracked days and total hours, daily-hours chart, WFH and leave days" width="280"></td>
+    <td><img src="docs/overview.png" alt="Overview tab: average office hours per day (9h 30m, up 30m vs 9h); Today: in 9:48 AM, clock out 6:18 PM, 1h 03m left; tracked days, total hours, WFH and leave days; daily-hours chart for October" width="280"></td>
     <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="280"></td>
     <td><img src="docs/wfh.png" alt="WFH tab: Today (clocked in, reminder in 1h 13m, auto clock-out in 1h 43m) and Every WFH day (reminder on at 6:30 PM, auto clock-out on at 7:00 PM)" width="280"></td>
   </tr>
@@ -44,8 +44,14 @@ Keka. The moon/sun button in the card's header overrides it. The override is rem
 between Keka tabs) until you pick Keka's mode again or change Keka's display mode. If Keka's mode
 can't be read, the card follows your OS setting.
 
-- **Overview**: the average with how far it is above or below 9h, tracked days and total hours, a
-  daily-hours chart (green ≥ 9h, amber < 9h, striped WFH; hover a bar for its hours), and WFH / leave days.
+- **Overview**: the average with how far it is above or below 9h; **Today**: when you clocked in,
+  when you can clock out (your first clock-in plus the time the Plan needs today; breaks don't move it,
+  as Keka's gross hours run from the first clock-in) and how long is left, with progress along the
+  bottom. A WFH day is a plain 9h day (it isn't counted). It turns green once you're done, shows
+  "Paused" while you're clocked out, warns near Keka's 12h limit, says "Any time" once the month is
+  safe, and on leave / holidays / week-offs shows the next office day instead. Then tracked days,
+  total hours, WFH and leave days in one card; and a daily-hours chart for the whole month (green ≥ 9h, amber < 9h, striped
+  WFH; weekdays to come are empty columns, today's tinted green; dates at the start, middle and end; hover a bar for its hours).
   Click the ⓘ next to "Office hours avg this month" to see every day behind it in a pop-up: date,
   type (office / WFH / leave / week-off…) and hours, with counted days highlighted, and
   total ÷ counted days. The list scrolls for long months.
@@ -58,10 +64,8 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. Today stays a remaining office
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
-  stepping out for lunch doesn't count as a short finished day. Either way, on an office day the
-  strip above the calendar shows how long to sit today and, once you've clocked in, when you can
-  clock out (your first clock-in plus that time) with a countdown: "Today · sit 8h 39m · clock out
-  at 6:39 PM · 1h 22m left". Breaks don't move it: Keka's gross hours run from the first clock-in.
+  stepping out for lunch doesn't count as a short finished day. Today's clock-out time is on the
+  Overview.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,
@@ -116,10 +120,22 @@ on, and applies on every WFH day.
   If a run fails, **Try again** runs it again, after a fresh heads-up.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
-  extension never builds one or reads your login.
+  extension never builds one or reads your login. If Keka stalls while the tab is in the background,
+  the tab comes to the front once, then closes and you're back on the tab you were on.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
-  (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
+  (signed out, different buttons, no response in 2½ min), it stops and shows an on-screen alert to
   clock out yourself.
+- **Away when it should run** (laptop asleep, screen locked or off): no failure alert. When you're
+  back, a notice says **Initiating auto clock-out** and it runs 10 seconds later (Skip today / +15 min
+  from the notice). It retries only if you're still clocked in, it's the same day, there's time
+  before the limit, and it hasn't tried 3 times today. Woken up the next day, it tells you to check
+  Keka for a missed clock-out instead.
+- Just before clicking, it checks Keka's latest data: if you clocked in again after its time (say,
+  from the phone while away), it leaves that session alone and comes back on 1h after that clock-in.
+- **Keeps your laptop awake** from 30 min before until the run ends, so it doesn't go to sleep on its
+  own (the screen can still turn off). Works on Windows, macOS and Linux (GNOME / KDE). A closed lid
+  or a manual sleep still sleeps; on battery, Windows laptops with Modern Standby allow this for
+  about 5 min only.
 - It runs only if you're clocked in then and clocked in before that time, and never later than 11h
   after your first clock-in or 10:00 PM.
 - **Clocked in again** after it has run (or after its time, e.g. back from a break): it comes back on
@@ -175,8 +191,10 @@ only as accurate as the calendar, so mark WFH / leave days.
 
 - Permissions: `storage` (which upcoming days you marked away/office in Plan, your theme override,
   Include today, your reminder and auto clock-out settings, and today's WFH punch times), `alarms`
-  and `notifications` (clock-out reminders). No `tabs`, `cookies`, `webRequest`, or host
-  permissions. Auto clock-out opens and closes its own Keka tab, which needs no extra permission.
+  and `notifications` (clock-out reminders), `idle` (whether you're at the computer, so a missed
+  auto clock-out waits for you) and `power` (keeps the laptop awake around an auto clock-out). No
+  `tabs`, `cookies`, `webRequest`, or host permissions. Auto clock-out opens and closes its own Keka
+  tab, which needs no extra permission.
 - Runs only on `https://hatio.keka.com/*`.
 - Never makes network requests. It doesn't read credentials, tokens, or cookies. If you turn on
   auto clock-out, it clicks Keka's own WFH Clock-out / Clock-out buttons in a background tab it

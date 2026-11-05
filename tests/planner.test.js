@@ -151,3 +151,94 @@ test('Include today off: a last OUT punch (lunch) leaves today in progress, not 
   const open = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...base, day('2026-10-28', 190, { isIncomplete: true })], includeToday: true });
   assert.equal(open.remainingDays, before.remainingDays);
 });
+
+// ---------- Overview's Today card ----------
+const { todayCard } = require('../src/content/planner.js');
+
+const T = hhmm => new Date(`2026-10-28T${hhmm}:00`).getTime();
+const MIN = 60000;
+
+test('today card, office day: not in yet → in (left) → done; uses the plan\'s time for today', () => {
+  const days = octoberDays();
+  const plan0 = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days });
+  const req = plan0.today.requiredMinutes;
+  const notIn = todayCard({ plan: plan0, todayKey: '2026-10-28', day: null, wfh: null, now: T('09:05') });
+  assert.equal(notIn.kind, 'not-in');
+  assert.equal(notIn.required, req);
+  assert.equal(notIn.wfh, false);
+
+  const today = day('2026-10-28', 437, { isIncomplete: true, firstIn: '2026-10-28T09:48:00' });
+  const plan = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, today] });
+  const c = todayCard({ plan, todayKey: '2026-10-28', day: today, now: T('17:05') });
+  assert.equal(c.kind, 'in');
+  assert.equal(c.firstIn, T('09:48'));
+  assert.equal(c.leaveAt, T('09:48') + req * MIN, 'first clock-in + today\'s time');
+  assert.equal(c.leftMs, c.leaveAt - T('17:05'));
+  assert.ok(c.pct > 0 && c.pct < 1);
+  const done = todayCard({ plan, todayKey: '2026-10-28', day: today, now: c.leaveAt + 9 * MIN });
+  assert.equal(done.kind, 'done');
+  assert.equal(done.overMs, 9 * MIN);
+  assert.equal(done.pct, 1);
+});
+
+test('today card, office day clocked out: a break keeps the time; out after it is done', () => {
+  const days = octoberDays();
+  const brk = day('2026-10-28', 197, { firstIn: '2026-10-28T09:48:00' }); // out at 1:05 PM
+  const plan = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, brk] });
+  const c = todayCard({ plan, todayKey: '2026-10-28', day: brk, now: T('14:00') });
+  assert.equal(c.kind, 'out');
+  assert.equal(c.lastOut, T('13:05'));
+  assert.equal(c.leaveAt, T('09:48') + plan.today.requiredMinutes * MIN);
+  const late = day('2026-10-28', 600, { firstIn: '2026-10-28T09:48:00' });
+  const plan2 = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, late] });
+  assert.equal(todayCard({ plan: plan2, todayKey: '2026-10-28', day: late, now: T('20:00') }).kind, 'out-done');
+});
+
+test('today card, WFH day: a 9h day from the first WFH clock-in (not the plan\'s time)', () => {
+  const days = octoberDays();
+  const wfhDay = day('2026-10-28', 0, { isWFH: true });
+  const plan = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, wfhDay] });
+  const c = todayCard({ plan, todayKey: '2026-10-28', day: wfhDay, wfh: { state: 'in', firstIn: T('10:27'), lastOut: null }, now: T('17:05') });
+  assert.equal(c.wfh, true);
+  assert.equal(c.kind, 'in');
+  assert.equal(c.leaveAt, T('19:27'));
+  // The table may not show the WFH day yet: the WFH punches alone make it one.
+  const c2 = todayCard({ plan: planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days }), todayKey: '2026-10-28', day: null, wfh: { state: 'in', firstIn: T('10:27') }, now: T('17:05') });
+  assert.equal(c2.wfh, true);
+  assert.equal(c2.leaveAt, T('19:27'));
+  // WFH in the table, not clocked in yet.
+  assert.equal(todayCard({ plan, todayKey: '2026-10-28', day: wfhDay, wfh: { state: 'none' }, now: T('09:00') }).kind, 'not-in');
+});
+
+test('today card: leave / week-off show what\'s next; outside the month there is none', () => {
+  const days = octoberDays();
+  const leave = day('2026-10-28', 0, { isLeave: true });
+  const plan = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, leave] });
+  const c = todayCard({ plan, todayKey: '2026-10-28', day: leave, now: T('12:00') });
+  assert.deepEqual([c.kind, c.reason, c.next], ['off', 'leave', '2026-10-29']);
+  assert.equal(c.nextRequired, plan.requiredPerDay);
+  // Saturday 24 Oct: next is Monday 26.
+  const upTo23 = octoberDays().filter(d => d.date <= '2026-10-23');
+  const sat = planMonth({ monthKey: '2026-10', todayKey: '2026-10-24', days: upTo23 });
+  const s = todayCard({ plan: sat, todayKey: '2026-10-24', day: null, now: T('12:00') });
+  assert.deepEqual([s.kind, s.reason, s.next], ['off', 'week-off', '2026-10-26']);
+  // Saturday 31 Oct: no office days left this month.
+  assert.equal(todayCard({ plan: planMonth({ monthKey: '2026-10', todayKey: '2026-10-31', days }), todayKey: '2026-10-31', now: T('12:00') }).next, null);
+  // A past month's plan has no today.
+  assert.equal(todayCard({ plan: planMonth({ monthKey: '2026-09', todayKey: '2026-10-28', days: [] }), todayKey: '2026-10-28', now: T('12:00') }), null);
+});
+
+test('today card: average already safe → any time; a long day shows Keka\'s 12h limit; past it, clock out by the limit', () => {
+  const cells = [{ date: '2026-10-28', state: 'plan-office' }];
+  const firstIn = '2026-10-28T09:48:00';
+  const safe = todayCard({ plan: { cells, today: null, status: 'secured', targetMinutes: 540 }, todayKey: '2026-10-28', day: day('2026-10-28', 300, { isIncomplete: true, firstIn }), now: T('14:48') });
+  assert.equal(safe.kind, 'safe');
+  assert.equal(safe.nineAt, T('18:48'));
+  const long = todayCard({ plan: { cells, today: { requiredMinutes: 692, firstIn: T('09:48') }, status: 'needed', targetMinutes: 540 }, todayKey: '2026-10-28', day: day('2026-10-28', 437, { isIncomplete: true, firstIn }), now: T('17:05') });
+  assert.equal(long.kind, 'in');
+  assert.equal(long.long, true);
+  assert.equal(long.limitAt, T('21:48'));
+  const over = todayCard({ plan: { cells, today: { requiredMinutes: 760, firstIn: T('09:48') }, status: 'needed', targetMinutes: 540 }, todayKey: '2026-10-28', day: day('2026-10-28', 437, { isIncomplete: true, firstIn }), now: T('17:05') });
+  assert.equal(over.kind, 'too-late');
+  assert.equal(over.shortMs, 40 * MIN);
+});

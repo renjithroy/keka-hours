@@ -8,6 +8,7 @@
 
   const fmt = root.KekaHours.format;
   const W = root.KekaHours.wfh;
+  const planner = root.KekaHours.planner;
   const HOST_ID = 'keka-hours-extension';
 
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -20,11 +21,12 @@
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   const ICON_BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
-  // Overview: tracked days, total hours, WFH, leave, and the "vs 9h" arrows.
-  const ICON_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="5.25" width="16.5" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.75 10h16.5M8.25 3.25v3.5M15.75 3.25v3.5M9.2 15.1l1.9 1.8 3.7-3.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_STACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75 3.75 8.1 12 12.45l8.25-4.35z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.75 12.1 12 16.45l8.25-4.35M3.75 16.1 12 20.45l8.25-4.35" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_HOME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.4 12 4l8 6.4v8.1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.75 20.5v-5.25h4.5v5.25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-  const ICON_UMBRELLA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12.25a8.5 8.5 0 0 1 17 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12.25v6a2.1 2.1 0 0 1-4.2 0M12 3.75v-1.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  // Overview stats: Lucide icons (ISC licence), drawn thin and grey beside each label.
+  const lucide = paths => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  const ICON_CAL = lucide('<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>');
+  const ICON_TIMER = lucide('<path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/>');
+  const ICON_HOUSE = lucide('<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
+  const ICON_PLANE = lucide('<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>');
   const ICON_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // Overview: the soft wave under the average (decoration only).
@@ -65,7 +67,10 @@
   --card: #fff;
   --card-line: #e6ebf1;
   --card-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 16px -10px rgba(15, 23, 42, .14);
-  --wave: .17;
+  --wave: .16;
+  --cell-line: #eef2f6;
+  --track: #f3f5f8;
+  --track-hover: #e9edf2;
   --wfh-a: #d5dce5;
   --wfh-b: #edf1f5;
   --wfh-hover-a: #b9c3cf;
@@ -126,7 +131,10 @@
   --card: #1b2129;
   --card-line: #2a323c;
   --card-shadow: none;
-  --wave: .2;
+  --wave: .22;
+  --cell-line: #252d37;
+  --track: #212831;
+  --track-hover: #2a323c;
   --wfh-a: #38424f;
   --wfh-b: #232a33;
   --wfh-hover-a: #4b5766;
@@ -223,7 +231,7 @@ svg { width: 100%; height: 100%; display: block; }
 .pane[data-pane="wfh"] { display: flex; flex-direction: column; }
 
 /* ---------- Overview: the average, then cards ---------- */
-.ov-hero { position: relative; padding: 6px 0 20px; }
+.ov-hero { position: relative; padding: 6px 0 26px; }
 .ov-top { position: relative; z-index: 2; } /* its tooltip opens over the number */
 .ov-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
 .ov-value { font-size: 52px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
@@ -233,27 +241,50 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-chip.flat { padding: 0 12px; }
 .ov-chip svg { width: 15px; height: 15px; flex: none; }
 /* Edge to edge, fading out behind the first card. */
-.ov-wave { position: absolute; left: -22px; right: -22px; bottom: -30px; width: auto; height: 104px; pointer-events: none; -webkit-mask-image: linear-gradient(#000 50%, transparent 94%); mask-image: linear-gradient(#000 50%, transparent 94%); }
+.ov-wave { position: absolute; left: -22px; right: -22px; bottom: -30px; width: auto; height: 110px; pointer-events: none; -webkit-mask-image: linear-gradient(#000 50%, transparent 94%); mask-image: linear-gradient(#000 50%, transparent 94%); }
 .ov-wave path { fill: var(--brand); opacity: var(--wave); }
+.ov-wave path + path { opacity: calc(var(--wave) * .75); }
 .ov-card { position: relative; border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); }
-.ov-stats { display: grid; grid-template-columns: 1fr 1fr; }
-.ov-stat { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 16px; }
-.ov-stat + .ov-stat { border-left: 1px solid var(--card-line); }
-.ov-icon { flex: none; width: 28px; height: 28px; color: var(--brand); }
-.ov-stat > div, .ov-ex > div { min-width: 0; }
-.ov-v { font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
-.ov-l { font-size: 13.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ov-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-.ov-ex { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 15px 14px; }
-.ov-tile { flex: none; width: 42px; height: 42px; padding: 10px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); }
-.ov-today { margin-top: 14px; padding: 9px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13px; color: var(--brand-text); }
-.ov-today b { font-weight: 700; }
+/* Tracked | Total hours over WFH | Leave: one card, four cells. */
+.ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ov-cell { min-width: 0; padding: 12px 14px; }
+.ov-cell:nth-child(odd) { border-right: 1px solid var(--cell-line); }
+.ov-cell:nth-child(-n+2) { border-bottom: 1px solid var(--cell-line); }
+.ov-k { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-k svg { flex: none; width: 15px; height: 15px; color: var(--subtle); }
+.ov-v { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
+.ov-v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+/* Today: In | Clock out | Left, with progress along the bottom edge. */
+.ov-day { position: relative; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); --tone: var(--brand); --tone-text: var(--brand-text); --tone-mid: color-mix(in srgb, var(--brand) 6%, var(--card)); }
+.ov-day.idle { --tone: var(--stub-hover); --tone-text: var(--subtle); --tone-mid: var(--card); }
+.ov-day.good { --tone: var(--bar); --tone-text: var(--good); --tone-mid: color-mix(in srgb, var(--good-soft) 60%, var(--card)); }
+.ov-day.paused { --tone: var(--guide); --tone-text: var(--subtle); --tone-mid: var(--card); }
+.ov-day.warn { --tone: var(--bar-warn); --tone-text: var(--warn); --tone-mid: color-mix(in srgb, var(--warn-soft) 60%, var(--card)); }
+.ov-day-c { min-width: 0; padding: 10px 12px 12px; }
+.ov-day-c:first-child { padding-left: 14px; }
+.ov-day-c:last-child { padding-right: 14px; }
+.ov-day-c + .ov-day-c { border-left: 1px solid var(--cell-line); }
+.ov-day-c.mid { background: var(--tone-mid); }
+.ov-day-k { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-day-k .dot { width: 7px; height: 7px; background: var(--tone); }
+.ov-day-v { margin-top: 3px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-day-c.mid .ov-day-v, .ov-day-c.end .ov-day-v { color: var(--tone-text); }
+.ov-day.idle .ov-day-c.mid .ov-day-v { color: var(--text); }
+.ov-day-tag { flex: none; padding: 0 5px; border-radius: 5px; background: var(--off-soft); color: var(--off-text); font-size: 10.5px; font-weight: 600; line-height: 16px; }
+.ov-day-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--cell-line); }
+.ov-day-bar span { display: block; height: 100%; background: var(--tone); transition: width .3s ease; }
+/* Nothing to sit today: as tall as the card above, so the card never changes height. */
+.ov-day-off { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 68px; padding: 0 14px; border-radius: 14px; background: var(--surface); }
+.ov-day-off .t { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.ov-day-off .t .dot { width: 7px; height: 7px; background: var(--stub-hover); }
+.ov-day-off .s { padding-left: 14px; font-size: 12px; color: var(--subtle); }
+[data-today]:not(:empty) { position: relative; margin-bottom: 12px; }
 
 /* Daily hours: fills the space left by the taller Plan tab. */
-.ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 16px; padding: 16px 16px 13px; }
+.ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 14px; padding: 14px 16px 12px; }
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
 .ov-empty { flex: 1; display: grid; place-items: center; min-height: 68px; font-size: 13px; color: var(--subtle); }
-.spark-head b { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
+.spark-head b { font-size: 14px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
 .spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
 .spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
 .spark .bar.warn { background: var(--bar-warn); }
@@ -266,9 +297,17 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.stub:hover { background: var(--stub-hover); }
 .spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
 .spark .bar.live:hover { background: var(--brand-soft); }
+/* Days still to come this month: an empty full-height column (week-ends left as a gap); today's is tinted green. */
+.spark .bar.future, .spark .bar.today-slot { height: 100%; min-height: 0; border-radius: 4px; background: var(--track); }
+.spark .bar.future-off { height: 0; min-height: 0; background: none; }
+.spark .bar.today-slot { background: var(--brand-soft); }
+.spark .bar.future:hover { background: var(--track-hover); }
+.spark .bar.today-slot:hover { background: var(--brand-soft); filter: brightness(.96); }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--guide); pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -8px; line-height: 14px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--card); padding-left: 5px; }
-.spark-foot { display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
+.spark-foot { position: relative; display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
+/* The middle date, under its own column. */
+.spark-foot .mid { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* Plan is the tallest tab: its switch overlaps the hero's padding, so the card doesn't grow. */
@@ -326,6 +365,12 @@ svg { width: 100%; height: 100%; display: block; }
 .switch[aria-checked="true"] .track { background: var(--brand); }
 .switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .25); transition: transform .22s cubic-bezier(.3,.9,.3,1); }
 .switch[aria-checked="true"] .thumb { transform: translateX(12px); }
+/* Include today: a small plain toggle (it's a rarely used setting). */
+.switch.mini { gap: 6px; height: 22px; padding: 0; background: none; font-size: 11.5px; font-weight: 500; color: var(--subtle); }
+.switch.mini[aria-checked="true"] { background: none; color: var(--brand-text); }
+.switch.mini .track { width: 22px; height: 13px; }
+.switch.mini .thumb { width: 9px; height: 9px; box-shadow: none; }
+.switch.mini[aria-checked="true"] .thumb { transform: translateX(9px); }
 .eyebrow { font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .hero-value { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; }
@@ -372,15 +417,6 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
-.today-strip .tdot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
-/* While the clock-out countdown runs, the dot pulses like the WFH tab's clocked-in dot. */
-.today-strip.live .tdot { box-shadow: none; }
-.today-strip.live .tdot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--brand); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
-.today-strip b { font-weight: 700; white-space: nowrap; }
-.today-strip .ttext { flex: 1; min-width: 0; }
-.today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
-.today-strip .tleft.done { color: var(--good); }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
 .cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
@@ -516,7 +552,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @media (max-width: 480px) {
   .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal-cell { height: 44px; } .cal.six .cal-cell { height: 36px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
-  .ov-stat { gap: 10px; padding: 14px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
+  .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
@@ -536,7 +572,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   function includeSwitchHtml(on, tab = 'overview') {
     return `
       <div class="has-tip">
-        <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip-${tab}">
+        <button class="switch mini" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip-${tab}">
           <span>Include today</span><span class="track"><span class="thumb"></span></span>
         </button>
         <div class="tip end" role="tooltip" id="include-tip-${tab}">Use after clock-out, once today shows in the table</div>
@@ -606,11 +642,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const chip = d == null ? ''
       : d === 0 ? `<span class="ov-chip good flat">On ${target}</span>`
       : `<span class="ov-chip ${t}" role="img" aria-label="${esc(`${fmt.delta(Math.abs(d)).slice(1)} ${d > 0 ? 'above' : 'below'} ${target}`)}">${d > 0 ? ICON_UP : ICON_DOWN}${fmt.delta(Math.abs(d)).slice(1)} vs ${target}</span>`;
-    const stat = (icon, value, label, tile, tip = label) => `
-      <div class="${tile ? 'ov-card ov-ex' : 'ov-stat'}" title="${esc(tip)}">
-        <span class="${tile ? 'ov-tile' : 'ov-icon'}">${icon}</span>
-        <div><div class="ov-v">${value}</div><div class="ov-l">${esc(label)}</div></div>
-      </div>`;
+    const cell = (icon, label, value, tip = label) => `
+      <div class="ov-cell" title="${esc(tip)}"><div class="ov-k">${icon}${esc(label)}</div><div class="ov-v">${value}</div></div>`;
+    // "2 days": the number bold, the unit lighter.
+    const days = n => `${n}<small> ${n === 1 ? 'day' : 'days'}</small>`;
 
     return `
       <div class="ov-hero">
@@ -628,18 +663,16 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>
       </div>
 
-      <div class="ov-card ov-stats">
-        ${stat(ICON_CAL, dayCount(s.trackedDays), 'Tracked', false, trackedLabel)}
-        ${stat(ICON_STACK, fmt.duration(s.totalMinutes), 'Total hours')}
+      <div data-today></div>
+
+      <div class="ov-card ov-grid">
+        ${cell(ICON_CAL, 'Tracked', days(s.trackedDays), trackedLabel)}
+        ${cell(ICON_TIMER, 'Total hours', fmt.duration(s.totalMinutes))}
+        ${cell(ICON_HOUSE, 'WFH', days(s.wfhDays), 'WFH days aren’t counted in the average')}
+        ${cell(ICON_PLANE, 'Leave', days(s.leaveDays), 'Leave days aren’t counted in the average')}
       </div>
 
-      ${sparkHtml(s)}
-
-      <div class="ov-pair">
-        ${stat(ICON_HOME, dayCount(s.wfhDays), 'WFH', true, 'WFH days aren’t counted in the average')}
-        ${stat(ICON_UMBRELLA, dayCount(s.leaveDays), 'Leave', true, 'Leave days aren’t counted in the average')}
-      </div>
-      ${s.pendingToday ? `<div class="ov-today">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}`;
+      ${sparkHtml(s, m)}`;
   }
 
   /**
@@ -647,11 +680,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    * differences are visible). Counted days are green / amber; WFH days show
    * their hours as a striped grey bar (not counted); leave, holidays,
    * week-offs and no-time days are a short grey stub; today while clocked in
-   * is a dashed outline.
+   * is a dashed outline. In the current month the rest of the month follows
+   * (`monthTail`), so each day keeps its place: days to come are empty
+   * full-height columns (week-ends a gap), today's tinted green.
    */
-  function sparkHtml(s) {
+  function sparkHtml(s, m = {}) {
     const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
-    if (!days.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
+    const tail = monthTail(days, m);
+    if (!days.length && !tail.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
     const lo = 5 * 60;
     const hi = Math.max(11 * 60, ...days.map(d => d.grossMinutes || 0));
     const y = min => Math.max(0, Math.min(100, ((min - lo) / (hi - lo)) * 100));
@@ -675,19 +711,49 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           return `<span class="bar stub" title="${esc(`${label} · ${what}`)}"></span>`;
         }
       }
+    }).join('') + tail.map(t => {
+      const label = fmt.dayDate(t.date);
+      if (t.today) return `<span class="bar today-slot" title="${esc(`${label} · Today`)}"></span>`;
+      return `<span class="bar ${t.off ? 'future-off' : 'future'}" title="${esc(`${label} · ${t.off ? 'Week-end' : 'To come'}`)}"></span>`;
     }).join('');
-    const first = fmt.dayDate(days[0].date).split(', ')[1];
-    const last = fmt.dayDate(days[days.length - 1].date).split(', ')[1];
+    const all = [...days.map(d => d.date), ...tail.map(t => t.date)];
+    const first = fmt.dayDate(all[0]).split(', ')[1];
+    const last = fmt.dayDate(all[all.length - 1]).split(', ')[1];
     const counted = s.trackedDays;
+    const toCome = tail.length ? `, ${tail.length} still to come` : '';
+    // A month's worth of columns: also label the middle day (15 Nov), centred under its column.
+    const mid = all.length >= 15 ? Math.floor((all.length - 1) / 2) : -1;
+    const midLabel = mid > 0
+      ? `<span class="mid" style="left:calc((100% - 26px) * ${((mid + 0.5) / all.length).toFixed(4)})">${esc(fmt.dayDate(all[mid]).split(', ')[1])}</span>`
+      : '';
     return `
       <div class="ov-card ov-chart">
-        <div class="spark-head"><b>Daily hours</b><span>${counted} of ${dayCount(days.length)} counted</span></div>
-        <div class="spark${days.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted">
+        <div class="spark-head"><b>Daily hours</b><span>${days.length ? `${counted} of ${dayCount(days.length)} counted` : 'No days yet'}</span></div>
+        <div class="spark${all.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted${toCome}">
           ${bars}
           <div class="line" style="bottom:${y(s.targetMinutes).toFixed(1)}%"><span>${target}</span></div>
         </div>
-        <div class="spark-foot"><span>${esc(first)}</span><span>${days.length > 1 ? esc(last) : ''}</span></div>
+        <div class="spark-foot"><span>${esc(first)}</span>${midLabel}<span>${all.length > 1 ? esc(last) : ''}</span></div>
       </div>`;
+  }
+
+  /**
+   * The current month's days after the last one in the view, to the month's end:
+   * [{ date, today, off }] (off = Saturday / Sunday). [] for any other view.
+   */
+  function monthTail(days, m) {
+    if (!m.monthKey || !m.monthToDate || !m.todayKey || m.todayKey.slice(0, 7) !== m.monthKey) return [];
+    const [y, mo] = m.monthKey.split('-').map(Number);
+    const end = new Date(y, mo, 0).getDate();
+    const lastDate = days.length ? days[days.length - 1].date : null;
+    const from = lastDate && lastDate.slice(0, 7) === m.monthKey ? Number(lastDate.slice(8, 10)) + 1 : 1;
+    const out = [];
+    for (let d = from; d <= end; d += 1) {
+      const date = `${m.monthKey}-${String(d).padStart(2, '0')}`;
+      const dow = new Date(y, mo - 1, d).getDay();
+      out.push({ date, today: date === m.todayKey, off: dow === 0 || dow === 6 });
+    }
+    return out;
   }
 
   /** Small two-up card under the plan hero: [label / value / sub] × 2. */
@@ -750,27 +816,54 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
-  function leftLabel(ms) {
-    const m = Math.ceil(ms / 60000);
-    if (m <= 0) return 'done';
-    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m left` : `${m}m left`;
+  /** 125 min -> "2h 05m", 9 -> "9m" (time left / over, in the Today card). */
+  function shortDuration(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60000));
+    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m` : `${m}m`;
   }
 
-  /** Today in the Plan: the time to sit today and, once clocked in, when you can clock out and how long that is. */
-  function todayHtml(p) {
-    const td = p.today;
-    if (!td) return '';
-    let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
-    let left = '';
-    let live = false;
-    if (td.leaveAt) {
-      text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
-      const ms = td.leaveAt - Date.now();
-      live = ms > 0;
-      left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
+  /**
+   * Overview's Today card (design T4): In | Clock out | Left, with progress along
+   * the bottom edge; a slim line on days with nothing to sit. `c` = planner.todayCard().
+   */
+  function todayCardHtml(c) {
+    if (!c) return '';
+    const t = fmt.timeOfDay;
+    if (c.kind === 'off') {
+      const what = { leave: 'On leave today', holiday: 'Holiday today', 'week-off': 'Week-off today', away: 'Not an office day' }[c.reason] || 'Day off';
+      const next = c.next ? `Next office day ${fmt.dayDate(c.next)}${c.nextRequired ? ` · sit ${fmt.duration(c.nextRequired)}` : ''}` : 'No more office days this month';
+      return `<div class="ov-day-off"><div class="t"><span class="dot"></span>${esc(what)} · nothing to sit</div><div class="s">${esc(next)}</div></div>`;
     }
-    return `<div class="today-strip${live ? ' live' : ''}"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
+    const sit = c.required != null ? fmt.duration(c.required) : '';
+    let tone = 'live';
+    let cells;
+    switch (c.kind) {
+      case 'not-in': tone = 'idle'; cells = [['Not in yet', '—'], ['Sit today', sit], ['Clock out', 'once in']]; break;
+      case 'in-unknown': tone = 'idle'; cells = [['In', '—'], ['Sit today', sit], ['Clock out', '—']]; break;
+      case 'in':
+        if (c.long) { tone = 'warn'; cells = [['In', t(c.firstIn)], [`Out · ${sit}`, t(c.leaveAt)], ['Limit', t(c.limitAt)]]; } else cells = [['In', t(c.firstIn)], ['Clock out', t(c.leaveAt)], ['Left', shortDuration(c.leftMs)]];
+        break;
+      case 'too-late': tone = 'warn'; cells = [['In', t(c.firstIn)], ['Clock out by', t(c.limitAt)], ['Short', shortDuration(c.shortMs)]]; break;
+      case 'done': tone = 'good'; cells = [['In', t(c.firstIn)], ['Clock out', t(c.leaveAt)], ['Done', `+${shortDuration(c.overMs)}`]]; break;
+      case 'out': tone = 'paused'; cells = [['Out since', t(c.lastOut)], ['Clock out', t(c.leaveAt)], ['Status', 'Paused']]; break;
+      case 'out-done': tone = 'good'; cells = [['Out at', t(c.lastOut)], ['Clock out', t(c.leaveAt)], ['Done', `+${shortDuration(c.overMs)}`]]; break;
+      case 'safe':
+        tone = 'good';
+        cells = [[c.firstIn ? 'In' : 'Not in yet', c.firstIn ? t(c.firstIn) : '—'], ['Clock out', 'Any time'], ['9h at', c.nineAt ? t(c.nineAt) : '—']];
+        break;
+      default: return '';
+    }
+    const why = c.kind === 'safe' ? 'This month’s average is safe: leave any time.'
+      : c.firstIn && c.leaveAt ? `First clock-in ${t(c.firstIn)} + ${sit}${c.wfh ? ' (a 9h WFH day, not counted in the average)' : ''} = ${t(c.leaveAt)}. Breaks don’t move it.`
+        : c.wfh ? 'A 9h WFH day (not counted in the average).' : `Sit ${sit} today to keep the month on track.`;
+    const pct = Math.round((c.pct || 0) * 100);
+    const cls = ['', ' mid', ' end'];
+    const tag = c.wfh ? '<span class="ov-day-tag">WFH</span>' : '';
+    return `
+      <div class="ov-day ${tone}" title="${esc(why)}">
+        ${cells.map(([k, v], i) => `<div class="ov-day-c${cls[i]}"><div class="ov-day-k">${i === 0 ? '<span class="dot"></span>' : ''}${esc(k)}${i === 0 ? tag : ''}</div><div class="ov-day-v">${esc(v)}</div></div>`).join('')}
+        <div class="ov-day-bar" role="img" aria-label="${pct}% of today’s time"><span style="width:${pct}%"></span></div>
+      </div>`;
   }
 
   function cellHtml(c, p) {
@@ -813,7 +906,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     return `
       ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
-      ${todayHtml(p)}
       <div class="cal${p.firstWeekday + p.daysInMonth > 35 ? ' six' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${p.cells.map(c => cellHtml(c, p)).join('')}
@@ -855,17 +947,23 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         return ap.next && ap.next.on ? lineHtml(off, `No auto clock-out today${smallHtml('It starts on your next WFH day.')}`, '', 'off') : '';
       case 'waiting': case 'standby': return '';
       case 'scheduled': case 'heads-up': {
+        // Back after a run that couldn't happen while you were away: the 10-second notice.
+        const soon = ap.retry && ap.at - now <= 60000;
         // Why it isn't at the set time: the 11h limit, or back on after a clock-in past it.
-        const why = ap.reason === 'safety' ? '11h after you clocked in.'
-          : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
+        const why = soon ? 'Trying again: it couldn\'t run while you were away.'
+          : ap.reason === 'safety' ? '11h after you clocked in.'
+            : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
+        const when = soon ? `in ${Math.max(1, Math.ceil((ap.at - now) / 1000))} sec` : inLabel(ap.at - now);
         return lineHtml(bad, `Auto clock-out${smallHtml(why)}`,
-          `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${inLabel(ap.at - now)}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
+          `<span class="w${ap.status === 'heads-up' ? ' warn' : ''}" title="${t(ap.at)}">${when}</span>${btnHtml('wfh-auto-skip', 'Skip today')}`);
       }
+      case 'away':
+        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out will try again${smallHtml('It couldn\'t run while you were away. It tries again once you\'re back online.')}`, btnHtml('wfh-auto-skip', 'Skip today'), 'warn');
       case 'due': case 'running': return lineHtml(bad, 'Clocking you out…');
       case 'done': return lineHtml(bad, `Auto clock-out ran at ${t(ap.doneAt || ap.at)}`, '', 'off');
       case 'failed':
         // "Try again" only while it's still switched on (turned off, a reset would just end it).
-        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml('Clock out in Keka yourself.')}`, ap.on ? btnHtml('wfh-auto-reset', 'Try again') : '', 'warn');
+        return lineHtml(badgeHtml(ICON_AUTO, 'warn'), `Auto clock-out didn't work${smallHtml(`${W.autoFailText(ap.fail)} Clock out in Keka yourself.`.trim())}`, ap.on ? btnHtml('wfh-auto-reset', 'Try again') : '', 'warn');
       case 'skipped': return lineHtml(off, 'Auto clock-out skipped today', btnHtml('wfh-auto-unskip', 'Undo'), 'off');
       case 'late-start': return lineHtml(off, `No auto clock-out today${smallHtml(`You clocked in after ${t(ap.at)}.`)}`, '', 'off');
       case 'missed': return lineHtml(off, `No auto clock-out today${smallHtml(`You weren't clocked in at ${t(ap.at)}.`)}`, '', 'off');
@@ -1054,9 +1152,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         <ul class="how">
           <li>5 min before, a notification lets you <b>Skip today</b> or add <b>15 min</b>.</li>
           <li>Keka opens in a background tab, clicks <b>WFH Clock-out</b> and confirms, then the tab closes.</li>
-          <li>If it can't, you get an alert to clock out yourself.</li>
+          <li>Laptop asleep, or screen locked or off, when it should run? It tries again once you're back, after a 10-second notice, if you're still clocked in and there's time before the limit (up to 3 tries a day).</li>
+          <li>From 30 min before, it keeps your laptop from going to sleep on its own (the screen can still turn off). Closing the lid still puts it to sleep.</li>
+          <li>If it can't clock you out, you get an alert to clock out yourself.</li>
           <li>Clock in again after it has run, or after its time, and it comes back on for that day: 1h after you clock in, or at your set time if that's still to come.</li>
-          <li>Needs Chrome running, your laptop awake, and you signed in to Keka.</li>
+          <li>Needs Chrome running and you signed in to Keka.</li>
         </ul>
         <div class="modal-note">A time that has already passed today starts on your next WFH day.</div>
       </div>
@@ -1514,6 +1614,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhForm)}</div>
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
+      paintToday();
       showTab();
       restoreFocus(content, key);
     }
@@ -1553,19 +1654,28 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     /** Once a minute: the Plan's "2h 05m left" countdown, and the WFH tab. */
     function tick() {
-      for (const el of content.querySelectorAll('[data-until]')) {
-        const ms = Number(el.getAttribute('data-until')) - Date.now();
-        el.textContent = leftLabel(ms);
-        el.classList.toggle('done', ms <= 0);
-        const strip = el.closest('.today-strip');
-        if (strip) strip.classList.toggle('live', ms > 0); // the dot stops pulsing once it's time
-      }
+      paintToday();
       renderWfh();
     }
 
     function setWfh(next) {
       wfhState = next || { settings: null, day: null };
+      paintToday();
       renderWfh();
+    }
+
+    /** Overview's Today card from the model (office time, the plan) and the worker's WFH punches. */
+    function paintToday() {
+      const slot = expanded && content.querySelector('[data-today]');
+      if (!slot || !model || model.state !== 'ok') return;
+      const now = Date.now();
+      const raw = wfhState.day;
+      const wfh = raw && raw.date === model.todayKey ? W.punchState(raw) : null;
+      const card = model.todayInView && model.plan
+        ? planner.todayCard({ plan: model.plan, todayKey: model.todayKey, day: model.todayDay, wfh, now })
+        : null;
+      const html = todayCardHtml(card);
+      if (slot.innerHTML !== html) slot.innerHTML = html;
     }
 
     /** Today's day state for the shared rules (an empty day if none yet). */

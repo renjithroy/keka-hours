@@ -58,9 +58,17 @@
   const AUTO_HEADS_UP_MS = 5 * MIN;
   const AUTO_AGAIN_MS = HOUR; // re-armed after a clock-in past its time: this long after it
   const AUTO_DELAY_STEP_MS = 15 * MIN;
-  const AUTO_TIMEOUT_MS = 90 * 1000; // give the background tab this long to clock out
+  const AUTO_TIMEOUT_MS = 150 * 1000; // give the Keka tab this long to clock out (incl. coming to the front once)
   // Auto clock-out may run as late as 1 min before the day's end (Keka's cutoff / 10 PM).
   const AUTO_LAST_MS = MIN;
+  // A run that couldn't happen or finish while you were away (asleep, locked, idle) is retried
+  // when you're back, after this much notice; at most this many runs a day.
+  const AUTO_NOTICE_MS = 10 * 1000;
+  const AUTO_MAX_TRIES = 3;
+  // A run (or its result) this late means the laptop slept or Chrome was closed through it.
+  const AUTO_LATE_MS = 2 * MIN;
+  // The laptop is kept awake (screen may turn off) from this long before a run until it ends.
+  const AUTO_AWAKE_LEAD_MS = 30 * MIN;
 
   const pad2 = n => String(n).padStart(2, '0');
 
@@ -280,6 +288,13 @@
       date, source: null, punches: [], domIn: false, updatedAt: 0, snoozeUntil: null, lastShownAt: null, announcedFor: null, stoppedAt: null,
       autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null,
       autoSession: null, autoAgain: null,
+      // autoTries: runs started today; autoDueAt: when the current run was first due (a clock-in
+      // after it is a new session); autoRetry: its notice is the 10-second "back again" one;
+      // autoFail: why the last run failed.
+      autoTries: 0, autoDueAt: null, autoRetry: false, autoFail: null,
+      // autoTrace: the run's steps in the Keka tab, [[seconds since it started, step], …] (diagnostics);
+      // autoPrevTab: the tab to return to if the run's tab was brought to the front.
+      autoTrace: null, autoPrevTab: null,
     };
   }
 
@@ -434,7 +449,8 @@
    * Auto clock-out for `day` at `now`.
    * status: 'off' | 'waiting' (not clocked in yet) | 'standby' (clocked out before the time;
    *   runs only if you clock back in) | 'scheduled' | 'heads-up' | 'due' |
-   *   'running' | 'done' | 'failed' | 'skipped' | 'late-start' (clocked in after the time) |
+   *   'running' | 'done' | 'failed' | 'skipped' | 'away' (couldn't run or finish while you
+   *   were away; retried when you're back) | 'late-start' (clocked in after the time) |
    *   'missed' (not clocked in at the time) | 'ended' (past the day's end)
    * at: when it runs; headsUpAt: when the 5-min warning shows.
    */
@@ -448,16 +464,21 @@
     let at = late ? again.at : setAt;
     let reason = late ? 'again' : 'time';
     if (p.firstIn != null && p.firstIn + SAFETY_MS < at) { at = p.firstIn + SAFETY_MS; reason = 'safety'; }
+    const baseAt = at;
     // +15 min / heads-up delays apply on top, but never later than 1 min before the end.
     at += day.autoDelay || 0;
     if (at > p.end - AUTO_LAST_MS) at = p.end - AUTO_LAST_MS;
-    const base = { on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end, doneAt: day.autoDoneAt || null, againFor: late ? again.for : null };
+    const base = {
+      on: a.on, time: a.time, next: a.next || null, from: a.from || null, at, baseAt, headsUpAt: at - AUTO_HEADS_UP_MS, reason, end: p.end,
+      doneAt: day.autoDoneAt || null, againFor: late ? again.for : null, retry: !!day.autoRetry, fail: day.autoFail || null,
+    };
     let status;
     // A run that started (or ended) today keeps its status even if auto clock-out was
     // turned off meanwhile, so it still finishes, closes its tab and reports.
     if (['running', 'done', 'failed', 'expired'].includes(day.autoStatus)) status = day.autoStatus;
     else if (!a.on) status = 'off';
     else if (day.autoSkip) status = 'skipped';
+    else if (day.autoStatus === 'away') status = 'away';
     else if (p.state === 'none') status = now >= p.end ? 'ended' : 'waiting';
     else if (p.lastIn != null && p.lastIn >= at) status = 'late-start';
     else if (now >= p.end) status = 'ended';
@@ -484,7 +505,7 @@
     if (!autoFor(settings, day.date).on || day.autoSkip || p.state !== 'in' || p.lastIn == null) return day;
     if (day.autoAgain && day.autoAgain.for === p.lastIn) return day;
     const ap = autoPlan(day, settings, now);
-    const ranAt = day.autoStartedAt != null ? day.autoStartedAt : ap.at;
+    const ranAt = day.autoDueAt != null ? day.autoDueAt : day.autoStartedAt != null ? day.autoStartedAt : ap.at;
     const ranBefore = ['done', 'failed', 'expired'].includes(ap.status) && p.lastIn > ranAt;
     if (!ranBefore && ap.status !== 'late-start') return day;
     const at = Math.min(p.lastIn + AUTO_AGAIN_MS, autoAgainCap(p));
@@ -492,6 +513,7 @@
     return {
       ...day, autoAgain: { at, for: p.lastIn },
       autoStatus: null, autoDelay: 0, autoHeadsUpFor: null, autoStartedAt: null, autoTabId: null, autoSession: null, autoDoneAt: null,
+      autoDueAt: null, autoRetry: false, autoFail: null,
     };
   }
 
@@ -507,7 +529,7 @@
     if (ap.status !== 'scheduled' && ap.status !== 'heads-up' && ap.status !== 'due') return day;
     const minutes = autoPostponeMinutes(ap);
     if (!minutes) return day;
-    return { ...day, autoDelay: (day.autoDelay || 0) + minutes * MIN, autoHeadsUpFor: null };
+    return { ...day, autoDelay: (day.autoDelay || 0) + minutes * MIN, autoHeadsUpFor: null, autoRetry: false };
   }
 
   function autoSkipToday(day) {
@@ -540,11 +562,88 @@
   /** Tab "Try again": forget today's skip / delay / result, so it runs again at its set time. */
   function autoReset(day) {
     if (day.autoStatus === 'running') return day;
-    return { ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null };
+    return {
+      ...day, autoSkip: false, autoDelay: 0, autoHeadsUpFor: null, autoStatus: null, autoStartedAt: null, autoTabId: null, autoDoneAt: null, autoSession: null,
+      autoTries: 0, autoDueAt: null, autoRetry: false, autoFail: null,
+    };
   }
 
-  function autoStart(day, now) {
-    return { ...day, autoStatus: 'running', autoStartedAt: now, autoTabId: null };
+  /** `dueAt`: when this run was due (kept from the first try, so a later clock-in is seen as a new session). */
+  function autoStart(day, now, dueAt = now) {
+    return {
+      ...day, autoStatus: 'running', autoStartedAt: now, autoTabId: null, autoPrevTab: null, autoTrace: [[0, 'opened']],
+      autoTries: (day.autoTries || 0) + 1, autoDueAt: day.autoDueAt != null ? day.autoDueAt : dueAt,
+    };
+  }
+
+  /** A step the run's Keka tab reported, kept with its time (the last 16). */
+  function autoTraceStep(day, step, now) {
+    if (day.autoStatus !== 'running' || day.autoStartedAt == null) return day;
+    const at = Math.round((now - day.autoStartedAt) / 100) / 10;
+    return { ...day, autoTrace: [...(day.autoTrace || []), [at, String(step).slice(0, 160)]].slice(-16) };
+  }
+
+  /** Why a run that ran out of time failed, from how far its tab got. */
+  function autoTimeoutReason(trace) {
+    const steps = (trace || []).map(t => String(t[1]).split(/[\s:]/)[0]);
+    if (steps.includes('clicked')) return 'not-saved';
+    if (steps.includes('clicked-out')) return 'no-confirm-button';
+    if (steps.includes('asked')) return 'stalled';
+    return 'no-response';
+  }
+
+  /**
+   * False when Keka shows a clock-in at or after the run's due time: that's a new
+   * session (from the phone, say), so it's not ours to clock out; it re-arms instead.
+   */
+  function autoStillFor(day) {
+    const ps = punchState(day);
+    return !(ps.state === 'in' && ps.lastIn != null && day.autoDueAt != null && ps.lastIn >= day.autoDueAt);
+  }
+
+  /** Couldn't run, or didn't finish, while you were away: wait for you to come back. */
+  function autoAway(day, dueAt, reason) {
+    return {
+      ...day, autoStatus: 'away', autoTabId: null, autoSession: null,
+      autoFail: reason || day.autoFail || null, autoDueAt: day.autoDueAt != null ? day.autoDueAt : dueAt,
+    };
+  }
+
+  /**
+   * Why a retry can't happen now, or null when it can: 'out' (clocked out meanwhile),
+   * 'new-clock-in' (clocked in again after its time), 'tries' (3 runs today),
+   * 'too-late' (no room for the notice before the day's end).
+   */
+  function autoRetryBlock(day, settings, now) {
+    const p = plan(day, settings, now);
+    if (p.state !== 'in') return 'out';
+    if (!autoStillFor(day)) return 'new-clock-in';
+    if ((day.autoTries || 0) >= AUTO_MAX_TRIES) return 'tries';
+    if (now + AUTO_NOTICE_MS > p.end - AUTO_LAST_MS) return 'too-late';
+    return null;
+  }
+
+  /** You're back: a 10-second notice (shown as the heads-up), then it runs. */
+  function autoRetryNow(day, settings, now) {
+    const base = { ...day, autoStatus: null, autoRetry: true, autoHeadsUpFor: null, autoStartedAt: null, autoTabId: null, autoSession: null };
+    return { ...base, autoDelay: now + AUTO_NOTICE_MS - autoPlan({ ...base, autoDelay: 0 }, settings, now).baseAt };
+  }
+
+  /** Why a run failed, in a few words for the WFH tab ('' when unknown). */
+  function autoFailText(reason) {
+    switch (reason) {
+      case 'no-clock-out-button': return 'Keka\'s clock-out button didn\'t show up.';
+      case 'no-confirm-button': return 'Keka\'s confirm button didn\'t show up.';
+      case 'timeout': return 'Keka didn\'t confirm the clock-out.';
+      case 'not-saved': return 'It clicked Clock-out, but Keka didn\'t save it.';
+      case 'stalled': return 'Keka opened but didn\'t respond.';
+      case 'no-response': return 'The Keka tab didn\'t respond.';
+      case 'asleep': return 'Your laptop was asleep.';
+      case 'tries': return 'It tried 3 times.';
+      case 'too-late': return 'You were away until it was too late to try again.';
+      case 'new-clock-in': return 'You clocked in again after its time.';
+      default: return '';
+    }
   }
 
   /** Did Keka's data show the clock-out we started? */
@@ -555,10 +654,15 @@
   }
 
   function autoFinish(day, ok, now) {
-    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null };
+    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null, autoPrevTab: null };
   }
 
   function autoHeadsUp(ap, now) {
+    // Back after a run that couldn't happen: the short "initiating" notice.
+    if (ap.retry && now != null && ap.at - now <= MIN) {
+      const seconds = Math.max(1, Math.round((ap.at - now) / 1000));
+      return { title: 'Initiating auto clock-out', message: `In ${seconds} seconds. It couldn't run while you were away.` };
+    }
     const minutes = now == null ? 5 : Math.max(1, Math.round((ap.at - now) / MIN));
     return {
       title: `Auto clock-out at ${timeLabel(ap.at)}`,
@@ -620,6 +724,8 @@
     applyObservation, applyDom, snooze, extendSnooze, cancelSnooze, stop, resume,
     shouldAnnounce, announcement, reminder, badge, autoAgainNotice,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoRearm, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
+    AUTO_NOTICE_MS, AUTO_MAX_TRIES, AUTO_LATE_MS, AUTO_AWAKE_LEAD_MS, autoStillFor, autoAway, autoRetryBlock, autoRetryNow, autoFailText,
+    autoTraceStep, autoTimeoutReason,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

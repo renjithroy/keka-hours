@@ -635,3 +635,95 @@ test('re-armed: your set time wins when it comes after the clock-in', () => {
   assert.equal(past.auto.from, '2026-10-17');
   assert.equal(W.autoPlan(r, past, at('20:05')).at, at('20:42'));
 });
+
+// ---------- auto clock-out: missed or failed while you were away, retried when you're back ----------
+
+test('auto clock-out away: back → 10-second notice → due; the retry keeps the first due time', () => {
+  let d = W.autoStart({ ...day(REAL), autoHeadsUpFor: at('19:00') }, at('19:00'), at('19:00'));
+  assert.equal(d.autoTries, 1);
+  assert.equal(d.autoDueAt, at('19:00'));
+  // Failed while the screen was locked.
+  d = W.autoAway(d, d.autoStartedAt, 'no-clock-out-button');
+  assert.equal(W.autoPlan(d, AUTO_ON, at('19:30')).status, 'away');
+  assert.equal(W.autoPlan(d, AUTO_ON, at('19:30')).fail, 'no-clock-out-button');
+  assert.equal(W.autoRetryBlock(d, AUTO_ON, at('19:30')), null);
+  // Back at 7:30 PM.
+  const now = at('19:30');
+  d = W.autoRetryNow(d, AUTO_ON, now);
+  const ap = W.autoPlan(d, AUTO_ON, now);
+  assert.equal(ap.status, 'heads-up');
+  assert.equal(ap.at, now + 10000);
+  assert.equal(ap.retry, true);
+  assert.deepEqual(W.autoHeadsUp(ap, now), { title: 'Initiating auto clock-out', message: 'In 10 seconds. It couldn\'t run while you were away.' });
+  const warned = { ...d, autoHeadsUpFor: ap.at };
+  assert.equal(W.autoPlan(warned, AUTO_ON, now + 10000).status, 'due');
+  const again = W.autoStart(warned, now + 10000, ap.at);
+  assert.equal(again.autoTries, 2);
+  assert.equal(again.autoDueAt, at('19:00'), 'still judged against 7 PM');
+  // +15 min from the notice: the next warning is the usual 5-min heads-up.
+  const later = W.autoPostpone(d, AUTO_ON, now);
+  assert.equal(later.autoRetry, false);
+  assert.equal(W.autoHeadsUp(W.autoPlan(later, AUTO_ON, now), now).title, 'Auto clock-out at 7:45 PM');
+});
+
+test('auto clock-out away: the checks before trying again', () => {
+  const away = W.autoAway(W.autoStart(day(REAL), at('19:00')), at('19:00'), 'asleep');
+  // Clocked out meanwhile (e.g. from the phone).
+  const out = W.applyObservation(away, { records: [{ date: DATE, punches: [...REAL, p('19:20', false)] }] }, at('20:00'));
+  assert.equal(W.autoRetryBlock(out, AUTO_ON, at('20:00')), 'out');
+  // Out and back in after its time: a new session, not ours to end.
+  const back = W.applyObservation(away, { records: [{ date: DATE, punches: [...REAL, p('19:20', false), p('19:40', true)] }] }, at('20:00'));
+  assert.equal(W.autoRetryBlock(back, AUTO_ON, at('20:00')), 'new-clock-in');
+  // Three runs today already.
+  assert.equal(W.autoRetryBlock({ ...away, autoTries: 3 }, AUTO_ON, at('20:00')), 'tries');
+  // No room for the notice before the last chance (1 min before 10 PM).
+  assert.equal(W.autoRetryBlock(away, AUTO_ON, at('21:58')), null);
+  assert.equal(W.autoRetryBlock(away, AUTO_ON, at('21:58') + 55000), 'too-late');
+  // Skipped or switched off meanwhile: nothing to retry.
+  assert.equal(W.autoPlan(W.autoSkipToday(away), AUTO_ON, at('20:00')).status, 'skipped');
+  assert.equal(W.autoPlan(away, DEFAULTS, at('20:00')).status, 'off');
+  assert.equal(W.autoFailText('asleep'), 'Your laptop was asleep.');
+  assert.equal(W.autoFailText('something-new'), '');
+});
+
+test('auto clock-out: a clock-in after its time, seen just before the click, re-arms instead', () => {
+  // Due 7 PM; away, you clocked out 7:20 and back in 7:40 on the phone; the 8 PM retry sees it.
+  let d = W.autoStart(day(REAL), at('20:00'), at('19:00'));
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [...REAL, p('19:20', false), p('19:40', true)] }] }, at('20:00'));
+  assert.equal(W.autoStillFor(d), false);
+  d = { ...W.autoFinish(d, false, at('20:00')), autoFail: 'new-clock-in' };
+  const ap = W.autoPlan(W.autoRearm(d, AUTO_ON, at('20:00')), AUTO_ON, at('20:00'));
+  assert.equal(ap.status, 'scheduled');
+  assert.equal(ap.at, at('20:40'), '1h after that 7:40 PM clock-in');
+  // A normal run (clocked in before its time) is ours.
+  assert.equal(W.autoStillFor(W.autoStart(day(REAL), at('19:00'))), true);
+});
+
+test('auto clock-out: Try again starts today\'s tries afresh; re-arm keeps the count', () => {
+  const failed = { ...W.autoFinish(W.autoStart(W.autoStart(day(REAL), at('19:00')), at('19:30'), at('19:00')), false, at('19:31')), autoFail: 'timeout' };
+  assert.equal(failed.autoTries, 2);
+  const reset = W.autoReset(failed);
+  assert.equal(reset.autoTries, 0);
+  assert.equal(reset.autoDueAt, null);
+  assert.equal(reset.autoFail, null);
+  const back = W.applyObservation(failed, { records: [{ date: DATE, punches: [...REAL, p('19:35', false), p('19:50', true)] }] }, at('19:50'));
+  const re = W.autoRearm(back, AUTO_ON, at('19:50'));
+  assert.equal(re.autoTries, 2);
+  assert.equal(re.autoDueAt, null);
+});
+
+test('auto clock-out trace: steps kept with their time while running; a timeout says how far it got', () => {
+  let d = W.autoStart(day(REAL), at('19:00'), at('19:00'));
+  assert.deepEqual(d.autoTrace, [[0, 'opened']]);
+  d = W.autoTraceStep(d, 'asked hidden geo:granted', at('19:00') + 3400);
+  d = W.autoTraceStep(d, 'button', at('19:00') + 5000);
+  assert.deepEqual(d.autoTrace.slice(1), [[3.4, 'asked hidden geo:granted'], [5, 'button']]);
+  assert.equal(W.autoTraceStep(W.autoFinish(d, false, at('19:02')), 'late', at('19:02')).autoTrace.length, 3, 'nothing added once finished');
+  for (let i = 0; i < 30; i++) d = W.autoTraceStep(d, `s${i}`, at('19:01'));
+  assert.equal(d.autoTrace.length, 16);
+  assert.equal(W.autoTimeoutReason(null), 'no-response');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [3, 'asked hidden geo:prompt']]), 'stalled');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [3, 'asked visible geo:granted'], [5, 'button'], [5, 'clicked-out']]), 'no-confirm-button');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [5, 'clicked-out'], [6, 'clicked'], [21, 'shown']]), 'not-saved');
+  assert.equal(W.autoFailText('not-saved'), 'It clicked Clock-out, but Keka didn\'t save it.');
+});

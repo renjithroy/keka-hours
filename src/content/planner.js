@@ -151,7 +151,77 @@
     };
   }
 
-  const api = { planMonth };
+  const MIN = 60000;
+  const SAFETY_MIN = 11 * 60; // past 11h a day is long: show Keka's limit
+  const CUTOFF_MS = 12 * 60 * MIN; // Keka marks a missed clock-out 12h after the first clock-in
+
+  /** Clock-in / clock-out progress for a day that needs `required` minutes from `firstIn` (epoch ms). */
+  function punchCard(base, { state, firstIn, lastOut, required }, now) {
+    if (state === 'none') return { ...base, kind: 'not-in', required };
+    if (!firstIn) return { ...base, kind: 'in-unknown', required }; // clocked in; the time hasn't loaded yet
+    const leaveAt = firstIn + required * MIN;
+    const limitAt = firstIn + CUTOFF_MS;
+    const card = { ...base, required, firstIn, leaveAt, limitAt, long: required > SAFETY_MIN };
+    const pct = at => Math.max(0, Math.min(1, (at - firstIn) / (leaveAt - firstIn || 1)));
+    if (state === 'in') {
+      if (leaveAt > limitAt) return { ...card, kind: 'too-late', shortMs: leaveAt - limitAt, pct: pct(now) };
+      if (now >= leaveAt) return { ...card, kind: 'done', overMs: now - leaveAt, pct: 1 };
+      return { ...card, kind: 'in', leftMs: leaveAt - now, pct: pct(now) };
+    }
+    // Clocked out: a break (the time stays: Keka counts from the first clock-in), or done.
+    if (lastOut != null && lastOut >= leaveAt) return { ...card, kind: 'out-done', lastOut, overMs: lastOut - leaveAt, pct: 1 };
+    return { ...card, kind: 'out', lastOut, pct: lastOut != null ? pct(lastOut) : 0 };
+  }
+
+  /**
+   * Overview's Today card: today's clock-out time and progress, or why there's
+   * nothing to sit. null when today isn't in the planned month.
+   * @param {object} p
+   * @param {object} p.plan     planMonth() result (its `today`, `status`, today's cell)
+   * @param {string} p.todayKey 'YYYY-MM-DD'
+   * @param {object} [p.day]    today's AttendanceDay (office time: firstIn, grossMinutes, isIncomplete)
+   * @param {object} [p.wfh]    today's WFH punches, as wfh.punchState(): { state, firstIn, lastOut }
+   * @param {number} p.now      epoch ms
+   * Office days need the plan's time for today; WFH days a plain 9h day from the
+   * first clock-in (they aren't counted). kind: 'not-in' | 'in' | 'in-unknown' |
+   * 'done' | 'out' | 'out-done' | 'too-late' | 'safe' | 'off'.
+   */
+  function todayCard(p) {
+    const plan = p.plan;
+    const cell = plan && plan.cells ? plan.cells.find(c => c.date === p.todayKey) : null;
+    if (!cell) return null;
+    const target = plan.targetMinutes || calc.DEFAULT_TARGET;
+    const day = p.day || null;
+    const wfh = p.wfh && p.wfh.state && p.wfh.state !== 'none' ? p.wfh : null;
+
+    if (wfh || (day && day.isWFH) || cell.state === 'wfh') {
+      return punchCard({ wfh: true }, {
+        state: wfh ? wfh.state : 'none', firstIn: wfh ? wfh.firstIn : null, lastOut: wfh ? wfh.lastOut : null, required: target,
+      }, p.now);
+    }
+    if (cell.state !== 'plan-office' && cell.state !== 'worked') {
+      const reason = cell.state === 'leave' || (day && day.isLeave) ? 'leave'
+        : cell.state === 'holiday' || cell.reason === 'Holiday' ? 'holiday'
+          : cell.state === 'off' || cell.reason === 'Off' ? 'week-off' : 'away';
+      // What's next: the next office day this month, and how long to sit then.
+      const next = plan.cells.find(c => c.date > p.todayKey && c.state === 'plan-office');
+      return { wfh: false, kind: 'off', reason, next: next ? next.date : null, nextRequired: next && plan.status === 'needed' ? plan.requiredPerDay : null };
+    }
+
+    const parsed = day && day.firstIn ? Date.parse(day.firstIn) : NaN;
+    const firstIn = (plan.today && plan.today.firstIn) || (Number.isFinite(parsed) ? parsed : null);
+    const gross = day && day.grossMinutes > 0 ? day.grossMinutes : 0;
+    const clockedIn = !!(day && day.isIncomplete);
+    const state = clockedIn ? 'in' : gross > 0 ? 'out' : 'none';
+    // The month's average is already safe: any time works; when 9h comes, for reference.
+    if (!plan.today) {
+      return { wfh: false, kind: 'safe', state, firstIn, nineAt: firstIn ? firstIn + target * MIN : null, pct: firstIn ? Math.min(1, (p.now - firstIn) / (target * MIN)) : 0 };
+    }
+    const lastOut = state === 'out' && firstIn ? firstIn + gross * MIN : null;
+    return punchCard({ wfh: false }, { state, firstIn, lastOut, required: plan.today.requiredMinutes }, p.now);
+  }
+
+  const api = { planMonth, todayCard };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.KekaHours.planner = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
