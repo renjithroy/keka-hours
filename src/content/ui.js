@@ -218,7 +218,7 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-hero { position: relative; padding: 6px 0 20px; }
 .ov-top { position: relative; z-index: 2; } /* its tooltip opens over the number */
 .ov-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
-.ov-value { font-size: 60px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
+.ov-value { font-size: 52px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
 .ov-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px 0 9px; border-radius: 999px; font-size: 14px; font-weight: 650; white-space: nowrap; background: var(--surface); color: var(--muted); }
 .ov-chip.good { background: var(--good-soft); color: var(--good); }
 .ov-chip.warn { background: var(--warn-soft); color: var(--warn); }
@@ -244,6 +244,7 @@ svg { width: 100%; height: 100%; display: block; }
 /* Daily hours: fills the space left by the taller Plan tab. */
 .ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 16px; padding: 16px 16px 13px; }
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
+.ov-empty { flex: 1; display: grid; place-items: center; min-height: 68px; font-size: 13px; color: var(--subtle); }
 .spark-head b { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
 .spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
 .spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
@@ -387,6 +388,8 @@ svg { width: 100%; height: 100%; display: block; }
 .s-plan-office { border: 1.5px dashed var(--brand-line); background: var(--plan-bg); }
 .s-plan-office .cal-v { color: var(--brand-text); font-weight: 700; }
 .s-plan-away { color: var(--subtle); background: repeating-linear-gradient(135deg, var(--away-a) 0 4px, var(--away-b) 4px 8px); border: 1.5px solid transparent; }
+/* A month spanning six weeks gets shorter cells, so the card stays its usual height. */
+.cal.six .cal-cell { height: 39px; }
 button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand); border-style: solid; }
 .cal-cell.today::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--text); border-radius: 11px; pointer-events: none; }
 .cal-cell.overridden::before { content: ""; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-warn); }
@@ -501,7 +504,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
-  .hero-value { font-size: 38px; } .ov-value { font-size: 48px; } .cal-cell { height: 44px; }
+  .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal-cell { height: 44px; } .cal.six .cal-cell { height: 36px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
   .ov-stat { gap: 10px; padding: 14px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
@@ -638,7 +641,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    */
   function sparkHtml(s) {
     const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
-    if (!days.length) return '';
+    if (!days.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
     const lo = 5 * 60;
     const hi = Math.max(11 * 60, ...days.map(d => d.grossMinutes || 0));
     const y = min => Math.max(0, Math.min(100, ((min - lo) / (hi - lo)) * 100));
@@ -801,7 +804,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     return `
       ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
       ${todayHtml(p)}
-      <div class="cal" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
+      <div class="cal${p.firstWeekday + p.daysInMonth > 35 ? ' six' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${p.cells.map(c => cellHtml(c, p)).join('')}
       </div>
