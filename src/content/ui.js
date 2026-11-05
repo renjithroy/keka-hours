@@ -20,11 +20,12 @@
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   const ICON_BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
-  // Overview: tracked days, total hours, WFH, leave, and the "vs 9h" arrows.
-  const ICON_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="5.25" width="16.5" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.75 10h16.5M8.25 3.25v3.5M15.75 3.25v3.5M9.2 15.1l1.9 1.8 3.7-3.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_STACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75 3.75 8.1 12 12.45l8.25-4.35z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.75 12.1 12 16.45l8.25-4.35M3.75 16.1 12 20.45l8.25-4.35" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_HOME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.4 12 4l8 6.4v8.1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.75 20.5v-5.25h4.5v5.25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-  const ICON_UMBRELLA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12.25a8.5 8.5 0 0 1 17 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12.25v6a2.1 2.1 0 0 1-4.2 0M12 3.75v-1.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  // Overview stats: Lucide icons (ISC licence), drawn thin and grey beside each label.
+  const lucide = paths => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  const ICON_CAL = lucide('<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>');
+  const ICON_TIMER = lucide('<path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/>');
+  const ICON_HOUSE = lucide('<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
+  const ICON_PLANE = lucide('<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>');
   const ICON_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const ICON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // Overview: the soft wave under the average (decoration only).
@@ -65,7 +66,10 @@
   --card: #fff;
   --card-line: #e6ebf1;
   --card-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 16px -10px rgba(15, 23, 42, .14);
-  --wave: .17;
+  --wave: .16;
+  --cell-line: #eef2f6;
+  --future-line: #cbd3dd;
+  --future-off: #eef1f5;
   --wfh-a: #d5dce5;
   --wfh-b: #edf1f5;
   --wfh-hover-a: #b9c3cf;
@@ -126,7 +130,10 @@
   --card: #1b2129;
   --card-line: #2a323c;
   --card-shadow: none;
-  --wave: .2;
+  --wave: .22;
+  --cell-line: #252d37;
+  --future-line: #3d4855;
+  --future-off: #232a33;
   --wfh-a: #38424f;
   --wfh-b: #232a33;
   --wfh-hover-a: #4b5766;
@@ -223,7 +230,7 @@ svg { width: 100%; height: 100%; display: block; }
 .pane[data-pane="wfh"] { display: flex; flex-direction: column; }
 
 /* ---------- Overview: the average, then cards ---------- */
-.ov-hero { position: relative; padding: 6px 0 20px; }
+.ov-hero { position: relative; padding: 6px 0 26px; }
 .ov-top { position: relative; z-index: 2; } /* its tooltip opens over the number */
 .ov-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
 .ov-value { font-size: 52px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
@@ -233,27 +240,27 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-chip.flat { padding: 0 12px; }
 .ov-chip svg { width: 15px; height: 15px; flex: none; }
 /* Edge to edge, fading out behind the first card. */
-.ov-wave { position: absolute; left: -22px; right: -22px; bottom: -30px; width: auto; height: 104px; pointer-events: none; -webkit-mask-image: linear-gradient(#000 50%, transparent 94%); mask-image: linear-gradient(#000 50%, transparent 94%); }
+.ov-wave { position: absolute; left: -22px; right: -22px; bottom: -30px; width: auto; height: 110px; pointer-events: none; -webkit-mask-image: linear-gradient(#000 50%, transparent 94%); mask-image: linear-gradient(#000 50%, transparent 94%); }
 .ov-wave path { fill: var(--brand); opacity: var(--wave); }
+.ov-wave path + path { opacity: calc(var(--wave) * .75); }
 .ov-card { position: relative; border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); }
-.ov-stats { display: grid; grid-template-columns: 1fr 1fr; }
-.ov-stat { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 16px; }
-.ov-stat + .ov-stat { border-left: 1px solid var(--card-line); }
-.ov-icon { flex: none; width: 28px; height: 28px; color: var(--brand); }
-.ov-stat > div, .ov-ex > div { min-width: 0; }
-.ov-v { font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
-.ov-l { font-size: 13.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ov-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-.ov-ex { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 15px 14px; }
-.ov-tile { flex: none; width: 42px; height: 42px; padding: 10px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); }
-.ov-today { margin-top: 14px; padding: 9px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13px; color: var(--brand-text); }
+/* Tracked | Total hours over WFH | Leave: one card, four cells. */
+.ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ov-cell { min-width: 0; padding: 12px 14px; }
+.ov-cell:nth-child(odd) { border-right: 1px solid var(--cell-line); }
+.ov-cell:nth-child(-n+2) { border-bottom: 1px solid var(--cell-line); }
+.ov-k { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-k svg { flex: none; width: 15px; height: 15px; color: var(--subtle); }
+.ov-v { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
+.ov-v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.ov-today { margin-top: 12px; padding: 9px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13px; color: var(--brand-text); }
 .ov-today b { font-weight: 700; }
 
 /* Daily hours: fills the space left by the taller Plan tab. */
-.ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 16px; padding: 16px 16px 13px; }
+.ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 14px; padding: 14px 16px 12px; }
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
 .ov-empty { flex: 1; display: grid; place-items: center; min-height: 68px; font-size: 13px; color: var(--subtle); }
-.spark-head b { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
+.spark-head b { font-size: 14px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
 .spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
 .spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
 .spark .bar.warn { background: var(--bar-warn); }
@@ -266,6 +273,14 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.stub:hover { background: var(--stub-hover); }
 .spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
 .spark .bar.live:hover { background: var(--brand-soft); }
+/* Days still to come this month: an outlined mark (week-offs a faint one); today a green mark. */
+.spark .bar.future { height: 6px; min-height: 0; border-radius: 2px; background: transparent; box-shadow: inset 0 0 0 1px var(--future-line); }
+.spark .bar.future-off { height: 4px; min-height: 0; border-radius: 2px; background: var(--future-off); }
+.spark .bar.today-slot { height: 6px; min-height: 0; border-radius: 3px; background: var(--brand); }
+.spark .bar.future:hover, .spark .bar.future-off:hover, .spark .bar.today-slot:hover { filter: brightness(.92); }
+.spark .bar.future:hover { background: transparent; box-shadow: inset 0 0 0 1px var(--subtle); }
+.spark .bar.future-off:hover { background: var(--future-off); }
+.spark .bar.today-slot:hover { background: var(--brand); }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--guide); pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -8px; line-height: 14px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--card); padding-left: 5px; }
 .spark-foot { display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
@@ -516,7 +531,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @media (max-width: 480px) {
   .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal-cell { height: 44px; } .cal.six .cal-cell { height: 36px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
-  .ov-stat { gap: 10px; padding: 14px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
+  .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
@@ -606,11 +621,10 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const chip = d == null ? ''
       : d === 0 ? `<span class="ov-chip good flat">On ${target}</span>`
       : `<span class="ov-chip ${t}" role="img" aria-label="${esc(`${fmt.delta(Math.abs(d)).slice(1)} ${d > 0 ? 'above' : 'below'} ${target}`)}">${d > 0 ? ICON_UP : ICON_DOWN}${fmt.delta(Math.abs(d)).slice(1)} vs ${target}</span>`;
-    const stat = (icon, value, label, tile, tip = label) => `
-      <div class="${tile ? 'ov-card ov-ex' : 'ov-stat'}" title="${esc(tip)}">
-        <span class="${tile ? 'ov-tile' : 'ov-icon'}">${icon}</span>
-        <div><div class="ov-v">${value}</div><div class="ov-l">${esc(label)}</div></div>
-      </div>`;
+    const cell = (icon, label, value, tip = label) => `
+      <div class="ov-cell" title="${esc(tip)}"><div class="ov-k">${icon}${esc(label)}</div><div class="ov-v">${value}</div></div>`;
+    // "2 days": the number bold, the unit lighter.
+    const days = n => `${n}<small> ${n === 1 ? 'day' : 'days'}</small>`;
 
     return `
       <div class="ov-hero">
@@ -628,18 +642,15 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>
       </div>
 
-      <div class="ov-card ov-stats">
-        ${stat(ICON_CAL, dayCount(s.trackedDays), 'Tracked', false, trackedLabel)}
-        ${stat(ICON_STACK, fmt.duration(s.totalMinutes), 'Total hours')}
+      <div class="ov-card ov-grid">
+        ${cell(ICON_CAL, 'Tracked', days(s.trackedDays), trackedLabel)}
+        ${cell(ICON_TIMER, 'Total hours', fmt.duration(s.totalMinutes))}
+        ${cell(ICON_HOUSE, 'WFH', days(s.wfhDays), 'WFH days aren’t counted in the average')}
+        ${cell(ICON_PLANE, 'Leave', days(s.leaveDays), 'Leave days aren’t counted in the average')}
       </div>
+      ${s.pendingToday ? `<div class="ov-today">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}
 
-      ${sparkHtml(s)}
-
-      <div class="ov-pair">
-        ${stat(ICON_HOME, dayCount(s.wfhDays), 'WFH', true, 'WFH days aren’t counted in the average')}
-        ${stat(ICON_UMBRELLA, dayCount(s.leaveDays), 'Leave', true, 'Leave days aren’t counted in the average')}
-      </div>
-      ${s.pendingToday ? `<div class="ov-today">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}`;
+      ${sparkHtml(s, m)}`;
   }
 
   /**
@@ -647,11 +658,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    * differences are visible). Counted days are green / amber; WFH days show
    * their hours as a striped grey bar (not counted); leave, holidays,
    * week-offs and no-time days are a short grey stub; today while clocked in
-   * is a dashed outline.
+   * is a dashed outline. In the current month the rest of the month follows
+   * (`monthTail`), so each day keeps its place: today a green mark, days to come
+   * an outlined one (week-ends fainter).
    */
-  function sparkHtml(s) {
+  function sparkHtml(s, m = {}) {
     const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
-    if (!days.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
+    const tail = monthTail(days, m);
+    if (!days.length && !tail.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
     const lo = 5 * 60;
     const hi = Math.max(11 * 60, ...days.map(d => d.grossMinutes || 0));
     const y = min => Math.max(0, Math.min(100, ((min - lo) / (hi - lo)) * 100));
@@ -675,19 +689,44 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           return `<span class="bar stub" title="${esc(`${label} · ${what}`)}"></span>`;
         }
       }
+    }).join('') + tail.map(t => {
+      const label = fmt.dayDate(t.date);
+      if (t.today) return `<span class="bar today-slot" title="${esc(`${label} · Today`)}"></span>`;
+      return `<span class="bar ${t.off ? 'future-off' : 'future'}" title="${esc(`${label} · ${t.off ? 'Week-end' : 'To come'}`)}"></span>`;
     }).join('');
-    const first = fmt.dayDate(days[0].date).split(', ')[1];
-    const last = fmt.dayDate(days[days.length - 1].date).split(', ')[1];
+    const all = [...days.map(d => d.date), ...tail.map(t => t.date)];
+    const first = fmt.dayDate(all[0]).split(', ')[1];
+    const last = fmt.dayDate(all[all.length - 1]).split(', ')[1];
     const counted = s.trackedDays;
+    const toCome = tail.length ? `, ${tail.length} still to come` : '';
     return `
       <div class="ov-card ov-chart">
-        <div class="spark-head"><b>Daily hours</b><span>${counted} of ${dayCount(days.length)} counted</span></div>
-        <div class="spark${days.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted">
+        <div class="spark-head"><b>Daily hours</b><span>${days.length ? `${counted} of ${dayCount(days.length)} counted` : 'No days yet'}</span></div>
+        <div class="spark${all.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted${toCome}">
           ${bars}
           <div class="line" style="bottom:${y(s.targetMinutes).toFixed(1)}%"><span>${target}</span></div>
         </div>
-        <div class="spark-foot"><span>${esc(first)}</span><span>${days.length > 1 ? esc(last) : ''}</span></div>
+        <div class="spark-foot"><span>${esc(first)}</span><span>${all.length > 1 ? esc(last) : ''}</span></div>
       </div>`;
+  }
+
+  /**
+   * The current month's days after the last one in the view, to the month's end:
+   * [{ date, today, off }] (off = Saturday / Sunday). [] for any other view.
+   */
+  function monthTail(days, m) {
+    if (!m.monthKey || !m.monthToDate || !m.todayKey || m.todayKey.slice(0, 7) !== m.monthKey) return [];
+    const [y, mo] = m.monthKey.split('-').map(Number);
+    const end = new Date(y, mo, 0).getDate();
+    const lastDate = days.length ? days[days.length - 1].date : null;
+    const from = lastDate && lastDate.slice(0, 7) === m.monthKey ? Number(lastDate.slice(8, 10)) + 1 : 1;
+    const out = [];
+    for (let d = from; d <= end; d += 1) {
+      const date = `${m.monthKey}-${String(d).padStart(2, '0')}`;
+      const dow = new Date(y, mo - 1, d).getDay();
+      out.push({ date, today: date === m.todayKey, off: dow === 0 || dow === 6 });
+    }
+    return out;
   }
 
   /** Small two-up card under the plan hero: [label / value / sub] × 2. */
