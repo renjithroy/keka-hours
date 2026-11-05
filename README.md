@@ -65,7 +65,7 @@ can't be read, the card follows your OS setting.
   (WFH / leave / off). Your choices are saved locally per month. Today stays a remaining office
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
   stepping out for lunch doesn't count as a short finished day. Today's clock-out time is on the
-  Overview. **Hide weekends** (bottom right, remembered) shows Monday to Friday only; weekend hours
+  Overview. **Hide weekends** (above the calendar, remembered) shows Monday to Friday only; weekend hours
   still count.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
