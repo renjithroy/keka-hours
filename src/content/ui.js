@@ -20,6 +20,15 @@
   const ICON_SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   const ICON_BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  // Overview: tracked days, total hours, WFH, leave, and the "vs 9h" arrows.
+  const ICON_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="5.25" width="16.5" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.75 10h16.5M8.25 3.25v3.5M15.75 3.25v3.5M9.2 15.1l1.9 1.8 3.7-3.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_STACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75 3.75 8.1 12 12.45l8.25-4.35z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.75 12.1 12 16.45l8.25-4.35M3.75 16.1 12 20.45l8.25-4.35" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_HOME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.4 12 4l8 6.4v8.1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.75 20.5v-5.25h4.5v5.25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  const ICON_UMBRELLA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12.25a8.5 8.5 0 0 1 17 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12.25v6a2.1 2.1 0 0 1-4.2 0M12 3.75v-1.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const ICON_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ICON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6.5 13.5 12 19l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Overview: the soft wave under the average (decoration only).
+  const WAVE = '<svg class="ov-wave" viewBox="0 0 400 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 42C70 22 132 24 200 38S330 56 400 14V70H0z"/><path d="M0 54C86 40 160 42 236 52S352 60 400 36V70H0z"/></svg>';
 
   const CSS = `
 :host { all: initial; }
@@ -49,10 +58,14 @@
   --line-hover: #dbe3ec;
   --dot-good: #22a05b;
   --dot-warn: #e08a1e;
-  --bar: #9fd9b9;
-  --bar-warn: #f3c48a;
-  --bar-hover: #34b46d;
-  --bar-warn-hover: #e08a1e;
+  --bar: #22a85c;
+  --bar-warn: #f5a623;
+  --bar-hover: #15803d;
+  --bar-warn-hover: #d97706;
+  --card: #fff;
+  --card-line: #e6ebf1;
+  --card-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 16px -10px rgba(15, 23, 42, .14);
+  --wave: .17;
   --wfh-a: #d5dce5;
   --wfh-b: #edf1f5;
   --wfh-hover-a: #b9c3cf;
@@ -64,7 +77,6 @@
   --skel-b: #f7f9fb;
   --tab-ind: #fff;
   --tab-ind-shadow: 0 1px 2px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04);
-  --meter-on: #34b46d;
   --meter-off: #e6ebf1;
   --plan-bg: #fff;
   --away-a: #f4f6f9;
@@ -103,10 +115,14 @@
   --line-hover: #3a4552;
   --dot-good: #3fb97a;
   --dot-warn: #e6a23c;
-  --bar: #2f7a54;
-  --bar-warn: #9a6a2e;
+  --bar: #2e9e63;
+  --bar-warn: #d6922c;
   --bar-hover: #4ade80;
   --bar-warn-hover: #fbbf24;
+  --card: #1b2129;
+  --card-line: #2a323c;
+  --card-shadow: none;
+  --wave: .2;
   --wfh-a: #38424f;
   --wfh-b: #232a33;
   --wfh-hover-a: #4b5766;
@@ -118,7 +134,6 @@
   --skel-b: #2a323c;
   --tab-ind: #2e3743;
   --tab-ind-shadow: 0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
-  --meter-on: #3fb97a;
   --meter-off: #2f3944;
   --plan-bg: var(--bg);
   --away-a: #232a33;
@@ -199,11 +214,39 @@ svg { width: 100%; height: 100%; display: block; }
 .pane[data-pane="overview"] { display: flex; flex-direction: column; }
 .pane[data-pane="wfh"] { display: flex; flex-direction: column; }
 
-/* ---------- daily chart (fills the space left by the taller Plan tab) ---------- */
-.spark-section { flex: 1; display: flex; flex-direction: column; }
-.spark-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
-.spark { position: relative; flex: 1; min-height: 64px; max-height: 96px; margin-top: 8px; padding-right: 24px; display: flex; align-items: flex-end; gap: 3px; }
-.spark .bar { flex: 1 1 0; max-width: 18px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
+/* ---------- Overview: the average, then cards ---------- */
+.ov-hero { position: relative; padding: 6px 0 20px; }
+.ov-top { position: relative; z-index: 2; } /* its tooltip opens over the number */
+.ov-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
+.ov-value { font-size: 60px; line-height: 1.04; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; }
+.ov-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px 0 9px; border-radius: 999px; font-size: 14px; font-weight: 650; white-space: nowrap; background: var(--surface); color: var(--muted); }
+.ov-chip.good { background: var(--good-soft); color: var(--good); }
+.ov-chip.warn { background: var(--warn-soft); color: var(--warn); }
+.ov-chip.flat { padding: 0 12px; }
+.ov-chip svg { width: 15px; height: 15px; flex: none; }
+/* Edge to edge, fading out behind the first card. */
+.ov-wave { position: absolute; left: -22px; right: -22px; bottom: -30px; width: auto; height: 104px; pointer-events: none; -webkit-mask-image: linear-gradient(#000 50%, transparent 94%); mask-image: linear-gradient(#000 50%, transparent 94%); }
+.ov-wave path { fill: var(--brand); opacity: var(--wave); }
+.ov-card { position: relative; border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); }
+.ov-stats { display: grid; grid-template-columns: 1fr 1fr; }
+.ov-stat { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 16px; }
+.ov-stat + .ov-stat { border-left: 1px solid var(--card-line); }
+.ov-icon { flex: none; width: 28px; height: 28px; color: var(--brand); }
+.ov-stat > div, .ov-ex > div { min-width: 0; }
+.ov-v { font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
+.ov-l { font-size: 13.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.ov-ex { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 15px 14px; }
+.ov-tile { flex: none; width: 42px; height: 42px; padding: 10px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); }
+.ov-today { margin-top: 14px; padding: 9px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13px; color: var(--brand-text); }
+.ov-today b { font-weight: 700; }
+
+/* Daily hours: fills the space left by the taller Plan tab. */
+.ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 16px; padding: 16px 16px 13px; }
+.spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
+.spark-head b { font-size: 14.5px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
+.spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
+.spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
 .spark .bar.warn { background: var(--bar-warn); }
 .spark .bar:hover { background: var(--bar-hover); }
 .spark .bar.warn:hover { background: var(--bar-warn-hover); }
@@ -215,8 +258,8 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
 .spark .bar.live:hover { background: var(--brand-soft); }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--guide); pointer-events: none; }
-.spark .line span { position: absolute; right: 0; top: -7px; line-height: 12px; font-size: 11px; font-weight: 600; color: var(--subtle); background: var(--bg); padding-left: 4px; }
-.spark-foot { display: flex; justify-content: space-between; margin-top: 5px; padding-right: 24px; font-size: 11.5px; color: var(--subtle); }
+.spark .line span { position: absolute; right: 0; top: -8px; line-height: 14px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--card); padding-left: 5px; }
+.spark-foot { display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* Plan is the tallest tab: its switch overlaps the hero's padding, so the card doesn't grow. */
@@ -281,32 +324,11 @@ svg { width: 100%; height: 100%; display: block; }
 .chip.good { background: var(--good-soft); color: var(--good); }
 .chip.warn { background: var(--warn-soft); color: var(--warn); }
 
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tile { background: var(--surface); border-radius: 12px; padding: 10px 12px; min-width: 0; }
-.tile-value { font-size: 18.5px; font-weight: 650; letter-spacing: -.015em; white-space: nowrap; }
-.tile-value small { font-size: 13.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
-.tile-label { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tiles.excluded { margin-top: 14px; }
-.tiles.excluded .tile { padding: 8px 12px; }
-.tiles.excluded .tile-value { font-size: 16px; }
-
-.section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
 .row-label { color: var(--muted); }
 .row-value { font-weight: 600; }
 .row-value.good { color: var(--good); }
 .row-value.warn { color: var(--warn); }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.mini-label { font-size: 12.5px; color: var(--muted); }
-.mini-value { font-size: 16.5px; font-weight: 650; letter-spacing: -.01em; margin-top: 1px; }
-.mini-sub { font-size: 12.5px; color: var(--subtle); }
-
-.meter-head { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--muted); }
-.meter-head b { color: var(--text); font-weight: 650; margin-left: 4px; }
-.meter { display: flex; gap: 3px; height: 6px; margin-top: 7px; }
-.meter span { border-radius: 999px; min-width: 6px; }
-.meter .above { background: var(--meter-on); }
-.meter .below { background: var(--meter-off); }
 
 .tags { display: flex; gap: 6px; }
 .tag { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: var(--muted); }
@@ -479,8 +501,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @keyframes kh-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 480px) {
-  .hero-value { font-size: 38px; } .cal-cell { height: 44px; }
-  .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .tabs { margin: 0 16px 12px; }
+  .hero-value { font-size: 38px; } .ov-value { font-size: 48px; } .cal-cell { height: 44px; }
+  .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
+  .ov-stat { gap: 10px; padding: 14px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
@@ -565,52 +588,45 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     if (s.workedWeeklyOffs) worked.push(`${s.workedWeeklyOffs} week-off${s.workedWeeklyOffs > 1 ? 's' : ''}`);
     if (s.halfLeaveDays) worked.push(`${s.halfLeaveDays} half-day${s.halfLeaveDays > 1 ? 's' : ''}`);
     const trackedLabel = worked.length ? `Tracked · incl. ${worked.join(', ')}` : 'Tracked';
-    const total = s.daysAtOrAboveTarget + s.daysBelowTarget;
-    const pct = total ? (s.daysAtOrAboveTarget / total) * 100 : 0;
     const target = fmt.duration(s.targetMinutes).replace(' 00m', '');
     const d = s.deltaMinutesPerDay;
+    const chip = d == null ? ''
+      : d === 0 ? `<span class="ov-chip good flat">On ${target}</span>`
+      : `<span class="ov-chip ${t}" role="img" aria-label="${esc(`${fmt.delta(Math.abs(d)).slice(1)} ${d > 0 ? 'above' : 'below'} ${target}`)}">${d > 0 ? ICON_UP : ICON_DOWN}${fmt.delta(Math.abs(d)).slice(1)} vs ${target}</span>`;
+    const stat = (icon, value, label, tile, tip = label) => `
+      <div class="${tile ? 'ov-card ov-ex' : 'ov-stat'}" title="${esc(tip)}">
+        <span class="${tile ? 'ov-tile' : 'ov-icon'}">${icon}</span>
+        <div><div class="ov-v">${value}</div><div class="ov-l">${esc(label)}</div></div>
+      </div>`;
 
     return `
-      <div class="hero">
-        <div class="hero-top">
+      <div class="ov-hero">
+        ${WAVE}
+        <div class="hero-top ov-top">
           <div class="eyebrow-wrap">
             <div class="eyebrow">${esc(avgLabel(m))}</div>
             ${s.trackedDays ? `<button class="info-btn" type="button" data-act="avg-info" aria-haspopup="dialog" aria-label="See the days behind this average" title="See the days behind this average">${ICON_INFO}</button>` : ''}
           </div>
           ${m.todayInView ? includeSwitchHtml(!!m.includeToday) : ''}
         </div>
-        <div class="hero-row">
-          <span class="hero-value">${fmt.duration(s.averageMinutes)}</span>
-          ${d == null ? '' : `<span class="chip ${t}">${d === 0 ? `On ${target}` : `${fmt.delta(d)} vs ${target}`}</span>`}
+        <div class="ov-row">
+          <span class="ov-value">${fmt.duration(s.averageMinutes)}</span>
+          ${chip}
         </div>
       </div>
 
-      <div class="tiles">
-        <div class="tile"><div class="tile-value">${fmt.duration(s.totalMinutes)}</div><div class="tile-label">Total</div></div>
-        <div class="tile"><div class="tile-value">${s.trackedDays} <small>${s.trackedDays === 1 ? 'day' : 'days'}</small></div><div class="tile-label" title="${esc(trackedLabel)}">${esc(trackedLabel)}</div></div>
+      <div class="ov-card ov-stats">
+        ${stat(ICON_CAL, dayCount(s.trackedDays), 'Tracked', false, trackedLabel)}
+        ${stat(ICON_STACK, fmt.duration(s.totalMinutes), 'Total hours')}
       </div>
-
-      ${s.trackedDays ? `
-      <div class="section pair">
-        <div><div class="mini-label">Longest</div><div class="mini-value">${fmt.duration(s.longestDay.grossMinutes)}</div><div class="mini-sub">${fmt.dayDate(s.longestDay.date)}</div></div>
-        <div><div class="mini-label">Shortest</div><div class="mini-value">${fmt.duration(s.shortestDay.grossMinutes)}</div><div class="mini-sub">${fmt.dayDate(s.shortestDay.date)}</div></div>
-      </div>
-
-      <div class="section">
-        <div class="meter-head"><span>≥ ${target}<b>${dayCount(s.daysAtOrAboveTarget)}</b></span><span>&lt; ${target}<b>${dayCount(s.daysBelowTarget)}</b></span></div>
-        <div class="meter" role="img" aria-label="${s.daysAtOrAboveTarget} of ${total} days at or above ${target}">
-          ${s.daysAtOrAboveTarget ? `<span class="above" style="flex:${pct}"></span>` : ''}
-          ${s.daysBelowTarget ? `<span class="below" style="flex:${100 - pct}"></span>` : ''}
-        </div>
-      </div>` : ''}
 
       ${sparkHtml(s)}
 
-      <div class="tiles excluded">
-        <div class="tile"><div class="tile-value">${s.wfhDays} <small>${s.wfhDays === 1 ? 'day' : 'days'}</small></div><div class="tile-label">WFH · not counted</div></div>
-        <div class="tile"><div class="tile-value">${s.leaveDays} <small>${s.leaveDays === 1 ? 'day' : 'days'}</small></div><div class="tile-label">Leave · not counted</div></div>
+      <div class="ov-pair">
+        ${stat(ICON_HOME, dayCount(s.wfhDays), 'WFH', true, 'WFH days aren’t counted in the average')}
+        ${stat(ICON_UMBRELLA, dayCount(s.leaveDays), 'Leave', true, 'Leave days aren’t counted in the average')}
       </div>
-      ${s.pendingToday ? `<div class="note">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}`;
+      ${s.pendingToday ? `<div class="ov-today">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}`;
   }
 
   /**
@@ -651,8 +667,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const last = fmt.dayDate(days[days.length - 1].date).split(', ')[1];
     const counted = s.trackedDays;
     return `
-      <div class="section spark-section">
-        <div class="spark-head"><span>Daily hours</span><span>${counted} counted · ${days.length} day${days.length === 1 ? '' : 's'}</span></div>
+      <div class="ov-card ov-chart">
+        <div class="spark-head"><b>Daily hours</b><span>${counted} of ${dayCount(days.length)} counted</span></div>
         <div class="spark${days.length > 20 ? ' dense' : ''}" role="img" aria-label="Daily hours: ${s.daysAtOrAboveTarget} counted days at or above ${target}, ${s.daysBelowTarget} below, ${days.length - counted} not counted">
           ${bars}
           <div class="line" style="bottom:${y(s.targetMinutes).toFixed(1)}%"><span>${target}</span></div>
