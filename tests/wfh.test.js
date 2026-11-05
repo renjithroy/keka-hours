@@ -727,3 +727,29 @@ test('auto clock-out trace: steps kept with their time while running; a timeout 
   assert.equal(W.autoTimeoutReason([[0, 'opened'], [5, 'clicked-out'], [6, 'clicked'], [21, 'shown']]), 'not-saved');
   assert.equal(W.autoFailText('not-saved'), 'It clicked Clock-out, but Keka didn\'t save it.');
 });
+
+test('review fixes: a run\'s own clock-out (while it ran) counts as done; a later one is yours', () => {
+  const run = W.autoStart(day(REAL), at('19:00'), at('19:00'));
+  const saved = W.applyObservation(run, { records: [{ date: DATE, punches: [...REAL, p('19:01', false)] }] }, at('19:10'));
+  assert.equal(W.autoOutByRun(saved), at('19:01'));
+  const phone = W.applyObservation(run, { records: [{ date: DATE, punches: [...REAL, p('19:20', false)] }] }, at('19:25'));
+  assert.equal(W.autoOutByRun(phone), null);
+  assert.equal(W.autoOutByRun(W.autoAway(day(REAL), at('19:00'), 'missed')), null, 'no run started: nothing to credit');
+  // autoFinish carries the reason (and clears it on success).
+  assert.equal(W.autoFinish(run, false, at('19:02'), 'timeout').autoFail, 'timeout');
+  assert.equal(W.autoFinish({ ...run, autoFail: 'x' }, true, at('19:02')).autoFail, null);
+});
+
+test('review fixes: a clock-in at exactly the run\'s due time re-arms it (a new session)', () => {
+  let d = W.autoStart(day(REAL), at('19:00'), at('19:00'));
+  d = W.applyObservation(d, { records: [{ date: DATE, punches: [...REAL, p('18:30', false), p('19:00', true)] }] }, at('19:05'));
+  assert.equal(W.autoStillFor(d), false);
+  d = W.autoFinish(d, false, at('19:05'), 'new-clock-in');
+  assert.notEqual(W.autoRearm(d, AUTO_ON, at('19:05')), d);
+});
+
+test('review fixes: the 10-second notice only says "while you were away" when it was', () => {
+  const ap = { retry: true, at: at('20:00') + 10000, fail: 'missed' };
+  assert.equal(W.autoHeadsUp(ap, at('20:00')).message, 'In 10 seconds.');
+  assert.equal(W.autoHeadsUp({ ...ap, fail: 'asleep' }, at('20:00')).message, 'In 10 seconds. It couldn\'t run while you were away.');
+});

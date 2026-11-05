@@ -690,7 +690,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    * full-height columns (week-ends a gap), today's tinted green.
    */
   function sparkHtml(s, m = {}) {
-    const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
+    const listed = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
+    // Keka's month view may list days after today: those are still to come, like the tail.
+    const days = isCurrentMonth(m) ? listed.filter(d => d.date <= m.todayKey) : listed;
     const tail = monthTail(days, m);
     if (!days.length && !tail.length) return '<div class="ov-card ov-chart"><div class="spark-head"><b>Daily hours</b></div><div class="ov-empty">No days yet</div></div>';
     const lo = 5 * 60;
@@ -747,7 +749,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    * [{ date, today, off }] (off = Saturday / Sunday). [] for any other view.
    */
   function monthTail(days, m) {
-    if (!m.monthKey || !m.monthToDate || !m.todayKey || m.todayKey.slice(0, 7) !== m.monthKey) return [];
+    if (!isCurrentMonth(m)) return [];
     const [y, mo] = m.monthKey.split('-').map(Number);
     const end = new Date(y, mo, 0).getDate();
     const lastDate = days.length ? days[days.length - 1].date : null;
@@ -759,6 +761,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       out.push({ date, today: date === m.todayKey, off: dow === 0 || dow === 6 });
     }
     return out;
+  }
+
+  /** The view is today's month (the 30 DAYS view, or the month's own button). */
+  function isCurrentMonth(m) {
+    return !!(m && m.monthKey && m.todayKey && m.todayKey.slice(0, 7) === m.monthKey);
   }
 
   /** Small two-up card under the plan hero: [label / value / sub] × 2. */
@@ -908,25 +915,27 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   }
 
   /** Plan's "Hide weekends": Monday to Friday only (a view choice; weekend hours still count). */
-  function hideWeekendsSwitchHtml(on) {
-    return `<button class="switch mini plan-wk" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="Show Monday to Friday only. Weekend hours still count."><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button>`;
+  function hideWeekendsSwitchHtml(on, weekendOffice = false) {
+    const title = on && weekendOffice ? 'Weekends are shown this month: one of them is an office day.' : 'Show Monday to Friday only. Weekend hours still count.';
+    return `<button class="switch mini plan-wk" type="button" role="switch" data-act="hide-weekends" aria-checked="${on}" title="${esc(title)}"><span>Hide weekends</span><span class="track"><span class="thumb"></span></span></button>`;
   }
 
   function planHtml(p, includeToday, hideWeekends = false) {
     if (!p) return '<div class="waiting"><div class="msg">Open a month (or <b>30 DAYS</b>) in the Attendance Log to plan.</div></div>';
     const editable = p.cells.some(c => c.state === 'plan-office' || c.state === 'plan-away');
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
-    // Hide weekends: five columns, no Saturday / Sunday cells; a month starting on one starts on Monday.
-    const [y, mo] = p.monthKey.split('-').map(Number);
-    const weekend = c => { const d = new Date(y, mo - 1, c.day).getDay(); return d === 0 || d === 6; };
-    const cells = hideWeekends ? p.cells.filter(c => !weekend(c)) : p.cells;
-    const cols = hideWeekends ? 5 : 7;
-    const lead = hideWeekends && p.firstWeekday >= 5 ? 0 : p.firstWeekday;
+    // Hide weekends: five columns, no Saturday / Sunday cells; a month starting on one starts on
+    // Monday. Not in a month with a weekend office day (worked, or planned): that one must show.
+    const weekendOffice = p.cells.some(c => c.weekend && (c.state === 'worked' || c.state === 'plan-office'));
+    const hide = hideWeekends && !weekendOffice;
+    const cells = hide ? p.cells.filter(c => !c.weekend) : p.cells;
+    const cols = hide ? 5 : 7;
+    const lead = hide && p.firstWeekday >= 5 ? 0 : p.firstWeekday;
     const rows = Math.ceil((lead + cells.length) / cols);
     const blanks = Array.from({ length: lead }, () => '<div></div>').join('');
     return `
-      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '', hideWeekendsSwitchHtml(!!hideWeekends))}
-      <div class="cal${rows > 5 ? ' six' : ''}${hideWeekends ? ' five' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
+      ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '', hideWeekendsSwitchHtml(!!hideWeekends, weekendOffice))}
+      <div class="cal${rows > 5 ? ' six' : ''}${hide ? ' five' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.slice(0, cols).map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${cells.map(c => cellHtml(c, p)).join('')}
       </div>
@@ -970,7 +979,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         // Back after a run that couldn't happen while you were away: the 10-second notice.
         const soon = ap.retry && ap.at - now <= 60000;
         // Why it isn't at the set time: the 11h limit, or back on after a clock-in past it.
-        const why = soon ? 'Trying again: it couldn\'t run while you were away.'
+        const why = soon ? (ap.fail && ap.fail !== 'missed' ? 'Trying again: it couldn\'t run while you were away.' : 'Starting in a moment.')
           : ap.reason === 'safety' ? '11h after you clocked in.'
             : ap.reason === 'again' ? `1h after your ${t(ap.againFor)} clock-in.` : '';
         const when = soon ? `in ${Math.max(1, Math.ceil((ap.at - now) / 1000))} sec` : inLabel(ap.at - now);
@@ -1484,28 +1493,9 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           renderWfh();
         });
       }
-      else if (act === 'include-today') {
-        const on = el.getAttribute('aria-checked') !== 'true';
-        const viaKeyboard = e.detail === 0;
-        // Let the switch slide first; the re-render replaces it with the same state.
-        el.setAttribute('aria-checked', String(on));
-        setTimeout(() => {
-          handlers.onIncludeTodayChange(on);
-          const next = content.querySelector('.pane:not(.off) [data-act="include-today"]'); // the tab you're on
-          if (viaKeyboard && next) next.focus({ preventScroll: true });
-        }, reduceMotion() ? 0 : 180);
-      }
+      else if (act === 'include-today') flipSwitch(el, e, on => handlers.onIncludeTodayChange(on));
       else if (act === 'hide-weekends') {
-        const on = el.getAttribute('aria-checked') !== 'true';
-        const viaKeyboard = e.detail === 0;
-        el.setAttribute('aria-checked', String(on)); // let the switch slide first
-        setTimeout(() => {
-          hideWeekends = on;
-          renderPanel();
-          handlers.onHideWeekendsChange(on);
-          const next = content.querySelector('[data-act="hide-weekends"]');
-          if (viaKeyboard && next) next.focus({ preventScroll: true });
-        }, reduceMotion() ? 0 : 180);
+        flipSwitch(el, e, on => { hideWeekends = on; renderPanel(); handlers.onHideWeekendsChange(on); });
       }
       else if (act === 'avg-info') openModal('daylog');
       else if (act === 'modal-close') closeModal(e.detail === 0);
@@ -1691,6 +1681,23 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       renderWfh();
     }
 
+    /**
+     * A small switch (Include today, Hide weekends): let it slide first, then
+     * apply (the re-render replaces it with the same state); keep keyboard focus
+     * on it in the tab you're on.
+     */
+    function flipSwitch(el, e, apply) {
+      const on = el.getAttribute('aria-checked') !== 'true';
+      const viaKeyboard = e.detail === 0;
+      const act = el.getAttribute('data-act');
+      el.setAttribute('aria-checked', String(on));
+      setTimeout(() => {
+        apply(on);
+        const next = content.querySelector(`.pane:not(.off) [data-act="${act}"]`);
+        if (viaKeyboard && next) next.focus({ preventScroll: true });
+      }, reduceMotion() ? 0 : 180);
+    }
+
     /** Plan's Hide weekends, as remembered (or changed in another Keka tab). */
     function setHideWeekends(on) {
       if (hideWeekends === (on === true)) return;
@@ -1711,9 +1718,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       const now = Date.now();
       const raw = wfhState.day;
       const wfh = raw && raw.date === model.todayKey ? W.punchState(raw) : null;
-      const card = model.todayInView && model.plan
-        ? planner.todayCard({ plan: model.plan, todayKey: model.todayKey, day: model.todayDay, wfh, now })
-        : null;
+      const card = model.plan ? planner.todayCard({ plan: model.plan, todayKey: model.todayKey, day: model.todayDay, wfh, now }) : null;
       const html = todayCardHtml(card);
       if (slot.innerHTML !== html) slot.innerHTML = html;
     }
