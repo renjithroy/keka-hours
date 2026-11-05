@@ -8,16 +8,18 @@ const { clockOut } = require('../src/content/autoclock.js');
  * "WFH Clock-out" → ("Clock-out" + "Cancel") → spinner → "WFH Clock-In".
  * `script` overrides what's on screen at each stage.
  */
-function fakeKeka({ loadSteps = 2, confirmSteps = 1, doneSteps = 2, start = 'in', confirmLabel = 'Clock-out', signedOut = false } = {}) {
+function fakeKeka({ loadSteps = 2, confirmSteps = 1, doneSteps = 2, start = 'in', confirmLabel = 'Clock-out', signedOut = false, savesOnlyInFront = false } = {}) {
   let stage = start === 'in' ? 'loading' : 'out';
   let ticks = 0;
+  let front = false;
   const clicked = [];
   const labels = () => {
     if (signedOut) return [];
     switch (stage) {
       case 'loading': return ticks >= loadSteps ? ['WFH Clock-out', 'Work From Home', 'Attendance Policy'] : [];
       case 'confirming': return ticks >= confirmSteps ? [confirmLabel, 'Cancel'] : [];
-      case 'saving': return ticks >= doneSteps ? ['WFH Clock-In', 'Work From Home'] : [];
+      // savesOnlyInFront: like a page that won't finish in a hidden tab.
+      case 'saving': return ticks >= doneSteps && (!savesOnlyInFront || front) ? ['WFH Clock-In', 'Work From Home'] : [];
       case 'out': return ['WFH Clock-In', 'Work From Home'];
       default: return [];
     }
@@ -32,7 +34,8 @@ function fakeKeka({ loadSteps = 2, confirmSteps = 1, doneSteps = 2, start = 'in'
     },
   };
   const wait = async () => { ticks += 1; };
-  return { dom, wait, clicked };
+  const show = async () => { front = true; ticks = 0; };
+  return { dom, wait, clicked, show };
 }
 
 test('clicks WFH Clock-out, then the Clock-out confirm (never Cancel), and sees WFH Clock-In', async () => {
@@ -91,4 +94,27 @@ test('worker says no just before the first click (a newer clock-in): clicks noth
   const k2 = fakeKeka();
   assert.deepEqual(await clockOut(k2.dom, { wait: k2.wait, beforeClick: async () => true }), { result: 'done' });
   assert.deepEqual(k2.clicked, ['WFH Clock-out', 'Clock-out']);
+});
+
+test('stalls in the background after the confirm: comes to the front once, then sees WFH Clock-In', async () => {
+  const k = fakeKeka({ savesOnlyInFront: true });
+  const steps = [];
+  let shows = 0;
+  const res = await clockOut(k.dom, {
+    wait: k.wait, step: 500, timeouts: { card: 3000, confirm: 2000, done: 2000, shown: 3000 },
+    show: async () => { shows += 1; await k.show(); }, trace: s => steps.push(s),
+  });
+  assert.deepEqual(res, { result: 'done' });
+  assert.equal(shows, 1);
+  assert.deepEqual(steps, ['button', 'clicked-out', 'clicked', 'shown']);
+  assert.deepEqual(k.clicked, ['WFH Clock-out', 'Clock-out'], 'never clicks twice');
+});
+
+test('no Actions card even in front: comes to the front once, then gives up', async () => {
+  const k = fakeKeka({ signedOut: true });
+  let shows = 0;
+  const res = await clockOut(k.dom, { wait: k.wait, step: 500, timeouts: { card: 2000, confirm: 1000, done: 1000, shown: 2000 }, show: async () => { shows += 1; } });
+  assert.deepEqual(res, { result: 'failed', reason: 'no-clock-out-button' });
+  assert.equal(shows, 1);
+  assert.deepEqual(k.clicked, []);
 });

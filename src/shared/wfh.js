@@ -58,7 +58,7 @@
   const AUTO_HEADS_UP_MS = 5 * MIN;
   const AUTO_AGAIN_MS = HOUR; // re-armed after a clock-in past its time: this long after it
   const AUTO_DELAY_STEP_MS = 15 * MIN;
-  const AUTO_TIMEOUT_MS = 90 * 1000; // give the background tab this long to clock out
+  const AUTO_TIMEOUT_MS = 150 * 1000; // give the Keka tab this long to clock out (incl. coming to the front once)
   // Auto clock-out may run as late as 1 min before the day's end (Keka's cutoff / 10 PM).
   const AUTO_LAST_MS = MIN;
   // A run that couldn't happen or finish while you were away (asleep, locked, idle) is retried
@@ -292,6 +292,9 @@
       // after it is a new session); autoRetry: its notice is the 10-second "back again" one;
       // autoFail: why the last run failed.
       autoTries: 0, autoDueAt: null, autoRetry: false, autoFail: null,
+      // autoTrace: the run's steps in the Keka tab, [[seconds since it started, step], …] (diagnostics);
+      // autoPrevTab: the tab to return to if the run's tab was brought to the front.
+      autoTrace: null, autoPrevTab: null,
     };
   }
 
@@ -568,9 +571,25 @@
   /** `dueAt`: when this run was due (kept from the first try, so a later clock-in is seen as a new session). */
   function autoStart(day, now, dueAt = now) {
     return {
-      ...day, autoStatus: 'running', autoStartedAt: now, autoTabId: null,
+      ...day, autoStatus: 'running', autoStartedAt: now, autoTabId: null, autoPrevTab: null, autoTrace: [[0, 'opened']],
       autoTries: (day.autoTries || 0) + 1, autoDueAt: day.autoDueAt != null ? day.autoDueAt : dueAt,
     };
+  }
+
+  /** A step the run's Keka tab reported, kept with its time (the last 16). */
+  function autoTraceStep(day, step, now) {
+    if (day.autoStatus !== 'running' || day.autoStartedAt == null) return day;
+    const at = Math.round((now - day.autoStartedAt) / 100) / 10;
+    return { ...day, autoTrace: [...(day.autoTrace || []), [at, String(step).slice(0, 160)]].slice(-16) };
+  }
+
+  /** Why a run that ran out of time failed, from how far its tab got. */
+  function autoTimeoutReason(trace) {
+    const steps = (trace || []).map(t => String(t[1]).split(/[\s:]/)[0]);
+    if (steps.includes('clicked')) return 'not-saved';
+    if (steps.includes('clicked-out')) return 'no-confirm-button';
+    if (steps.includes('asked')) return 'stalled';
+    return 'no-response';
   }
 
   /**
@@ -616,6 +635,9 @@
       case 'no-clock-out-button': return 'Keka\'s clock-out button didn\'t show up.';
       case 'no-confirm-button': return 'Keka\'s confirm button didn\'t show up.';
       case 'timeout': return 'Keka didn\'t confirm the clock-out.';
+      case 'not-saved': return 'It clicked Clock-out, but Keka didn\'t save it.';
+      case 'stalled': return 'Keka opened but didn\'t respond.';
+      case 'no-response': return 'The Keka tab didn\'t respond.';
       case 'asleep': return 'Your laptop was asleep.';
       case 'tries': return 'It tried 3 times.';
       case 'too-late': return 'You were away until it was too late to try again.';
@@ -632,7 +654,7 @@
   }
 
   function autoFinish(day, ok, now) {
-    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null };
+    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null, autoPrevTab: null };
   }
 
   function autoHeadsUp(ap, now) {
@@ -703,6 +725,7 @@
     shouldAnnounce, announcement, reminder, badge, autoAgainNotice,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoRearm, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
     AUTO_NOTICE_MS, AUTO_MAX_TRIES, AUTO_LATE_MS, AUTO_AWAKE_LEAD_MS, autoStillFor, autoAway, autoRetryBlock, autoRetryNow, autoFailText,
+    autoTraceStep, autoTimeoutReason,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

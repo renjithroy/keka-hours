@@ -115,6 +115,34 @@ async function closeTab(id) {
 }
 
 /**
+ * Close the run's tab. If it was brought to the front and is still the tab
+ * you're on, go back to the tab you were on before.
+ */
+async function closeAutoTab(day) {
+  const id = await ownTab(day);
+  let back = null;
+  if (id != null && day.autoPrevTab != null) {
+    try { if ((await chrome.tabs.get(id)).active) back = day.autoPrevTab; } catch (_) { /* gone */ }
+  }
+  await closeTab(id);
+  if (back != null) {
+    try { await chrome.tabs.update(back, { active: true }); } catch (_) { /* that tab is gone too */ }
+  }
+}
+
+/** Bring the run's tab to the front (Keka may not finish in a hidden tab); remember where you were. */
+async function showAutoTab(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  const [prev] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
+  await chrome.tabs.update(tabId, { active: true });
+  try {
+    const win = await chrome.windows.get(tab.windowId);
+    await chrome.windows.update(tab.windowId, win.state === 'minimized' ? { state: 'normal', focused: true } : { focused: true });
+  } catch (_) { /* best effort */ }
+  return prev && prev.id !== tabId ? prev.id : null;
+}
+
+/**
  * Auto clock-out bookkeeping for this step: finish a running one (Keka's data
  * shows the clock-out, or it timed out), show the heads-up, or start it.
  */
@@ -122,7 +150,7 @@ async function stepAuto(day, settings, now) {
   let ap = W.autoPlan(day, settings, now);
   if (ap.status === 'running') {
     const ok = W.autoClockedOut(day);
-    if (ok || now - day.autoStartedAt > W.AUTO_TIMEOUT_MS) day = await finishAuto(day, ok, now, ok ? undefined : 'timeout');
+    if (ok || now - day.autoStartedAt > W.AUTO_TIMEOUT_MS) day = await finishAuto(day, ok, now, ok ? undefined : W.autoTimeoutReason(day.autoTrace));
     ap = W.autoPlan(day, settings, now);
     if (ap.status !== 'away') return day;
   }
@@ -182,7 +210,7 @@ async function giveUpAuto(day, block, now) {
 }
 
 async function finishAuto(day, ok, now, note) {
-  await closeTab(await ownTab(day));
+  await closeAutoTab(day);
   if (!ok) {
     // Slept mid-run (its result is this late), or failed while the screen was locked
     // or idle: don't alert; it's retried when you're back (stepAuto).
@@ -384,6 +412,16 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       }, () => reply({ run: false }));
       return true;
     }
+    case 'wfh-auto-show': {
+      // The run's tab stalled in the background: bring it to the front once.
+      const tabId = sender.tab && sender.tab.id;
+      run(async day => {
+        if (day.autoStatus !== 'running' || tabId == null || (await ownTab(day)) !== tabId) return day;
+        const prev = await showAutoTab(tabId).catch(() => null);
+        return { ...day, autoPrevTab: prev };
+      }).then(() => reply({ ok: true }), () => reply({ ok: false }));
+      return true;
+    }
     case 'wfh-auto-go': {
       // The auto clock-out tab, about to click: still ours to clock out?
       autoGo(sender.tab && sender.tab.id).then(reply, () => reply({ go: true }));
@@ -395,9 +433,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (day.autoStatus !== 'running' || tabId == null || (await ownTab(day)) !== tabId) return day;
         if (msg.result === 'done' || msg.result === 'already-out') return finishAuto(day, true, now, msg.result);
         if (msg.result === 'failed') return finishAuto(day, false, now, typeof msg.reason === 'string' ? msg.reason : undefined);
+        if (msg.result === 'trace') return W.autoTraceStep(day, msg.step, now);
         if (msg.result === 'cancelled') {
           // Keka showed a newer clock-in: not ours to end. It re-arms for that clock-in.
-          await closeTab(await ownTab(day));
+          await closeAutoTab(day);
           return { ...W.autoFinish(day, false, now), autoFail: 'new-clock-in' };
         }
         return day; // 'clicked': wait for Keka's response (or the timeout)

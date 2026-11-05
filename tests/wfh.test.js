@@ -711,3 +711,19 @@ test('auto clock-out: Try again starts today\'s tries afresh; re-arm keeps the c
   assert.equal(re.autoTries, 2);
   assert.equal(re.autoDueAt, null);
 });
+
+test('auto clock-out trace: steps kept with their time while running; a timeout says how far it got', () => {
+  let d = W.autoStart(day(REAL), at('19:00'), at('19:00'));
+  assert.deepEqual(d.autoTrace, [[0, 'opened']]);
+  d = W.autoTraceStep(d, 'asked hidden geo:granted', at('19:00') + 3400);
+  d = W.autoTraceStep(d, 'button', at('19:00') + 5000);
+  assert.deepEqual(d.autoTrace.slice(1), [[3.4, 'asked hidden geo:granted'], [5, 'button']]);
+  assert.equal(W.autoTraceStep(W.autoFinish(d, false, at('19:02')), 'late', at('19:02')).autoTrace.length, 3, 'nothing added once finished');
+  for (let i = 0; i < 30; i++) d = W.autoTraceStep(d, `s${i}`, at('19:01'));
+  assert.equal(d.autoTrace.length, 16);
+  assert.equal(W.autoTimeoutReason(null), 'no-response');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [3, 'asked hidden geo:prompt']]), 'stalled');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [3, 'asked visible geo:granted'], [5, 'button'], [5, 'clicked-out']]), 'no-confirm-button');
+  assert.equal(W.autoTimeoutReason([[0, 'opened'], [5, 'clicked-out'], [6, 'clicked'], [21, 'shown']]), 'not-saved');
+  assert.equal(W.autoFailText('not-saved'), 'It clicked Clock-out, but Keka didn\'t save it.');
+});

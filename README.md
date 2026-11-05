@@ -117,9 +117,10 @@ on, and applies on every WFH day.
   If a run fails, **Try again** runs it again, after a fresh heads-up.
 - At the time, the extension opens Keka Attendance in a background tab, clicks **WFH Clock-out** and
   then **Clock-out** (Keka's own confirm), and closes the tab. Keka sends its usual request; the
-  extension never builds one or reads your login.
+  extension never builds one or reads your login. If Keka stalls while the tab is in the background,
+  the tab comes to the front once, then closes and you're back on the tab you were on.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
-  (signed out, different buttons, no response in 90 s), it stops and shows an on-screen alert to
+  (signed out, different buttons, no response in 2½ min), it stops and shows an on-screen alert to
   clock out yourself.
 - **Away when it should run** (laptop asleep, screen locked or off): no failure alert. When you're
   back, a notice says **Initiating auto clock-out** and it runs 10 seconds later (Skip today / +15 min
