@@ -249,13 +249,13 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-card { position: relative; border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); }
 /* Tracked | Total hours over WFH | Leave: one card, four cells. */
 .ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ov-cell { min-width: 0; padding: 12px 14px; }
+.ov-cell { min-width: 0; padding: 9px 14px; }
 .ov-cell:nth-child(odd) { border-right: 1px solid var(--cell-line); }
 .ov-cell:nth-child(-n+2) { border-bottom: 1px solid var(--cell-line); }
 .ov-k { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-k svg { flex: none; width: 15px; height: 15px; color: var(--subtle); }
-.ov-v { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
-.ov-v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.ov-v { margin-top: 2px; font-size: 18px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
+.ov-v small { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
 /* Today: In | Clock out | Left, with progress along the bottom edge. */
 .ov-day { position: relative; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); --tone: var(--brand); --tone-text: var(--brand-text); --tone-mid: color-mix(in srgb, var(--brand) 6%, var(--card)); }
 .ov-day.idle { --tone: var(--stub-hover); --tone-text: var(--subtle); --tone-mid: var(--card); }
@@ -287,7 +287,7 @@ svg { width: 100%; height: 100%; display: block; }
 .spark-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); }
 .ov-empty { flex: 1; display: grid; place-items: center; min-height: 68px; font-size: 13px; color: var(--subtle); }
 .spark-head b { font-size: 14px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
-.spark { position: relative; flex: 1; min-height: 68px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
+.spark { position: relative; flex: 1; min-height: 89px; margin-top: 12px; padding-right: 26px; display: flex; align-items: flex-end; gap: 3px; }
 .spark .bar { flex: 1 1 0; max-width: 20px; min-height: 3px; border-radius: 4px 4px 2px 2px; background: var(--bar); transition: background .14s ease; }
 .spark .bar.warn { background: var(--bar-warn); }
 .spark .bar:hover { background: var(--bar-hover); }
@@ -557,7 +557,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 @media (max-width: 480px) {
   .hero-value { font-size: 38px; } .ov-value { font-size: 44px; } .cal { --cell-h: 44px; } .cal.six { --cell-h: 38px; }
   .head { padding: 16px 14px 12px 16px; } .content { padding: 2px 16px 16px; } .ov-wave { left: -16px; right: -16px; }
-  .ov-cell { padding: 11px 12px; } .ov-v { font-size: 18.5px; } .tabs { margin: 0 16px 12px; }
+  .ov-cell { padding: 8px 12px; } .ov-v { font-size: 17px; } .tabs { margin: 0 16px 12px; }
 }
 `;
 
