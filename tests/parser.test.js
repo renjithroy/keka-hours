@@ -267,3 +267,28 @@ test('Actions card labels -> WFH clock state (from the saved Keka pages)', () =>
   assert.equal(P.clockStateFromLabels(['Work From Home', 'Attendance Policy']), null);
   assert.equal(P.clockStateFromLabels([]), null);
 });
+
+// ---------- WFH pending approval: today's WFH punches settle the day ----------
+test('applyWfhPunches: a WFH day pending approval (no hours in the table) becomes WFH, first in → last out', () => {
+  const { applyWfhPunches } = require('../src/content/parser.js');
+  const T = s => new Date(`2026-11-05T${s}`).getTime();
+  const days = [
+    { date: '2026-11-04', grossMinutes: 453, isWFH: false },
+    { date: '2026-11-05', grossMinutes: 0, isWFH: false, isIncomplete: false }, // "Work From Home Pending approval"
+  ];
+  const out = applyWfhPunches(days, '2026-11-05', [
+    { at: '2026-11-05T10:27:00', in: true }, { at: '2026-11-05T13:00:00', in: false },
+    { at: '2026-11-05T13:30:00', in: true }, { at: '2026-11-05T20:15:00', in: false },
+  ], T('21:00:00'));
+  assert.equal(out[0], days[0], 'other days untouched');
+  assert.equal(out[1].isWFH, true);
+  assert.equal(out[1].isIncomplete, false);
+  assert.equal(out[1].grossMinutes, 588, '10:27 → 8:15 PM (Keka counts from the first clock-in)');
+  // Still clocked in: up to now.
+  const live = applyWfhPunches(days, '2026-11-05', [{ at: '2026-11-05T10:27:00', in: true }], T('17:27:00'));
+  assert.equal(live[1].grossMinutes, 420);
+  assert.equal(live[1].isIncomplete, true);
+  // No clock-in, or today not in this view: nothing changes.
+  assert.equal(applyWfhPunches(days, '2026-11-05', [], T('12:00:00')), days);
+  assert.equal(applyWfhPunches(days, '2026-11-06', [{ at: '2026-11-06T10:00:00', in: true }], T('12:00:00')), days);
+});
