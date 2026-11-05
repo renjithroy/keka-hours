@@ -363,9 +363,11 @@
     });
     settings.onThemeChange(next => widget.setTheme(next));
     settings.onWfhChange(next => {
+      const punches = d => JSON.stringify(d ? [d.date, d.punches] : null);
+      const changed = next.day !== undefined && punches(next.day) !== punches(state.wfh.day);
       state.wfh = { ...state.wfh, ...next };
       widget.setWfh(state.wfh);
-      if (next.day) refresh(); // a WFH punch makes today a WFH day (Overview, chart, Plan)
+      if (changed) refresh(); // a WFH punch makes today a WFH day (Overview, chart, Plan)
     });
     settings.onHideWeekendsChange(next => widget.setHideWeekends(next));
     settings.onIncludeTodayChange(next => {

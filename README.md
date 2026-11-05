@@ -66,7 +66,8 @@ can't be read, the card follows your OS setting.
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
   stepping out for lunch doesn't count as a short finished day. Today's clock-out time is on the
   Overview. **Hide weekends** (next to the hours; on by default, remembered) shows Monday to Friday only;
-  weekend hours still count.
+  weekend hours still count, and a month with a weekend office day (worked, or planned) keeps its
+  weekends on screen.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,
@@ -126,8 +127,9 @@ on, and applies on every WFH day.
 - It confirms from Keka's response and tells you "Clocked out at 7:00 PM". If anything is off
   (signed out, different buttons, no response in 2½ min), it stops and shows an on-screen alert to
   clock out yourself.
-- **Away when it should run** (laptop asleep, screen locked or off): no failure alert. When you're
-  back, a notice says **Initiating auto clock-out** and it runs 10 seconds later (Skip today / +15 min
+- **Away when it should run** (laptop asleep, screen locked, or no input for 5 min): no failure
+  alert, and the clock-out reminder keeps going meanwhile. When you're back, a notice says
+  **Initiating auto clock-out** and it runs 10 seconds later (Skip today / +15 min
   from the notice). It retries only if you're still clocked in, it's the same day, there's time
   before the limit, and it hasn't tried 3 times today. Woken up the next day, it tells you to check
   Keka for a missed clock-out instead.

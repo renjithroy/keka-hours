@@ -292,3 +292,10 @@ test('applyWfhPunches: a WFH day pending approval (no hours in the table) become
   assert.equal(applyWfhPunches(days, '2026-11-05', [], T('12:00:00')), days);
   assert.equal(applyWfhPunches(days, '2026-11-06', [{ at: '2026-11-06T10:00:00', in: true }], T('12:00:00')), days);
 });
+
+test('review fixes: WFH hours are whole minutes (the view only changes once a minute)', () => {
+  const { applyWfhPunches } = require('../src/content/parser.js');
+  const days = [{ date: '2026-11-05', grossMinutes: 0 }];
+  const out = applyWfhPunches(days, '2026-11-05', [{ at: '2026-11-05T10:27:00', in: true }], new Date('2026-11-05T17:27:42').getTime());
+  assert.equal(out[0].grossMinutes, 420);
+});

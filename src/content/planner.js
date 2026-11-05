@@ -78,7 +78,7 @@
       if (settled) {
         const state = settledState(day, weekend);
         const minutes = state === 'worked' ? calc.wholeMinutes(day.grossMinutes) : null;
-        cells.push({ date, day: dd, isToday, state, minutes });
+        cells.push({ date, day: dd, isToday, weekend, state, minutes });
         if (isToday && state === 'worked' && !isPastMonth) todayCounted = { minutes, firstIn: day.firstIn || null };
         continue;
       }
@@ -93,7 +93,7 @@
       const plan = overrides[date] === 'office' || overrides[date] === 'away' ? overrides[date] : def;
       if (plan === 'office') remaining += 1;
       cells.push({
-        date, day: dd, isToday,
+        date, day: dd, isToday, weekend,
         state: plan === 'office' ? 'plan-office' : 'plan-away',
         overridden: plan !== def,
         reason: holiday ? 'Holiday' : knownOff || weekend ? 'Off' : '',
@@ -194,10 +194,15 @@
     const day = p.day || null;
     const wfh = p.wfh && p.wfh.state && p.wfh.state !== 'none' ? p.wfh : null;
 
+    const parsed = day && day.firstIn ? Date.parse(day.firstIn) : NaN;
+    const tableIn = Number.isFinite(parsed) ? parsed : null;
+    const gross = day && day.grossMinutes > 0 ? day.grossMinutes : 0;
+    const tableState = day && day.isIncomplete ? 'in' : gross > 0 ? 'out' : 'none';
     if (wfh || (day && day.isWFH) || cell.state === 'wfh') {
-      return punchCard({ wfh: true }, {
-        state: wfh ? wfh.state : 'none', firstIn: wfh ? wfh.firstIn : null, lastOut: wfh ? wfh.lastOut : null, required: target,
-      }, p.now);
+      // The WFH punches when we have them; else what Keka's table shows (an approved WFH day).
+      return punchCard({ wfh: true }, wfh
+        ? { state: wfh.state, firstIn: wfh.firstIn, lastOut: wfh.lastOut, required: target }
+        : { state: tableState, firstIn: tableIn, lastOut: tableState === 'out' && tableIn ? tableIn + gross * MIN : null, required: target }, p.now);
     }
     if (cell.state !== 'plan-office' && cell.state !== 'worked') {
       const reason = cell.state === 'leave' || (day && day.isLeave) ? 'leave'
@@ -208,11 +213,8 @@
       return { wfh: false, kind: 'off', reason, next: next ? next.date : null, nextRequired: next && plan.status === 'needed' ? plan.requiredPerDay : null };
     }
 
-    const parsed = day && day.firstIn ? Date.parse(day.firstIn) : NaN;
-    const firstIn = (plan.today && plan.today.firstIn) || (Number.isFinite(parsed) ? parsed : null);
-    const gross = day && day.grossMinutes > 0 ? day.grossMinutes : 0;
-    const clockedIn = !!(day && day.isIncomplete);
-    const state = clockedIn ? 'in' : gross > 0 ? 'out' : 'none';
+    const firstIn = (plan.today && plan.today.firstIn) || tableIn;
+    const state = tableState;
     // The month's average is already safe: any time works; when 9h comes, for reference.
     if (!plan.today) {
       return { wfh: false, kind: 'safe', state, firstIn, nineAt: firstIn ? firstIn + target * MIN : null, pct: firstIn ? Math.min(1, (p.now - firstIn) / (target * MIN)) : 0 };

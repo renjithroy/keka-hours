@@ -294,7 +294,7 @@
       autoTries: 0, autoDueAt: null, autoRetry: false, autoFail: null,
       // autoTrace: the run's steps in the Keka tab, [[seconds since it started, step], …] (diagnostics);
       // autoPrevTab: the tab to return to if the run's tab was brought to the front.
-      autoTrace: null, autoPrevTab: null,
+      autoTrace: null, autoPrevTab: null, autoPrevMin: false,
     };
   }
 
@@ -506,7 +506,7 @@
     if (day.autoAgain && day.autoAgain.for === p.lastIn) return day;
     const ap = autoPlan(day, settings, now);
     const ranAt = day.autoDueAt != null ? day.autoDueAt : day.autoStartedAt != null ? day.autoStartedAt : ap.at;
-    const ranBefore = ['done', 'failed', 'expired'].includes(ap.status) && p.lastIn > ranAt;
+    const ranBefore = ['done', 'failed', 'expired'].includes(ap.status) && p.lastIn >= ranAt;
     if (!ranBefore && ap.status !== 'late-start') return day;
     const at = Math.min(p.lastIn + AUTO_AGAIN_MS, autoAgainCap(p));
     if (at - Math.max(now, p.lastIn) < AUTO_HEADS_UP_MS) return day; // too close to the limit to warn first
@@ -638,6 +638,7 @@
       case 'not-saved': return 'It clicked Clock-out, but Keka didn\'t save it.';
       case 'stalled': return 'Keka opened but didn\'t respond.';
       case 'no-response': return 'The Keka tab didn\'t respond.';
+      case 'missed': return 'It was due while you were away.';
       case 'asleep': return 'Your laptop was asleep.';
       case 'tries': return 'It tried 3 times.';
       case 'too-late': return 'You were away until it was too late to try again.';
@@ -653,15 +654,32 @@
     return ps.state === 'out' && ps.lastOut != null && ps.lastOut >= day.autoStartedAt - 2 * MIN;
   }
 
-  function autoFinish(day, ok, now) {
-    return { ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null, autoPrevTab: null };
+  /** End today's run: done (at `now`, or when Keka shows it happened), or failed with `fail` (why). */
+  function autoFinish(day, ok, now, fail) {
+    return {
+      ...day, autoStatus: ok ? 'done' : 'failed', autoDoneAt: ok ? now : null, autoTabId: null, autoPrevTab: null, autoPrevMin: false,
+      autoFail: ok ? null : fail !== undefined ? fail : day.autoFail || null,
+    };
+  }
+
+  /**
+   * Keka's data shows a clock-out made by today's run (while it ran: from 2 min
+   * before it started to its time limit): it worked even though its tab never
+   * confirmed it. A clock-out after that is yours (say, from the phone).
+   */
+  function autoOutByRun(day) {
+    if (day.autoStartedAt == null) return null;
+    const ps = punchState(day);
+    if (ps.state !== 'out' || ps.lastOut == null) return null;
+    return ps.lastOut >= day.autoStartedAt - 2 * MIN && ps.lastOut <= day.autoStartedAt + AUTO_TIMEOUT_MS + MIN ? ps.lastOut : null;
   }
 
   function autoHeadsUp(ap, now) {
     // Back after a run that couldn't happen: the short "initiating" notice.
     if (ap.retry && now != null && ap.at - now <= MIN) {
       const seconds = Math.max(1, Math.round((ap.at - now) / 1000));
-      return { title: 'Initiating auto clock-out', message: `In ${seconds} seconds. It couldn't run while you were away.` };
+      const why = ap.fail && ap.fail !== 'missed' ? ' It couldn\'t run while you were away.' : '';
+      return { title: 'Initiating auto clock-out', message: `In ${seconds} seconds.${why}` };
     }
     const minutes = now == null ? 5 : Math.max(1, Math.round((ap.at - now) / MIN));
     return {
@@ -725,7 +743,7 @@
     shouldAnnounce, announcement, reminder, badge, autoAgainNotice,
     AUTO_TIMEOUT_MS, addMinutes, autoFor, autoPlan, autoRearm, autoPostpone, autoSkipToday, autoUnskip, autoDeferForHeadsUp, autoPostponeMinutes, autoReset, autoStart, autoClockedOut, autoFinish, autoHeadsUp,
     AUTO_NOTICE_MS, AUTO_MAX_TRIES, AUTO_LATE_MS, AUTO_AWAKE_LEAD_MS, autoStillFor, autoAway, autoRetryBlock, autoRetryNow, autoFailText,
-    autoTraceStep, autoTimeoutReason,
+    autoTraceStep, autoTimeoutReason, autoOutByRun,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else (root.KekaHours = root.KekaHours || {}).wfh = api;

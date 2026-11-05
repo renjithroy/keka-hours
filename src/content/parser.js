@@ -349,7 +349,7 @@
     const firstIn = list.find(p => p.in);
     if (!firstIn || !Array.isArray(days) || !days.some(d => d.date === todayKey)) return days;
     const last = list[list.length - 1];
-    const minutes = Math.max(0, ((last.in ? now : last.at) - firstIn.at) / 60000);
+    const minutes = Math.max(0, Math.floor(((last.in ? now : last.at) - firstIn.at) / 60000));
     return days.map(d => (d.date === todayKey
       ? { ...d, isWFH: true, isIncomplete: last.in, grossMinutes: Math.max(d.grossMinutes || 0, minutes) }
       : d));

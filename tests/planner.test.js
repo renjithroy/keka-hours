@@ -242,3 +242,14 @@ test('today card: average already safe → any time; a long day shows Keka\'s 12
   assert.equal(over.kind, 'too-late');
   assert.equal(over.shortMs, 40 * MIN);
 });
+
+test('review fixes: an approved WFH day without punches yet uses the table\'s time; cells know week-ends', () => {
+  const days = octoberDays();
+  const wfhDay = day('2026-10-28', 300, { isWFH: true, isIncomplete: true, firstIn: '2026-10-28T10:00:00' });
+  const plan = planMonth({ monthKey: '2026-10', todayKey: '2026-10-28', days: [...days, wfhDay] });
+  const c = todayCard({ plan, todayKey: '2026-10-28', day: wfhDay, wfh: null, now: T('15:00') });
+  assert.equal(c.wfh, true);
+  assert.equal(c.kind, 'in');
+  assert.equal(c.leaveAt, T('19:00'), 'a 9h day from the table\'s first clock-in');
+  assert.deepEqual(plan.cells.filter(x => x.weekend).map(x => x.day), [3, 4, 10, 11, 17, 18, 24, 25, 31]);
+});

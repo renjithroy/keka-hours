@@ -76,6 +76,14 @@ async function userActive() {
   try { return (await chrome.idle.queryState(60)) === 'active'; } catch (_) { return true; }
 }
 
+/**
+ * Away: the screen is locked, or nothing was typed or clicked for 5 min (the
+ * screen has likely turned off). A minute without input (a call, reading) isn't.
+ */
+async function userAway() {
+  try { return (await chrome.idle.queryState(300)) !== 'active'; } catch (_) { return false; }
+}
+
 const online = () => !(self.navigator && self.navigator.onLine === false);
 
 /** Keep the system from idle-sleeping (the screen may still turn off) while an auto clock-out is near. */
@@ -121,25 +129,39 @@ async function closeTab(id) {
 async function closeAutoTab(day) {
   const id = await ownTab(day);
   let back = null;
-  if (id != null && day.autoPrevTab != null) {
-    try { if ((await chrome.tabs.get(id)).active) back = day.autoPrevTab; } catch (_) { /* gone */ }
+  let windowId = null;
+  if (id != null && (day.autoPrevTab != null || day.autoPrevMin)) {
+    try {
+      const tab = await chrome.tabs.get(id);
+      windowId = tab.windowId;
+      if (tab.active) back = day.autoPrevTab;
+    } catch (_) { /* gone */ }
   }
   await closeTab(id);
   if (back != null) {
     try { await chrome.tabs.update(back, { active: true }); } catch (_) { /* that tab is gone too */ }
   }
+  // It was brought up from a minimized window: put the window back.
+  if (day.autoPrevMin && windowId != null) {
+    try { await chrome.windows.update(windowId, { state: 'minimized' }); } catch (_) { /* closed with the tab */ }
+  }
 }
 
-/** Bring the run's tab to the front (Keka may not finish in a hidden tab); remember where you were. */
+/**
+ * Bring the run's tab to the front (Keka may not finish in a hidden tab).
+ * Returns where you were: { prevTab, minimized } so closing it can put things back.
+ */
 async function showAutoTab(tabId) {
   const tab = await chrome.tabs.get(tabId);
   const [prev] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
   await chrome.tabs.update(tabId, { active: true });
+  let minimized = false;
   try {
     const win = await chrome.windows.get(tab.windowId);
-    await chrome.windows.update(tab.windowId, win.state === 'minimized' ? { state: 'normal', focused: true } : { focused: true });
+    minimized = win.state === 'minimized';
+    await chrome.windows.update(tab.windowId, minimized ? { state: 'normal', focused: true } : { focused: true });
   } catch (_) { /* best effort */ }
-  return prev && prev.id !== tabId ? prev.id : null;
+  return { prevTab: prev && prev.id !== tabId ? prev.id : null, minimized };
 }
 
 /**
@@ -154,11 +176,12 @@ async function stepAuto(day, settings, now) {
     ap = W.autoPlan(day, settings, now);
     if (ap.status !== 'away') return day;
   }
-  // Warned and due, but its time is long gone: the laptop slept (or Chrome was
-  // closed) through it. Don't fire it the moment you wake: treat it as missed
-  // while away, so it gets the checks and the short notice below.
-  if (ap.status === 'due' && day.autoHeadsUpFor === ap.at && now - ap.at > W.AUTO_LATE_MS) {
-    day = W.autoAway(day, ap.at, 'asleep');
+  // Due, but its time is long gone: the laptop slept (or Chrome was closed)
+  // through it, or Try again / Undo came after it. Don't fire it at a locked
+  // screen the moment the laptop wakes: wait until you're here, with the checks
+  // and the short notice below.
+  if (ap.status === 'due' && now - ap.at > W.AUTO_LATE_MS) {
+    day = W.autoAway(day, ap.at, day.autoHeadsUpFor === ap.at ? 'asleep' : 'missed');
     ap = W.autoPlan(day, settings, now);
   }
   if (ap.status === 'away') {
@@ -203,7 +226,13 @@ const failedAlert = reason => ({
  * (it re-arms for that) end it quietly; 3 tries, or too close to the end, alert.
  */
 async function giveUpAuto(day, block, now) {
-  const done = { ...W.autoFinish(day, false, now), autoFail: block === 'out' ? day.autoFail : block };
+  // Clocked out after all, by the run itself (its tab just never confirmed it): it worked.
+  const outAt = block === 'out' ? W.autoOutByRun(day) : null;
+  if (outAt != null) {
+    await notify(N_AUTO_RESULT, { title: `Clocked out at ${W.timeLabel(outAt)}`, message: 'Keka Hours clocked you out of Keka (WFH).' }, false);
+    return { ...W.autoFinish(day, true, now), autoDoneAt: outAt };
+  }
+  const done = W.autoFinish(day, false, now, block === 'out' ? undefined : block);
   if (block === 'out' || block === 'new-clock-in') return done;
   await notify(N_AUTO_FAILED, failedAlert(block), true, [{ title: 'Open Keka' }]);
   return { ...done, lastShownAt: now };
@@ -215,9 +244,9 @@ async function finishAuto(day, ok, now, note) {
     // Slept mid-run (its result is this late), or failed while the screen was locked
     // or idle: don't alert; it's retried when you're back (stepAuto).
     const slept = now - day.autoStartedAt > W.AUTO_TIMEOUT_MS + W.AUTO_LATE_MS;
-    if (slept || !(await userActive())) return W.autoAway(day, day.autoStartedAt, slept ? 'asleep' : note);
+    if (slept || (await userAway())) return W.autoAway(day, day.autoStartedAt, slept ? 'asleep' : note);
   }
-  const done = { ...W.autoFinish(day, ok, now), autoFail: ok ? null : note || 'timeout' };
+  const done = W.autoFinish(day, ok, now, ok ? undefined : note || 'timeout');
   if (ok) {
     await notify(N_AUTO_RESULT, {
       title: note === 'already-out' ? 'You were already clocked out' : `Clocked out at ${W.timeLabel(now)}`,
@@ -258,7 +287,9 @@ async function step(change, opts = {}) {
   if (stale) {
     // A new day began. If yesterday's auto clock-out was still running (e.g. the
     // laptop slept mid-run), close its tab and say it didn't finish.
-    if (stale.autoStatus === 'running' || (stale.autoStatus === 'away' && W.punchState(stale).state === 'in')) {
+    // (A run waiting for you counts only if it wasn't skipped or switched off meanwhile.)
+    const waited = stale.autoStatus === 'away' && W.autoPlan(stale, settings, now).status === 'away' && W.punchState(stale).state === 'in';
+    if (stale.autoStatus === 'running' || waited) {
       await closeTab(await ownTab(stale));
       await notify(N_AUTO_FAILED, {
         title: 'Auto clock-out didn\'t finish',
@@ -279,7 +310,8 @@ async function step(change, opts = {}) {
   const auto = W.autoPlan(day, settings, now);
   let announced = false;
   // The heads-up / running clock-out / failure alert already say it all: don't also nag.
-  const autoBusy = auto.status === 'heads-up' || auto.status === 'running' || auto.status === 'away' || (auto.status === 'failed' && ['running', 'away'].includes(autoBefore));
+  // A retry waiting for you doesn't hold the reminder back: it's the safety net while you're away.
+  const autoBusy = auto.status === 'heads-up' || auto.status === 'running' || (auto.status === 'failed' && ['running', 'away'].includes(autoBefore));
 
   if (plan.due && !autoBusy) {
     // Clear first so the OS pops it up again rather than silently updating it.
@@ -417,8 +449,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       const tabId = sender.tab && sender.tab.id;
       run(async day => {
         if (day.autoStatus !== 'running' || tabId == null || (await ownTab(day)) !== tabId) return day;
-        const prev = await showAutoTab(tabId).catch(() => null);
-        return { ...day, autoPrevTab: prev };
+        const was = await showAutoTab(tabId).catch(() => null);
+        return { ...day, autoPrevTab: was ? was.prevTab : null, autoPrevMin: !!(was && was.minimized) };
       }).then(() => reply({ ok: true }), () => reply({ ok: false }));
       return true;
     }
@@ -437,7 +469,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         if (msg.result === 'cancelled') {
           // Keka showed a newer clock-in: not ours to end. It re-arms for that clock-in.
           await closeAutoTab(day);
-          return { ...W.autoFinish(day, false, now), autoFail: 'new-clock-in' };
+          return W.autoFinish(day, false, now, 'new-clock-in');
         }
         return day; // 'clicked': wait for Keka's response (or the timeout)
       });
