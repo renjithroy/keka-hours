@@ -136,6 +136,8 @@
             monthKey: view.monthKey || null,
             summary: calculator.calculateSummary(overviewDays, state.targetMinutes),
             todayInView,
+            // Today's own row (office time so far, first clock-in): Overview's Today card.
+            todayDay: view.days.find(d => d.date === todayKey) || null,
             includeToday: state.includeToday,
             plan: view.monthKey ? planner.planMonth({
               monthKey: view.monthKey,

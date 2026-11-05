@@ -16,7 +16,7 @@ Everything runs locally in your browser. Nothing is sent anywhere.
     <th>WFH</th>
   </tr>
   <tr>
-    <td><img src="docs/overview.png" alt="Overview tab: average office hours per day (9h 28m, up 28m vs 9h), tracked days and total hours, daily-hours chart, WFH and leave days" width="280"></td>
+    <td><img src="docs/overview.png" alt="Overview tab: average office hours per day (9h 30m, up 30m vs 9h); Today: in 9:48 AM, clock out 6:18 PM, 1h 03m left; tracked days, total hours, WFH and leave days; daily-hours chart for October" width="280"></td>
     <td><img src="docs/plan.png" alt="Plan tab: month calendar with hours worked per day" width="280"></td>
     <td><img src="docs/wfh.png" alt="WFH tab: Today (clocked in, reminder in 1h 13m, auto clock-out in 1h 43m) and Every WFH day (reminder on at 6:30 PM, auto clock-out on at 7:00 PM)" width="280"></td>
   </tr>
@@ -44,8 +44,13 @@ Keka. The moon/sun button in the card's header overrides it. The override is rem
 between Keka tabs) until you pick Keka's mode again or change Keka's display mode. If Keka's mode
 can't be read, the card follows your OS setting.
 
-- **Overview**: the average with how far it is above or below 9h; tracked days, total hours, WFH and
-  leave days in one card; and a daily-hours chart for the whole month (green ≥ 9h, amber < 9h, striped
+- **Overview**: the average with how far it is above or below 9h; **Today**: when you clocked in,
+  when you can clock out (your first clock-in plus the time the Plan needs today; breaks don't move it,
+  as Keka's gross hours run from the first clock-in) and how long is left, with progress along the
+  bottom. A WFH day is a plain 9h day (it isn't counted). It turns green once you're done, shows
+  "Paused" while you're clocked out, warns near Keka's 12h limit, says "Any time" once the month is
+  safe, and on leave / holidays / week-offs shows the next office day instead. Then tracked days,
+  total hours, WFH and leave days in one card; and a daily-hours chart for the whole month (green ≥ 9h, amber < 9h, striped
   WFH; weekdays to come are empty columns, today's tinted green; dates at the start, middle and end; hover a bar for its hours).
   Click the ⓘ next to "Office hours avg this month" to see every day behind it in a pop-up: date,
   type (office / WFH / leave / week-off…) and hours, with counted days highlighted, and
@@ -59,10 +64,8 @@ can't be read, the card follows your OS setting.
   Keka-known holidays don't. Tap any upcoming day to switch it between office and away
   (WFH / leave / off). Your choices are saved locally per month. Today stays a remaining office
   day until you turn on **Include today** (the same switch as Overview's) after clocking out, so
-  stepping out for lunch doesn't count as a short finished day. Either way, on an office day the
-  strip above the calendar shows how long to sit today and, once you've clocked in, when you can
-  clock out (your first clock-in plus that time) with a countdown: "Today · sit 8h 39m · clock out
-  at 6:39 PM · 1h 22m left". Breaks don't move it: Keka's gross hours run from the first clock-in.
+  stepping out for lunch doesn't count as a short finished day. Today's clock-out time is on the
+  Overview.
 - **WFH**: **Today** shows whether you're clocked in (after a break: your latest clock-in, and when
   the day started) and when the reminder and auto clock-out come, with snooze / stop / skip buttons
   when they apply. **Every WFH day** has a row for each,

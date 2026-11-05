@@ -8,6 +8,7 @@
 
   const fmt = root.KekaHours.format;
   const W = root.KekaHours.wfh;
+  const planner = root.KekaHours.planner;
   const HOST_ID = 'keka-hours-extension';
 
   const ICON_CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -253,8 +254,31 @@ svg { width: 100%; height: 100%; display: block; }
 .ov-k svg { flex: none; width: 15px; height: 15px; color: var(--subtle); }
 .ov-v { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
 .ov-v small { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
-.ov-today { margin-top: 12px; padding: 9px 12px; border-radius: 11px; background: var(--brand-soft); font-size: 13px; color: var(--brand-text); }
-.ov-today b { font-weight: 700; }
+/* Today: In | Clock out | Left, with progress along the bottom edge. */
+.ov-day { position: relative; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--card-line); border-radius: 14px; background: var(--card); box-shadow: var(--card-shadow); --tone: var(--brand); --tone-text: var(--brand-text); --tone-mid: color-mix(in srgb, var(--brand) 6%, var(--card)); }
+.ov-day.idle { --tone: var(--stub-hover); --tone-text: var(--subtle); --tone-mid: var(--card); }
+.ov-day.good { --tone: var(--bar); --tone-text: var(--good); --tone-mid: color-mix(in srgb, var(--good-soft) 60%, var(--card)); }
+.ov-day.paused { --tone: var(--guide); --tone-text: var(--subtle); --tone-mid: var(--card); }
+.ov-day.warn { --tone: var(--bar-warn); --tone-text: var(--warn); --tone-mid: color-mix(in srgb, var(--warn-soft) 60%, var(--card)); }
+.ov-day-c { min-width: 0; padding: 10px 12px 12px; }
+.ov-day-c:first-child { padding-left: 14px; }
+.ov-day-c:last-child { padding-right: 14px; }
+.ov-day-c + .ov-day-c { border-left: 1px solid var(--cell-line); }
+.ov-day-c.mid { background: var(--tone-mid); }
+.ov-day-k { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-day-k .dot { width: 7px; height: 7px; background: var(--tone); }
+.ov-day-v { margin-top: 3px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-day-c.mid .ov-day-v, .ov-day-c.end .ov-day-v { color: var(--tone-text); }
+.ov-day.idle .ov-day-c.mid .ov-day-v { color: var(--text); }
+.ov-day-tag { flex: none; padding: 0 5px; border-radius: 5px; background: var(--off-soft); color: var(--off-text); font-size: 10.5px; font-weight: 600; line-height: 16px; }
+.ov-day-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--cell-line); }
+.ov-day-bar span { display: block; height: 100%; background: var(--tone); transition: width .3s ease; }
+/* Nothing to sit today: as tall as the card above, so the card never changes height. */
+.ov-day-off { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 68px; padding: 0 14px; border-radius: 14px; background: var(--surface); }
+.ov-day-off .t { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.ov-day-off .t .dot { width: 7px; height: 7px; background: var(--stub-hover); }
+.ov-day-off .s { padding-left: 14px; font-size: 12px; color: var(--subtle); }
+[data-today]:not(:empty) { position: relative; margin-bottom: 12px; }
 
 /* Daily hours: fills the space left by the taller Plan tab. */
 .ov-chart { flex: 1; display: flex; flex-direction: column; margin-top: 14px; padding: 14px 16px 12px; }
@@ -341,6 +365,12 @@ svg { width: 100%; height: 100%; display: block; }
 .switch[aria-checked="true"] .track { background: var(--brand); }
 .switch .thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .25); transition: transform .22s cubic-bezier(.3,.9,.3,1); }
 .switch[aria-checked="true"] .thumb { transform: translateX(12px); }
+/* Include today: a small plain toggle (it's a rarely used setting). */
+.switch.mini { gap: 6px; height: 22px; padding: 0; background: none; font-size: 11.5px; font-weight: 500; color: var(--subtle); }
+.switch.mini[aria-checked="true"] { background: none; color: var(--brand-text); }
+.switch.mini .track { width: 22px; height: 13px; }
+.switch.mini .thumb { width: 9px; height: 9px; box-shadow: none; }
+.switch.mini[aria-checked="true"] .thumb { transform: translateX(9px); }
 .eyebrow { font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .hero-value { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.035em; }
@@ -387,15 +417,6 @@ svg { width: 100%; height: 100%; display: block; }
 .plan-sub { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .plan-sub b { color: var(--text); font-weight: 600; }
 .hero-value.word { font-size: 34px; }
-.today-strip { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px 11px; border-radius: 11px; background: var(--brand-soft); font-size: 12.5px; color: var(--brand-text); }
-.today-strip .tdot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
-/* While the clock-out countdown runs, the dot pulses like the WFH tab's clocked-in dot. */
-.today-strip.live .tdot { box-shadow: none; }
-.today-strip.live .tdot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--brand); animation: kh-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; }
-.today-strip b { font-weight: 700; white-space: nowrap; }
-.today-strip .ttext { flex: 1; min-width: 0; }
-.today-strip .tleft { flex: none; font-weight: 700; white-space: nowrap; }
-.today-strip .tleft.done { color: var(--good); }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .cal-h { padding-bottom: 2px; font-size: 11.5px; font-weight: 600; color: var(--subtle); text-align: center; }
 .cal-cell { position: relative; height: 48px; min-width: 0; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text); transition: transform .12s ease, border-color .12s ease, background .12s ease; }
@@ -551,7 +572,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
   function includeSwitchHtml(on, tab = 'overview') {
     return `
       <div class="has-tip">
-        <button class="switch" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip-${tab}">
+        <button class="switch mini" type="button" role="switch" data-act="include-today" aria-checked="${on}" aria-describedby="include-tip-${tab}">
           <span>Include today</span><span class="track"><span class="thumb"></span></span>
         </button>
         <div class="tip end" role="tooltip" id="include-tip-${tab}">Use after clock-out, once today shows in the table</div>
@@ -642,13 +663,14 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
         </div>
       </div>
 
+      <div data-today></div>
+
       <div class="ov-card ov-grid">
         ${cell(ICON_CAL, 'Tracked', days(s.trackedDays), trackedLabel)}
         ${cell(ICON_TIMER, 'Total hours', fmt.duration(s.totalMinutes))}
         ${cell(ICON_HOUSE, 'WFH', days(s.wfhDays), 'WFH days aren’t counted in the average')}
         ${cell(ICON_PLANE, 'Leave', days(s.leaveDays), 'Leave days aren’t counted in the average')}
       </div>
-      ${s.pendingToday ? `<div class="ov-today">Today <b>${fmt.duration(s.pendingToday.grossMinutes)}</b> so far — counted once you clock out.</div>` : ''}
 
       ${sparkHtml(s, m)}`;
   }
@@ -794,27 +816,54 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
       </div>`;
   }
 
-  /** "2h 05m left" / "45m left" until a time `ms` from now; "done" once it has passed. */
-  function leftLabel(ms) {
-    const m = Math.ceil(ms / 60000);
-    if (m <= 0) return 'done';
-    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m left` : `${m}m left`;
+  /** 125 min -> "2h 05m", 9 -> "9m" (time left / over, in the Today card). */
+  function shortDuration(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60000));
+    return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m` : `${m}m`;
   }
 
-  /** Today in the Plan: the time to sit today and, once clocked in, when you can clock out and how long that is. */
-  function todayHtml(p) {
-    const td = p.today;
-    if (!td) return '';
-    let text = `Today · sit <b>${fmt.duration(td.requiredMinutes)}</b>`;
-    let left = '';
-    let live = false;
-    if (td.leaveAt) {
-      text += ` · clock out at <b>${fmt.timeOfDay(td.leaveAt)}</b>`;
-      const ms = td.leaveAt - Date.now();
-      live = ms > 0;
-      left = `<span class="tleft${ms <= 0 ? ' done' : ''}" data-until="${td.leaveAt}" title="${fmt.timeOfDay(td.firstIn)} first clock-in + ${fmt.duration(td.requiredMinutes)}">${leftLabel(ms)}</span>`;
+  /**
+   * Overview's Today card (design T4): In | Clock out | Left, with progress along
+   * the bottom edge; a slim line on days with nothing to sit. `c` = planner.todayCard().
+   */
+  function todayCardHtml(c) {
+    if (!c) return '';
+    const t = fmt.timeOfDay;
+    if (c.kind === 'off') {
+      const what = { leave: 'On leave today', holiday: 'Holiday today', 'week-off': 'Week-off today', away: 'Not an office day' }[c.reason] || 'Day off';
+      const next = c.next ? `Next office day ${fmt.dayDate(c.next)}${c.nextRequired ? ` · sit ${fmt.duration(c.nextRequired)}` : ''}` : 'No more office days this month';
+      return `<div class="ov-day-off"><div class="t"><span class="dot"></span>${esc(what)} · nothing to sit</div><div class="s">${esc(next)}</div></div>`;
     }
-    return `<div class="today-strip${live ? ' live' : ''}"><span class="tdot"></span><span class="ttext">${text}</span>${left}</div>`;
+    const sit = c.required != null ? fmt.duration(c.required) : '';
+    let tone = 'live';
+    let cells;
+    switch (c.kind) {
+      case 'not-in': tone = 'idle'; cells = [['Not in yet', '—'], ['Sit today', sit], ['Clock out', 'once in']]; break;
+      case 'in-unknown': tone = 'idle'; cells = [['In', '—'], ['Sit today', sit], ['Clock out', '—']]; break;
+      case 'in':
+        if (c.long) { tone = 'warn'; cells = [['In', t(c.firstIn)], [`Out · ${sit}`, t(c.leaveAt)], ['Limit', t(c.limitAt)]]; } else cells = [['In', t(c.firstIn)], ['Clock out', t(c.leaveAt)], ['Left', shortDuration(c.leftMs)]];
+        break;
+      case 'too-late': tone = 'warn'; cells = [['In', t(c.firstIn)], ['Clock out by', t(c.limitAt)], ['Short', shortDuration(c.shortMs)]]; break;
+      case 'done': tone = 'good'; cells = [['In', t(c.firstIn)], ['Clock out', t(c.leaveAt)], ['Done', `+${shortDuration(c.overMs)}`]]; break;
+      case 'out': tone = 'paused'; cells = [['Out since', t(c.lastOut)], ['Clock out', t(c.leaveAt)], ['Status', 'Paused']]; break;
+      case 'out-done': tone = 'good'; cells = [['Out at', t(c.lastOut)], ['Clock out', t(c.leaveAt)], ['Done', `+${shortDuration(c.overMs)}`]]; break;
+      case 'safe':
+        tone = 'good';
+        cells = [[c.firstIn ? 'In' : 'Not in yet', c.firstIn ? t(c.firstIn) : '—'], ['Clock out', 'Any time'], ['9h at', c.nineAt ? t(c.nineAt) : '—']];
+        break;
+      default: return '';
+    }
+    const why = c.kind === 'safe' ? 'This month’s average is safe: leave any time.'
+      : c.firstIn && c.leaveAt ? `First clock-in ${t(c.firstIn)} + ${sit}${c.wfh ? ' (a 9h WFH day, not counted in the average)' : ''} = ${t(c.leaveAt)}. Breaks don’t move it.`
+        : c.wfh ? 'A 9h WFH day (not counted in the average).' : `Sit ${sit} today to keep the month on track.`;
+    const pct = Math.round((c.pct || 0) * 100);
+    const cls = ['', ' mid', ' end'];
+    const tag = c.wfh ? '<span class="ov-day-tag">WFH</span>' : '';
+    return `
+      <div class="ov-day ${tone}" title="${esc(why)}">
+        ${cells.map(([k, v], i) => `<div class="ov-day-c${cls[i]}"><div class="ov-day-k">${i === 0 ? '<span class="dot"></span>' : ''}${esc(k)}${i === 0 ? tag : ''}</div><div class="ov-day-v">${esc(v)}</div></div>`).join('')}
+        <div class="ov-day-bar" role="img" aria-label="${pct}% of today’s time"><span style="width:${pct}%"></span></div>
+      </div>`;
   }
 
   function cellHtml(c, p) {
@@ -857,7 +906,6 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const target = fmt.duration(p.targetMinutes).replace(' 00m', '');
     return `
       ${planHeroHtml(p, p.cells.some(c => c.isToday) ? includeSwitchHtml(!!includeToday, 'plan') : '')}
-      ${todayHtml(p)}
       <div class="cal${p.firstWeekday + p.daysInMonth > 35 ? ' six' : ''}" role="grid" aria-label="${esc(fmt.monthName(p.monthKey))} plan">
         ${WEEK_HEAD.map(h => `<div class="cal-h">${h}</div>`).join('')}
         ${blanks}${p.cells.map(c => cellHtml(c, p)).join('')}
@@ -1566,6 +1614,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           <div class="pane" data-pane="wfh">${keep ? '' : wfhHtml(wfhState, Date.now(), wfhForm)}</div>
         </div>`;
       if (keep) { content.querySelector('[data-pane="wfh"]').replaceWith(keep); wfhPending = true; }
+      paintToday();
       showTab();
       restoreFocus(content, key);
     }
@@ -1605,19 +1654,28 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
 
     /** Once a minute: the Plan's "2h 05m left" countdown, and the WFH tab. */
     function tick() {
-      for (const el of content.querySelectorAll('[data-until]')) {
-        const ms = Number(el.getAttribute('data-until')) - Date.now();
-        el.textContent = leftLabel(ms);
-        el.classList.toggle('done', ms <= 0);
-        const strip = el.closest('.today-strip');
-        if (strip) strip.classList.toggle('live', ms > 0); // the dot stops pulsing once it's time
-      }
+      paintToday();
       renderWfh();
     }
 
     function setWfh(next) {
       wfhState = next || { settings: null, day: null };
+      paintToday();
       renderWfh();
+    }
+
+    /** Overview's Today card from the model (office time, the plan) and the worker's WFH punches. */
+    function paintToday() {
+      const slot = expanded && content.querySelector('[data-today]');
+      if (!slot || !model || model.state !== 'ok') return;
+      const now = Date.now();
+      const raw = wfhState.day;
+      const wfh = raw && raw.date === model.todayKey ? W.punchState(raw) : null;
+      const card = model.todayInView && model.plan
+        ? planner.todayCard({ plan: model.plan, todayKey: model.todayKey, day: model.todayDay, wfh, now })
+        : null;
+      const html = todayCardHtml(card);
+      if (slot.innerHTML !== html) slot.innerHTML = html;
     }
 
     /** Today's day state for the shared rules (an empty day if none yet). */
