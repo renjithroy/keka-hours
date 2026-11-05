@@ -68,8 +68,8 @@
   --card-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 16px -10px rgba(15, 23, 42, .14);
   --wave: .16;
   --cell-line: #eef2f6;
-  --future-line: #cbd3dd;
-  --future-off: #eef1f5;
+  --track: #f3f5f8;
+  --track-hover: #e9edf2;
   --wfh-a: #d5dce5;
   --wfh-b: #edf1f5;
   --wfh-hover-a: #b9c3cf;
@@ -132,8 +132,8 @@
   --card-shadow: none;
   --wave: .22;
   --cell-line: #252d37;
-  --future-line: #3d4855;
-  --future-off: #232a33;
+  --track: #212831;
+  --track-hover: #2a323c;
   --wfh-a: #38424f;
   --wfh-b: #232a33;
   --wfh-hover-a: #4b5766;
@@ -273,17 +273,17 @@ svg { width: 100%; height: 100%; display: block; }
 .spark .bar.stub:hover { background: var(--stub-hover); }
 .spark .bar.live { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand-line); }
 .spark .bar.live:hover { background: var(--brand-soft); }
-/* Days still to come this month: an outlined mark (week-offs a faint one); today a green mark. */
-.spark .bar.future { height: 6px; min-height: 0; border-radius: 2px; background: transparent; box-shadow: inset 0 0 0 1px var(--future-line); }
-.spark .bar.future-off { height: 4px; min-height: 0; border-radius: 2px; background: var(--future-off); }
-.spark .bar.today-slot { height: 6px; min-height: 0; border-radius: 3px; background: var(--brand); }
-.spark .bar.future:hover, .spark .bar.future-off:hover, .spark .bar.today-slot:hover { filter: brightness(.92); }
-.spark .bar.future:hover { background: transparent; box-shadow: inset 0 0 0 1px var(--subtle); }
-.spark .bar.future-off:hover { background: var(--future-off); }
-.spark .bar.today-slot:hover { background: var(--brand); }
+/* Days still to come this month: an empty full-height column (week-ends left as a gap); today's is tinted green. */
+.spark .bar.future, .spark .bar.today-slot { height: 100%; min-height: 0; border-radius: 4px; background: var(--track); }
+.spark .bar.future-off { height: 0; min-height: 0; background: none; }
+.spark .bar.today-slot { background: var(--brand-soft); }
+.spark .bar.future:hover { background: var(--track-hover); }
+.spark .bar.today-slot:hover { background: var(--brand-soft); filter: brightness(.96); }
 .spark .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--guide); pointer-events: none; }
 .spark .line span { position: absolute; right: 0; top: -8px; line-height: 14px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--card); padding-left: 5px; }
-.spark-foot { display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
+.spark-foot { position: relative; display: flex; justify-content: space-between; margin-top: 7px; padding-right: 26px; font-size: 12px; color: var(--muted); }
+/* The middle date, under its own column. */
+.spark-foot .mid { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .hero { padding: 6px 0 16px; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 /* Plan is the tallest tab: its switch overlaps the hero's padding, so the card doesn't grow. */
@@ -659,8 +659,8 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
    * their hours as a striped grey bar (not counted); leave, holidays,
    * week-offs and no-time days are a short grey stub; today while clocked in
    * is a dashed outline. In the current month the rest of the month follows
-   * (`monthTail`), so each day keeps its place: today a green mark, days to come
-   * an outlined one (week-ends fainter).
+   * (`monthTail`), so each day keeps its place: days to come are empty
+   * full-height columns (week-ends a gap), today's tinted green.
    */
   function sparkHtml(s, m = {}) {
     const days = s.allDays && s.allDays.length ? s.allDays : (s.includedDays || []).map(d => ({ ...d, kind: 'included' }));
@@ -699,6 +699,11 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
     const last = fmt.dayDate(all[all.length - 1]).split(', ')[1];
     const counted = s.trackedDays;
     const toCome = tail.length ? `, ${tail.length} still to come` : '';
+    // A month's worth of columns: also label the middle day (15 Nov), centred under its column.
+    const mid = all.length >= 15 ? Math.floor((all.length - 1) / 2) : -1;
+    const midLabel = mid > 0
+      ? `<span class="mid" style="left:calc((100% - 26px) * ${((mid + 0.5) / all.length).toFixed(4)})">${esc(fmt.dayDate(all[mid]).split(', ')[1])}</span>`
+      : '';
     return `
       <div class="ov-card ov-chart">
         <div class="spark-head"><b>Daily hours</b><span>${days.length ? `${counted} of ${dayCount(days.length)} counted` : 'No days yet'}</span></div>
@@ -706,7 +711,7 @@ button.cal-cell:hover { transform: translateY(-1px); border-color: var(--brand);
           ${bars}
           <div class="line" style="bottom:${y(s.targetMinutes).toFixed(1)}%"><span>${target}</span></div>
         </div>
-        <div class="spark-foot"><span>${esc(first)}</span><span>${all.length > 1 ? esc(last) : ''}</span></div>
+        <div class="spark-foot"><span>${esc(first)}</span>${midLabel}<span>${all.length > 1 ? esc(last) : ''}</span></div>
       </div>`;
   }
 

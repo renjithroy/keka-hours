@@ -46,7 +46,7 @@ can't be read, the card follows your OS setting.
 
 - **Overview**: the average with how far it is above or below 9h; tracked days, total hours, WFH and
   leave days in one card; and a daily-hours chart for the whole month (green ≥ 9h, amber < 9h, striped
-  WFH; today marked green, days to come outlined; hover a bar for its hours).
+  WFH; weekdays to come are empty columns, today's tinted green; dates at the start, middle and end; hover a bar for its hours).
   Click the ⓘ next to "Office hours avg this month" to see every day behind it in a pop-up: date,
   type (office / WFH / leave / week-off…) and hours, with counted days highlighted, and
   total ÷ counted days. The list scrolls for long months.
